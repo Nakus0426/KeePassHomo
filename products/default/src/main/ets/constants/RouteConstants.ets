@@ -1,17 +1,3 @@
-/**
- * Route constants for Router.
- */
-/**
- * Route of page for the ResponsiveLayout.
- */
-export const RESPONSIVE_ROUTE: string = 'pages/ResponsiveIndex';
+export const INDEX_ROUTE: string = 'pages/Index'
 
-/**
- * Route of page for the AdaptiveLayout.
- */
-export const ADAPTIVE_ROUTE: string = 'pages/AdaptiveIndex';
-
-/**
- * Route of page for the SystemCapabilities.
- */
-export const SYSTEM_CAPABILITIES_ROUTE: string = 'pages/SystemCapabilitiesIndex';
+export const SYSTEM_VALIDATION_ROUTE: string = 'pages/SystemValidation'

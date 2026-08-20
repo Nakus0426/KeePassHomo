@@ -2,7 +2,7 @@
   "module": {
     "name": "default",
     "type": "entry",
-    "description": "$string:module_desc",
+    "description": "$string:default_module_desc",
     "mainElement": "DefaultAbility",
     "deviceTypes": [
       "phone",
@@ -11,6 +11,20 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.FILE_ACCESS_PERSIST"
+      },
+      {
+        "name": "ohos.permission.PRIVACY_WINDOW"
+      },
+      {
+        "name": "ohos.permission.ACCESS_BIOMETRIC"
+      },
+      {
+        "name": "ohos.permission.INTERNET"
+      }
+    ],
     "abilities": [
       {
         "name": "DefaultAbility",
@@ -30,20 +44,6 @@
             ]
           }
         ]
-      }
-    ],
-    "extensionAbilities": [
-      {
-        "name": "DefaultBackupAbility",
-        "srcEntry": "./ets/defaultbackupability/DefaultBackupAbility.ets",
-        "type": "backup",
-        "exported": false,
-        "metadata": [
-          {
-            "name": "ohos.extension.backup",
-            "resource": "$profile:backup_config"
-          }
-        ],
       }
     ]
   }

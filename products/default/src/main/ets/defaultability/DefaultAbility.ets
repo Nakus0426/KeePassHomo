@@ -1,49 +1,48 @@
 import { ConfigurationConstant, UIAbility } from '@kit.AbilityKit'
-import { hilog } from '@kit.PerformanceAnalysisKit'
 import { window } from '@kit.ArkUI'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { Logger } from '@ohos/common'
 
-const DOMAIN = 0x0000
+const logger: Logger = new Logger()
 
 export default class DefaultAbility extends UIAbility {
   onCreate(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate')
+    AppStorage.setOrCreate<boolean>('privacyCovered', true)
+    logger.info('应用创建')
   }
 
   onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy')
+    logger.info('应用销毁')
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate')
-
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err))
+        logger.error(`页面加载失败，错误码：${err.code}`)
         return
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.')
+      const mainWindow: window.Window = windowStage.getMainWindowSync()
+      mainWindow.setWindowPrivacyMode(true).catch((privacyError: BusinessError) => {
+        logger.error(`隐私模式启用失败，错误码：${privacyError.code}`)
+      })
     })
 
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
     } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err))
+      logger.error('跟随系统颜色模式失败')
     }
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy')
+    logger.info('窗口销毁')
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground')
+    AppStorage.setOrCreate<boolean>('privacyCovered', false)
   }
 
   onBackground(): void {
-    // Ability has back to background
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground')
+    AppStorage.setOrCreate<boolean>('privacyCovered', true)
   }
 }

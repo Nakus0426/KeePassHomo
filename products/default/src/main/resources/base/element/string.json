@@ -1,36 +1,144 @@
 {
   "string": [
     {
-      "name": "module_desc",
-      "value": "module description"
+      "name": "default_module_desc",
+      "value": "KeePassHomo 密码保险库"
     },
     {
       "name": "ability_desc",
-      "value": "description"
+      "value": "KeePassHomo 主窗口"
     },
     {
-      "name": "grid_title_label",
-      "value": "title"
+      "name": "app_title",
+      "value": "KeePassHomo"
     },
     {
-      "name": "adaptive_layout",
-      "value": "adaptive layout"
+      "name": "stage_zero_title",
+      "value": "KDBX 技术闸门"
     },
     {
-      "name": "system_cap",
-      "value": "system capabilities"
+      "name": "select_kdbx",
+      "value": "选择本地 KDBX"
     },
     {
-      "name": "responsive_layout",
-      "value": "responsive layout"
+      "name": "master_password",
+      "value": "主密码"
     },
     {
-      "name": "location_cap_invalid",
-      "value": "This device does not have the system capability of location service"
+      "name": "select_key_file",
+      "value": "选择密钥文件（可选）"
     },
     {
-      "name": "location_cap_valid",
-      "value": "This device has the system capability of location service"
+      "name": "run_verification",
+      "value": "执行往返验证"
+    },
+    {
+      "name": "verifying",
+      "value": "正在验证"
+    },
+    {
+      "name": "stage_zero_file_ready",
+      "value": "文件已选择并申请持久授权"
+    },
+    {
+      "name": "stage_zero_input_required",
+      "value": "请选择 KDBX 并输入主密码"
+    },
+    {
+      "name": "stage_zero_running",
+      "value": "正在解锁、写回并重新验证"
+    },
+    {
+      "name": "stage_zero_success",
+      "value": "打开、修改、安全写回和重新解锁验证成功"
+    },
+    {
+      "name": "privacy_cover",
+      "value": "保险库已遮挡"
+    },
+    {
+      "name": "open_system_validation",
+      "value": "继续验证系统能力"
+    },
+    {
+      "name": "system_validation_title",
+      "value": "系统能力技术闸门"
+    },
+    {
+      "name": "back_to_kdbx",
+      "value": "返回 KDBX 验证"
+    },
+    {
+      "name": "kdbx_compatibility_section",
+      "value": "KDBX 兼容性"
+    },
+    {
+      "name": "verify_kdbx_compatibility",
+      "value": "验证格式、组合凭据和错误分类"
+    },
+    {
+      "name": "local_file_section",
+      "value": "本地文件"
+    },
+    {
+      "name": "sample_password",
+      "value": "新建样本主密码"
+    },
+    {
+      "name": "create_kdbx_sample",
+      "value": "创建并重新解锁 KDBX 样本"
+    },
+    {
+      "name": "select_relocation_source",
+      "value": "选择待重新定位的 KDBX"
+    },
+    {
+      "name": "relocate_kdbx",
+      "value": "重新定位并核对副本"
+    },
+    {
+      "name": "verify_file_boundaries",
+      "value": "验证文件可写、授权失效与空间错误"
+    },
+    {
+      "name": "security_section",
+      "value": "本机安全能力"
+    },
+    {
+      "name": "verify_local_unlock",
+      "value": "验证系统认证与安全存储"
+    },
+    {
+      "name": "verify_clipboard",
+      "value": "验证剪贴板条件清除"
+    },
+    {
+      "name": "webdav_section",
+      "value": "WebDAV"
+    },
+    {
+      "name": "webdav_url",
+      "value": "HTTPS KDBX 资源地址"
+    },
+    {
+      "name": "webdav_username",
+      "value": "用户名（可选）"
+    },
+    {
+      "name": "webdav_password",
+      "value": "密码（可选）"
+    },
+    {
+      "name": "verify_webdav",
+      "value": "验证 PROPFIND、TLS 与版本标识"
+    },
+    {
+      "name": "otp_section",
+      "value": "动态口令"
+    },
+    {
+      "name": "scan_otpauth",
+      "value": "扫描 otpauth 二维码"
     }
   ]
 }

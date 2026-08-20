@@ -1,23 +1,22 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 export class Logger {
-  private readonly prefix: string = 'testTag';
-  private readonly domain: number = 0xFF00;
-  private readonly format: string = '%{public}s, %{public}s';
+  private readonly prefix: string = 'KeePassHomo'
+  private readonly domain: number = 0xD001
 
-  public debug(...args: string[]): void {
-    hilog.debug(this.domain, this.prefix, this.format, args);
+  public debug(message: string): void {
+    hilog.debug(this.domain, this.prefix, '%{public}s', message)
   }
 
-  public info(...args: string[]): void {
-    hilog.info(this.domain, this.prefix, this.format, args);
+  public info(message: string): void {
+    hilog.info(this.domain, this.prefix, '%{public}s', message)
   }
 
-  public warn(...args: string[]): void {
-    hilog.warn(this.domain, this.prefix, this.format, args);
+  public warn(message: string): void {
+    hilog.warn(this.domain, this.prefix, '%{public}s', message)
   }
 
-  public error(...args: string[]): void {
-    hilog.error(this.domain, this.prefix, this.format, args);
+  public error(message: string): void {
+    hilog.error(this.domain, this.prefix, '%{public}s', message)
   }
 }

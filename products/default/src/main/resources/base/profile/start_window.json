@@ -2,7 +2,5 @@
   "startWindowType": "REQUIRED_SHOW",
   "startWindowColorModeType": "FOLLOW_SYSTEM",
   "startWindowAppIcon": "$media:launch_icon",
-  "startWindowBackgroundColor": "$color:start_window_background",
-  "startWindowBackgroundImage": "$media:launch_background",
-  "startWindowBackgroundImageFit": "Cover"
+  "startWindowBackgroundColor": "$color:start_window_background"
 }
