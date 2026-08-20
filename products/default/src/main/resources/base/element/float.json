@@ -21,6 +21,14 @@
       "value": "8vp"
     },
     {
+      "name": "radius_16",
+      "value": "16vp"
+    },
+    {
+      "name": "radius_24",
+      "value": "24vp"
+    },
+    {
       "name": "control_height",
       "value": "48vp"
     },
@@ -35,6 +43,22 @@
     {
       "name": "text_title",
       "value": "30fp"
+    },
+    {
+      "name": "text_caption",
+      "value": "13fp"
+    },
+    {
+      "name": "content_max_width",
+      "value": "680vp"
+    },
+    {
+      "name": "dialog_width",
+      "value": "340vp"
+    },
+    {
+      "name": "icon_large",
+      "value": "72vp"
     }
   ]
 }

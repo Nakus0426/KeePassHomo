@@ -13,6 +13,7 @@ export {
   AuditFinding,
   VaultField,
   VaultEntry,
+  VaultEntryInput,
   VaultGroup,
   VaultDocument,
   VaultEngine,
@@ -37,6 +38,15 @@ export { StageZeroKdbxVerifier, KdbxVerificationResult } from './src/main/ets/va
 export { StageZeroFileBoundaryVerifier } from './src/main/ets/vault/StageZeroFileBoundaryVerifier'
 
 export { SecureClipboard, ClipboardWriteToken } from './src/main/ets/security/SecureClipboard'
+
+export {
+  PasswordGenerator,
+  MemorableCase,
+  RandomPasswordOptions,
+  MemorablePasswordOptions,
+  PinOptions,
+  PasswordStrength,
+} from './src/main/ets/security/PasswordGenerator'
 
 export { LocalUnlockMaterialStore } from './src/main/ets/security/LocalUnlockMaterialStore'
 

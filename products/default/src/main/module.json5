@@ -10,6 +10,12 @@
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
+    "metadata": [
+      {
+        "name": "ohos.arkui.UIMaterial.state",
+        "value": "enable"
+      }
+    ],
     "pages": "$profile:main_pages",
     "requestPermissions": [
       {

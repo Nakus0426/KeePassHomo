@@ -6,7 +6,7 @@
     },
     {
       "name": "brand_primary",
-      "value": "#176B5B"
+      "value": "#0A59F7"
     },
     {
       "name": "action_primary",
@@ -35,6 +35,26 @@
     {
       "name": "status_error",
       "value": "#B42318"
+    },
+    {
+      "name": "background_primary",
+      "value": "#F5F6F8"
+    },
+    {
+      "name": "background_secondary",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "surface_brand",
+      "value": "#E4EDFD"
+    },
+    {
+      "name": "divider",
+      "value": "#DDE1E6"
+    },
+    {
+      "name": "text_on_brand",
+      "value": "#FFFFFF"
     }
   ]
 }

@@ -49,7 +49,10 @@
 - 公共能力：`common`
 - 自适应布局：`features/adaptiveLayout`
 - 响应式布局：`features/responsiveLayout`
-- 状态管理：优先使用 ArkUI 状态管理能力及项目现有 `AppStorage` 模式
+- 状态管理：新增页面、组件和 ViewModel 必须优先使用状态管理 V2，包括 `@ComponentV2`、`@ObservedV2`、`@Trace`、`@Local`、
+  `@Param`、`@Event`、`@Monitor`、`@Computed`、`AppStorageV2` 和 `PersistenceV2`
+- 只有在 API 26 下确认状态管理 V2 无法满足具体场景，并记录官方依据、限制和影响后，才允许局部使用状态管理
+  V1；禁止因沿用旧代码或开发便利而新增 V1 状态，禁止无边界混用 V1 与 V2
 - 系统能力：优先使用 `@kit.*` 模块，不使用已废弃接口
 - 日志：使用 `hilog`，禁止使用临时打印替代正式日志
 - 资源：使用 HarmonyOS 资源系统及 `$r(...)` 引用

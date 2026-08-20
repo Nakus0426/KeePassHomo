@@ -1,11 +1,12 @@
 import {
-  Kdbx, KdbxCredentials, KdbxEntry, KdbxGroup, KdbxError, ProtectedValue,
+  Kdbx, KdbxCredentials, KdbxCustomDataMap, KdbxEntry, KdbxGroup, KdbxError, ProtectedValue,
 } from 'kdbxweb'
 import {
   VaultCredential,
   VaultDocument,
   VaultEngine,
   VaultEntry,
+  VaultEntryInput,
   VaultField,
   VaultFormat,
   VaultGroup,
@@ -13,6 +14,8 @@ import {
 
 const KDBX_SIGNATURE_1: number = 0x9AA2D903
 const KDBX_SIGNATURE_2: number = 0xB54BFB67
+const FAVORITE_KEY: string = 'KeePassHomo.Favorite'
+const ARCHIVED_KEY: string = 'KeePassHomo.Archived'
 
 export enum VaultEngineErrorCategory {
   InvalidFile = 'invalidFile',
@@ -63,7 +66,7 @@ function toFormat(data: ArrayBuffer): VaultFormat {
 
 function fieldValue(field: string | ProtectedValue): VaultField {
   if (field instanceof ProtectedValue) {
-    return { name: '', protected: true, value: '' }
+    return { name: '', protected: true, value: field.getText() }
   }
   return { name: '', protected: false, value: field }
 }
@@ -76,6 +79,16 @@ function readVisibleField(entry: KdbxEntry, name: string): string {
   return field
 }
 
+function groupPath(group: KdbxGroup | undefined): string {
+  const names: string[] = []
+  let current: KdbxGroup | undefined = group
+  while (current !== undefined) {
+    names.unshift(current.name ?? '')
+    current = current.parentGroup
+  }
+  return names.filter((name: string) => name.length > 0).join(' / ')
+}
+
 function mapEntry(entry: KdbxEntry): VaultEntry {
   const fields: VaultField[] = []
   entry.fields.forEach((field: string | ProtectedValue, name: string) => {
@@ -86,21 +99,30 @@ function mapEntry(entry: KdbxEntry): VaultEntry {
   return {
     uuid: entry.uuid.id,
     title: readVisibleField(entry, 'Title'),
+    groupUuid: entry.parentGroup?.uuid.id ?? '',
+    groupName: entry.parentGroup?.name ?? '',
+    groupPath: groupPath(entry.parentGroup),
     fields,
     historyCount: entry.history.length,
     attachmentCount: entry.binaries.size,
     tags: entry.tags,
+    favorite: entry.customData?.get(FAVORITE_KEY)?.value === 'true',
+    archived: entry.customData?.get(ARCHIVED_KEY)?.value === 'true',
+    lastModifiedAt: entry.lastModTime,
   }
 }
 
-function mapGroup(group: KdbxGroup): VaultGroup {
+function mapGroup(group: KdbxGroup, parentPath: string = ''): VaultGroup {
+  const name: string = group.name === undefined ? '' : group.name
+  const path: string = parentPath.length === 0 ? name : `${parentPath} / ${name}`
   const groups: VaultGroup[] = []
-  group.groups.forEach((child: KdbxGroup) => groups.push(mapGroup(child)))
+  group.groups.forEach((child: KdbxGroup) => groups.push(mapGroup(child, path)))
   const entries: VaultEntry[] = []
   group.entries.forEach((entry: KdbxEntry) => entries.push(mapEntry(entry)))
   return {
     uuid: group.uuid.id,
-    name: group.name === undefined ? '' : group.name,
+    name,
+    path,
     groups,
     entries,
   }
@@ -153,6 +175,54 @@ export class KdbxVaultEngine implements VaultEngine {
     const document: VaultDocument = mapDocument(kdbx)
     this.documents.set(document, kdbx)
     return document
+  }
+
+  createEntry(document: VaultDocument, input: VaultEntryInput): VaultEntry {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const group: KdbxGroup | undefined = kdbx.getGroup(input.groupUuid)
+    if (group === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    const entry: KdbxEntry = kdbx.createEntry(group)
+    this.writeLoginFields(entry, input)
+    const mapped: VaultEntry = mapEntry(entry)
+    const mappedGroup: VaultGroup | undefined = this.findMappedGroup(document.groups, group.uuid.id)
+    if (mappedGroup === undefined) {
+      throw new Error('保险库分组映射不存在')
+    }
+    mappedGroup.entries.push(mapped)
+    return mapped
+  }
+
+  updateEntry(document: VaultDocument, entryUuid: string, input: VaultEntryInput): VaultEntry {
+    this.requireWritable(document)
+    const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    const targetGroup: KdbxGroup | undefined = this.getKdbx(document).getGroup(input.groupUuid)
+    if (targetGroup === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    entry.pushHistory()
+    if (entry.parentGroup?.uuid.id !== targetGroup.uuid.id) {
+      this.getKdbx(document).move(entry, targetGroup)
+    }
+    this.writeLoginFields(entry, input)
+    const mapped: VaultEntry = mapEntry(entry)
+    if (!this.replaceMappedEntry(document.groups, mapped)) {
+      throw new Error('保险库条目映射不存在')
+    }
+    return mapped
+  }
+
+  setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry {
+    return this.setEntryFlag(document, entryUuid, FAVORITE_KEY, favorite)
+  }
+
+  setEntryArchived(document: VaultDocument, entryUuid: string, archived: boolean): VaultEntry {
+    return this.setEntryFlag(document, entryUuid, ARCHIVED_KEY, archived)
   }
 
   setEntryField(document: VaultDocument, entryUuid: string, name: string, value: string,
@@ -337,5 +407,60 @@ export class KdbxVaultEngine implements VaultEngine {
       }
     }
     return undefined
+  }
+
+  private writeLoginFields(entry: KdbxEntry, input: VaultEntryInput): void {
+    entry.setField('Title', input.title)
+    entry.setField('UserName', input.username)
+    entry.setField('Password', input.password, true)
+    entry.setField('URL', input.url)
+    entry.setField('Notes', input.notes)
+    entry.tags = input.tags
+  }
+
+  private setEntryFlag(document: VaultDocument, entryUuid: string, key: string, enabled: boolean): VaultEntry {
+    this.requireWritable(document)
+    const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    entry.pushHistory()
+    if (entry.customData === undefined) {
+      entry.customData = new Map() as KdbxCustomDataMap
+    }
+    entry.customData.set(key, { value: enabled ? 'true' : 'false', lastModified: new Date() })
+    entry.times.update()
+    const mapped: VaultEntry = mapEntry(entry)
+    if (!this.replaceMappedEntry(document.groups, mapped)) {
+      throw new Error('保险库条目映射不存在')
+    }
+    return mapped
+  }
+
+  private findMappedGroup(groups: VaultGroup[], groupUuid: string): VaultGroup | undefined {
+    for (const group of groups) {
+      if (group.uuid === groupUuid) {
+        return group
+      }
+      const child: VaultGroup | undefined = this.findMappedGroup(group.groups, groupUuid)
+      if (child !== undefined) {
+        return child
+      }
+    }
+    return undefined
+  }
+
+  private replaceMappedEntry(groups: VaultGroup[], replacement: VaultEntry): boolean {
+    for (const group of groups) {
+      const index: number = group.entries.findIndex((entry: VaultEntry) => entry.uuid === replacement.uuid)
+      if (index >= 0) {
+        group.entries[index] = replacement
+        return true
+      }
+      if (this.replaceMappedEntry(group.groups, replacement)) {
+        return true
+      }
+    }
+    return false
   }
 }

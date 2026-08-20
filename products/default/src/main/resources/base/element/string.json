@@ -139,6 +139,490 @@
     {
       "name": "scan_otpauth",
       "value": "扫描 otpauth 二维码"
+    },
+    {
+      "name": "preparing_vault",
+      "value": "正在准备保险库"
+    },
+    {
+      "name": "retry",
+      "value": "重试"
+    },
+    {
+      "name": "error_details",
+      "value": "查看错误详情"
+    },
+    {
+      "name": "welcome_title",
+      "value": "你的密码，由你保管"
+    },
+    {
+      "name": "welcome_description",
+      "value": "数据保存在你的 KDBX 文件中，本应用不要求账号"
+    },
+    {
+      "name": "create_vault",
+      "value": "创建新保险库"
+    },
+    {
+      "name": "open_local_vault",
+      "value": "打开本地 KDBX"
+    },
+    {
+      "name": "connect_webdav",
+      "value": "连接 WebDAV"
+    },
+    {
+      "name": "not_available_current_stage",
+      "value": "此来源将在 WebDAV 阶段开放"
+    },
+    {
+      "name": "vault_name",
+      "value": "保险库名称"
+    },
+    {
+      "name": "personal_vault",
+      "value": "个人保险库"
+    },
+    {
+      "name": "save_location",
+      "value": "保存位置"
+    },
+    {
+      "name": "choose_save_location",
+      "value": "选择保存位置"
+    },
+    {
+      "name": "confirm_password",
+      "value": "确认主密码"
+    },
+    {
+      "name": "generate_password_suggestion",
+      "value": "生成主密码建议"
+    },
+    {
+      "name": "password_saved_ack",
+      "value": "我已妥善保存生成的主密码"
+    },
+    {
+      "name": "password_weak",
+      "value": "强度：较弱"
+    },
+    {
+      "name": "password_medium",
+      "value": "强度：一般"
+    },
+    {
+      "name": "password_strong",
+      "value": "强度：较强"
+    },
+    {
+      "name": "password_mismatch",
+      "value": "两次输入的主密码不一致"
+    },
+    {
+      "name": "key_file_warning",
+      "value": "遗失密钥文件将无法打开保险库"
+    },
+    {
+      "name": "create_summary",
+      "value": "创建摘要"
+    },
+    {
+      "name": "format_kdbx4",
+      "value": "格式：KDBX 4.x"
+    },
+    {
+      "name": "with_key_file",
+      "value": "凭据：主密码 + 密钥文件"
+    },
+    {
+      "name": "without_key_file",
+      "value": "凭据：仅主密码"
+    },
+    {
+      "name": "creating",
+      "value": "正在创建"
+    },
+    {
+      "name": "back",
+      "value": "返回"
+    },
+    {
+      "name": "continue_action",
+      "value": "继续"
+    },
+    {
+      "name": "file_summary",
+      "value": "文件摘要"
+    },
+    {
+      "name": "read_only",
+      "value": "只读"
+    },
+    {
+      "name": "writable",
+      "value": "可写"
+    },
+    {
+      "name": "reselect_file",
+      "value": "重新选择文件"
+    },
+    {
+      "name": "unlock_vault",
+      "value": "解锁保险库"
+    },
+    {
+      "name": "local_file",
+      "value": "本地文件"
+    },
+    {
+      "name": "show",
+      "value": "显示"
+    },
+    {
+      "name": "hide",
+      "value": "隐藏"
+    },
+    {
+      "name": "unlocking",
+      "value": "正在解锁"
+    },
+    {
+      "name": "wrong_credential",
+      "value": "凭据不正确或文件无法解密"
+    },
+    {
+      "name": "choose_another_vault",
+      "value": "切换保险库"
+    },
+    {
+      "name": "vault_home",
+      "value": "保险库"
+    },
+    {
+      "name": "lock",
+      "value": "锁定"
+    },
+    {
+      "name": "all_entries",
+      "value": "全部条目"
+    },
+    {
+      "name": "no_entries",
+      "value": "保险库还是空的"
+    },
+    {
+      "name": "no_entries_description",
+      "value": "创建第一个登录条目，密码会保存在当前 KDBX 文件中"
+    },
+    {
+      "name": "new_entry",
+      "value": "新建条目"
+    },
+    {
+      "name": "choose_template",
+      "value": "选择模板"
+    },
+    {
+      "name": "login_template",
+      "value": "登录"
+    },
+    {
+      "name": "login_template_description",
+      "value": "网站或应用账号"
+    },
+    {
+      "name": "credit_card_template",
+      "value": "银行卡"
+    },
+    {
+      "name": "secure_note_template",
+      "value": "安全笔记"
+    },
+    {
+      "name": "identity_template",
+      "value": "身份信息"
+    },
+    {
+      "name": "wifi_template",
+      "value": "Wi-Fi"
+    },
+    {
+      "name": "license_template",
+      "value": "软件许可证"
+    },
+    {
+      "name": "not_available",
+      "value": "暂不可用"
+    },
+    {
+      "name": "entry_title",
+      "value": "标题"
+    },
+    {
+      "name": "username",
+      "value": "用户名"
+    },
+    {
+      "name": "password",
+      "value": "密码"
+    },
+    {
+      "name": "website",
+      "value": "网址"
+    },
+    {
+      "name": "notes",
+      "value": "备注"
+    },
+    {
+      "name": "tags",
+      "value": "标签（逗号分隔）"
+    },
+    {
+      "name": "group",
+      "value": "分组"
+    },
+    {
+      "name": "default_group",
+      "value": "默认分组"
+    },
+    {
+      "name": "generate",
+      "value": "生成"
+    },
+    {
+      "name": "save",
+      "value": "保存"
+    },
+    {
+      "name": "saving",
+      "value": "正在保存"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "edit",
+      "value": "编辑"
+    },
+    {
+      "name": "copy",
+      "value": "复制"
+    },
+    {
+      "name": "unsaved_title",
+      "value": "尚未保存修改"
+    },
+    {
+      "name": "unsaved_message",
+      "value": "保存修改、放弃修改，或继续编辑"
+    },
+    {
+      "name": "discard",
+      "value": "放弃修改"
+    },
+    {
+      "name": "continue_editing",
+      "value": "继续编辑"
+    },
+    {
+      "name": "copied_countdown",
+      "value": "已复制，将在 %d 秒后清除"
+    },
+    {
+      "name": "password_hidden",
+      "value": "••••••••••••"
+    },
+    {
+      "name": "read_only_explanation",
+      "value": "当前保险库以只读方式打开，不能新增或编辑条目"
+    },
+    {
+      "name": "required_fields",
+      "value": "请填写标题和密码"
+    },
+    {
+      "name": "upgrade_required",
+      "value": "此保险库使用 KDBX 3.1，当前以只读方式打开"
+    },
+    {
+      "name": "upgrade_description",
+      "value": "升级前必须先保存完整备份。备份失败时不会修改原文件。"
+    },
+    {
+      "name": "backup_and_upgrade",
+      "value": "创建备份并升级"
+    },
+    {
+      "name": "upgrading",
+      "value": "正在备份并升级"
+    },
+    {
+      "name": "upgrade_success",
+      "value": "已升级为 KDBX 4，备份文件：%s"
+    },
+    {
+      "name": "search_vault",
+      "value": "搜索标题、用户名、网址、备注或标签"
+    },
+    {
+      "name": "favorites",
+      "value": "收藏"
+    },
+    {
+      "name": "archived",
+      "value": "归档"
+    },
+    {
+      "name": "groups",
+      "value": "分组"
+    },
+    {
+      "name": "no_results",
+      "value": "没有匹配条目"
+    },
+    {
+      "name": "add_favorite",
+      "value": "收藏"
+    },
+    {
+      "name": "remove_favorite",
+      "value": "取消收藏"
+    },
+    {
+      "name": "archive_entry",
+      "value": "归档条目"
+    },
+    {
+      "name": "restore_entry",
+      "value": "恢复条目"
+    },
+    {
+      "name": "password_generator",
+      "value": "密码生成器"
+    },
+    {
+      "name": "random_password",
+      "value": "随机"
+    },
+    {
+      "name": "memorable_password",
+      "value": "易记"
+    },
+    {
+      "name": "pin_code",
+      "value": "PIN"
+    },
+    {
+      "name": "password_length_value",
+      "value": "密码长度：%d"
+    },
+    {
+      "name": "include_uppercase",
+      "value": "包含大写字母"
+    },
+    {
+      "name": "include_lowercase",
+      "value": "包含小写字母"
+    },
+    {
+      "name": "include_digits",
+      "value": "包含数字"
+    },
+    {
+      "name": "include_symbols",
+      "value": "包含符号"
+    },
+    {
+      "name": "exclude_similar",
+      "value": "排除易混淆字符"
+    },
+    {
+      "name": "minimum_digits_value",
+      "value": "最少数字：%d"
+    },
+    {
+      "name": "minimum_symbols_value",
+      "value": "最少符号：%d"
+    },
+    {
+      "name": "word_count_value",
+      "value": "单词数量：%d"
+    },
+    {
+      "name": "separator",
+      "value": "分隔符"
+    },
+    {
+      "name": "no_separator",
+      "value": "无"
+    },
+    {
+      "name": "letter_case",
+      "value": "字母大小写"
+    },
+    {
+      "name": "lowercase",
+      "value": "小写"
+    },
+    {
+      "name": "capitalize",
+      "value": "首字母"
+    },
+    {
+      "name": "uppercase",
+      "value": "大写"
+    },
+    {
+      "name": "append_number",
+      "value": "末尾追加数字"
+    },
+    {
+      "name": "pin_length_value",
+      "value": "PIN 长度：%d"
+    },
+    {
+      "name": "avoid_pin_patterns",
+      "value": "避开连续和相邻重复数字"
+    },
+    {
+      "name": "generator_strength",
+      "value": "估算强度：%s（约 %d 位熵）"
+    },
+    {
+      "name": "no_candidate",
+      "value": "当前规则无法生成密码"
+    },
+    {
+      "name": "regenerate",
+      "value": "重新生成"
+    },
+    {
+      "name": "fill_current_entry",
+      "value": "填入当前条目"
+    },
+    {
+      "name": "save_as_login",
+      "value": "保存为新登录条目"
+    },
+    {
+      "name": "security_center",
+      "value": "安全中心"
+    },
+    {
+      "name": "settings",
+      "value": "设置"
+    },
+    {
+      "name": "module_pending",
+      "value": "此模块将在后续阶段开放"
+    },
+    {
+      "name": "route_not_found",
+      "value": "页面路由不存在"
     }
   ]
 }

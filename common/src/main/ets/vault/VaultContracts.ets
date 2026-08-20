@@ -63,15 +63,32 @@ export interface VaultField {
 export interface VaultEntry {
   uuid: string;
   title: string;
+  groupUuid: string;
+  groupName: string;
+  groupPath: string;
   fields: VaultField[];
   historyCount: number;
   attachmentCount: number;
+  tags: string[];
+  favorite: boolean;
+  archived: boolean;
+  lastModifiedAt: number;
+}
+
+export interface VaultEntryInput {
+  groupUuid: string;
+  title: string;
+  username: string;
+  password: string;
+  url: string;
+  notes: string;
   tags: string[];
 }
 
 export interface VaultGroup {
   uuid: string;
   name: string;
+  path: string;
   groups: VaultGroup[];
   entries: VaultEntry[];
 }
@@ -88,6 +105,14 @@ export interface VaultEngine {
   unlock(data: ArrayBuffer, credential: VaultCredential): Promise<VaultDocument>;
 
   create(name: string, credential: VaultCredential): Promise<VaultDocument>;
+
+  createEntry(document: VaultDocument, input: VaultEntryInput): VaultEntry;
+
+  updateEntry(document: VaultDocument, entryUuid: string, input: VaultEntryInput): VaultEntry;
+
+  setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry;
+
+  setEntryArchived(document: VaultDocument, entryUuid: string, archived: boolean): VaultEntry;
 
   setEntryField(document: VaultDocument, entryUuid: string, name: string, value: string,
     protectedValue?: boolean): void;
