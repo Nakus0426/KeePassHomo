@@ -154,23 +154,67 @@
     },
     {
       "name": "welcome_title",
-      "value": "你的密码，由你保管"
+      "value": "密码管理器"
     },
     {
       "name": "welcome_description",
-      "value": "数据保存在你的 KDBX 文件中，本应用不要求账号"
+      "value": "本地优先的 KeePass 客户端"
+    },
+    {
+      "name": "local_storage_title",
+      "value": "数据保存在您的 KDBX 文件中"
+    },
+    {
+      "name": "local_storage_description",
+      "value": "完全本地存储，无需账号，隐私由您掌控"
+    },
+    {
+      "name": "choose_data_source",
+      "value": "选择数据源"
     },
     {
       "name": "create_vault",
       "value": "创建新保险库"
     },
     {
+      "name": "create_vault_description",
+      "value": "在本地创建一个由主密码保护的 KDBX 文件"
+    },
+    {
+      "name": "create_vault_source_description",
+      "value": "在本地创建一个新的 KDBX 文件"
+    },
+    {
+      "name": "vault_details",
+      "value": "保险库信息"
+    },
+    {
+      "name": "vault_credentials",
+      "value": "解锁凭据"
+    },
+    {
       "name": "open_local_vault",
       "value": "打开本地 KDBX"
     },
     {
+      "name": "open_local_vault_description",
+      "value": "从设备存储中打开已有的 KDBX 文件"
+    },
+    {
       "name": "connect_webdav",
       "value": "连接 WebDAV"
+    },
+    {
+      "name": "connect_webdav_description",
+      "value": "从 WebDAV 服务器打开 KDBX 文件"
+    },
+    {
+      "name": "privacy_statement",
+      "value": "所有数据仅保存在您的设备或您连接的服务器上"
+    },
+    {
+      "name": "privacy_statement_secondary",
+      "value": "应用不会收集或上传任何数据"
     },
     {
       "name": "not_available_current_stage",
@@ -605,10 +649,6 @@
       "value": "填入当前条目"
     },
     {
-      "name": "save_as_login",
-      "value": "保存为新登录条目"
-    },
-    {
       "name": "security_center",
       "value": "安全中心"
     },
@@ -623,6 +663,10 @@
     {
       "name": "route_not_found",
       "value": "页面路由不存在"
+    },
+    {
+      "name": "press_back_again_to_background",
+      "value": "再次返回则回到桌面"
     }
   ]
 }

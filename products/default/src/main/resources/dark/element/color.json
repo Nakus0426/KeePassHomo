@@ -3,58 +3,6 @@
     {
       "name": "start_window_background",
       "value": "#0B1730"
-    },
-    {
-      "name": "brand_primary",
-      "value": "#317AF7"
-    },
-    {
-      "name": "action_primary",
-      "value": "#5D86D6"
-    },
-    {
-      "name": "surface_secondary",
-      "value": "#1B2229"
-    },
-    {
-      "name": "text_primary",
-      "value": "#F2F5F7"
-    },
-    {
-      "name": "text_secondary",
-      "value": "#B8C2CC"
-    },
-    {
-      "name": "status_success",
-      "value": "#52C88A"
-    },
-    {
-      "name": "status_warning",
-      "value": "#E5B94C"
-    },
-    {
-      "name": "status_error",
-      "value": "#FF7B72"
-    },
-    {
-      "name": "background_primary",
-      "value": "#0D0E10"
-    },
-    {
-      "name": "background_secondary",
-      "value": "#1B1C1F"
-    },
-    {
-      "name": "surface_brand",
-      "value": "#182A4B"
-    },
-    {
-      "name": "divider",
-      "value": "#34363B"
-    },
-    {
-      "name": "text_on_brand",
-      "value": "#FFFFFF"
     }
   ]
 }

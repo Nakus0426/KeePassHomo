@@ -37,6 +37,47 @@ export enum ConflictResolution {
   KeepBoth = 'keepBoth'
 }
 
+export enum ReauthenticationPurpose {
+  RevealLargeSecret = 'revealLargeSecret',
+  ExportData = 'exportData',
+  ChangeCredential = 'changeCredential',
+  PermanentDelete = 'permanentDelete',
+  ExportDiagnostics = 'exportDiagnostics'
+}
+
+export enum SyncQueueOperation {
+  Upload = 'upload',
+  Download = 'download'
+}
+
+export interface SyncVersion {
+  identifier: string;
+  observedAt: number;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  operation: SyncQueueOperation;
+  localVersion: SyncVersion;
+  remoteVersion?: SyncVersion;
+  createdAt: number;
+  attemptCount: number;
+}
+
+export interface SyncConflict {
+  id: string;
+  localVersion: SyncVersion;
+  remoteVersion: SyncVersion;
+  detectedAt: number;
+}
+
+export interface SyncActivity {
+  id: string;
+  state: SyncState;
+  occurredAt: number;
+  message: string;
+}
+
 export enum ItemTemplate {
   Login = 'login',
   CreditCard = 'creditCard',

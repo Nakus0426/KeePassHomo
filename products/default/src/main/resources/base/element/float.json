@@ -1,48 +1,12 @@
 {
   "float": [
     {
-      "name": "space_8",
-      "value": "8vp"
-    },
-    {
-      "name": "space_16",
-      "value": "16vp"
-    },
-    {
-      "name": "space_24",
-      "value": "24vp"
-    },
-    {
-      "name": "space_32",
-      "value": "32vp"
-    },
-    {
-      "name": "radius_8",
-      "value": "8vp"
-    },
-    {
-      "name": "radius_16",
-      "value": "16vp"
-    },
-    {
-      "name": "radius_24",
-      "value": "24vp"
-    },
-    {
       "name": "control_height",
       "value": "48vp"
     },
     {
-      "name": "text_body",
-      "value": "16fp"
-    },
-    {
       "name": "text_heading",
       "value": "22fp"
-    },
-    {
-      "name": "text_title",
-      "value": "30fp"
     },
     {
       "name": "text_caption",
@@ -59,6 +23,14 @@
     {
       "name": "icon_large",
       "value": "72vp"
+    },
+    {
+      "name": "welcome_icon_size",
+      "value": "88vp"
+    },
+    {
+      "name": "module_content_bottom_padding",
+      "value": "112vp"
     }
   ]
 }

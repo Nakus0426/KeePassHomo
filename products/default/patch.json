@@ -1,0 +1,18 @@
+{
+  "app": {
+    "bundleName": "com.naku.kee_pass_homo",
+    "patchVersionCode": 2000103,
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "patchVersionName": "2000103"
+  },
+  "module": {
+    "name": "default",
+    "type": "hotreload",
+    "deviceTypes": [
+      "phone",
+      "tablet"
+    ],
+    "originalModuleHash": ""
+  }
+}

@@ -379,6 +379,19 @@ export class StageOneVaultStore {
     }
   }
 
+  async reauthenticate(password: string): Promise<void> {
+    const source: VaultSource = this.currentSource
+    const repository: FileVaultRepository = this.requireRepository()
+    const candidate: VaultCredential = await this.readCredential(password)
+    try {
+      await new KdbxVaultEngine().validate(await repository.read(source), candidate)
+      this.session.touch()
+    } finally {
+      candidate.password = ''
+      candidate.keyFile?.fill(0)
+    }
+  }
+
   private async readCredential(password: string): Promise<VaultCredential> {
     if (this.keyFileSource === undefined) {
       return { password }

@@ -9,6 +9,12 @@ export {
   VaultCredential,
   SyncState,
   ConflictResolution,
+  ReauthenticationPurpose,
+  SyncQueueOperation,
+  SyncVersion,
+  SyncQueueItem,
+  SyncConflict,
+  SyncActivity,
   ItemTemplate,
   AuditFinding,
   VaultField,
@@ -58,3 +64,10 @@ export {
 } from './src/main/ets/sync/WebDavProbe'
 
 export { OtpAuthParser, OtpAuthConfig, OtpAuthType, OtpAlgorithm } from './src/main/ets/otp/OtpAuthParser'
+
+export {
+  AppErrorCategory,
+  AppRecoveryAction,
+  AppErrorModel,
+  AppErrorFactory,
+} from './src/main/ets/errors/AppError'
