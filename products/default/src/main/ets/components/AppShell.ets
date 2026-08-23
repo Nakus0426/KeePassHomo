@@ -148,7 +148,10 @@ export struct AppShell {
   @Builder
   private routeDestination(name: string, param: Object) {
     if (name === ROUTE_WELCOME) {
-      WelcomePage({ viewModel: this.viewModel })
+      WelcomePage({
+        viewModel: this.viewModel,
+        onRootBack: () => this.handleRootBack(ROUTE_WELCOME),
+      })
     } else if (name === ROUTE_CREATE_VAULT) {
       CreateVaultPage({ viewModel: this.viewModel })
     } else if (name === ROUTE_FILE_SUMMARY) {

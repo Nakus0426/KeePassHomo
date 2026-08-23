@@ -1,7 +1,6 @@
 import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
-import { StatusText } from '../../components/PageChrome'
 import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
@@ -52,7 +51,7 @@ export struct DataSourceCard {
     .systemMaterial(new uiMaterial.ImmersiveMaterial({
       interactive: true,
       lightEffect: { color: undefined },
-      style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+      style: uiMaterial.ImmersiveStyle.REGULAR,
     }))
     .onClick(() => this.onSelect())
   }
@@ -62,6 +61,8 @@ export struct DataSourceCard {
 @ComponentV2
 export struct WelcomePage {
   @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  @Event onRootBack: () => void = () => {
+  }
 
   build() {
     HdsNavDestination() {
@@ -142,8 +143,6 @@ export struct WelcomePage {
           }
           .width('100%')
 
-          StatusText({ status: this.viewModel.status })
-
           Column({ space: $r('sys.float.padding_level2') }) {
             Text() {
               SymbolSpan($r('sys.symbol.lock_fill'))
@@ -172,5 +171,12 @@ export struct WelcomePage {
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
     .onShown(() => this.viewModel.showRoute(ROUTE_WELCOME))
+    .onBackPressed(() => {
+      if (this.viewModel.backToPreviousRoute()) {
+        return true
+      }
+      this.onRootBack()
+      return true
+    })
   }
 }

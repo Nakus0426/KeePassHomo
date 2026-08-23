@@ -126,7 +126,7 @@ export struct FileSummaryPage {
 
             }
 
-            if (this.viewModel?.fileSummary?.readOnly === true) {
+            if (this.fileSummaryReadOnly) {
               Row({ space: $r('sys.float.padding_level4') }) {
                 SymbolGlyph($r('sys.symbol.info_circle_fill'))
                   .fontSize($r('sys.float.Subtitle_L'))
@@ -160,18 +160,17 @@ export struct FileSummaryPage {
           Button($r('app.string.reselect_file'), { stateEffect: true })
             .layoutWeight(1)
             .systemMaterial(new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+              style: uiMaterial.ImmersiveStyle.REGULAR,
               lightEffect: { color: undefined },
               colorInvert: true,
               interactive: true,
             }))
-            .backgroundColor($r('sys.color.comp_background_secondary'))
             .fontColor($r('sys.color.font_secondary'))
-            .onClick(() => this.viewModel.chooseAnotherVault())
+            .onClick(() => this.viewModel.chooseLocalVault())
           Button($r('app.string.continue_action'), { stateEffect: true })
             .layoutWeight(1)
             .systemMaterial(new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
+              style: uiMaterial.ImmersiveStyle.REGULAR,
               lightEffect: { color: $r('sys.color.brand') },
               colorInvert: true,
               interactive: true,

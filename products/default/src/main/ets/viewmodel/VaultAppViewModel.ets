@@ -221,7 +221,12 @@ export class VaultAppViewModel {
     try {
       this.fileSummary = await stageOneVaultStore.chooseLocalVault()
       this.refreshVault()
-      this.pushRoute(ROUTE_FILE_SUMMARY)
+      // 已在摘要页（重选文件场景）不重复入栈，fileSummary 更新即刷新当前页
+      const stackTop: string | undefined =
+        this.navPathStack.getAllPathName()[this.navPathStack.getAllPathName().length - 1]
+      if (stackTop !== ROUTE_FILE_SUMMARY) {
+        this.pushRoute(ROUTE_FILE_SUMMARY)
+      }
       this.setStatus('')
     } catch (error) {
       this.reportBoundaryError('打开本地 KDBX 失败', error)
@@ -259,8 +264,20 @@ export class VaultAppViewModel {
   chooseAnotherVault(): void {
     stageOneVaultStore.clearKeyFile()
     this.refreshVault()
-    this.resetRoute(ROUTE_WELCOME)
+    this.pushRoute(ROUTE_WELCOME)
     this.setStatus('')
+  }
+
+  /**
+   * 路由栈存在下层目的地时返回上一页；Welcome 等根级页面据此区分
+   * 「返回上一页」与「双击返回桌面」两种行为。
+   */
+  backToPreviousRoute(): boolean {
+    if (this.navPathStack.getAllPathName().length > 1) {
+      this.navPathStack.pop()
+      return true
+    }
+    return false
   }
 
   async createVault(): Promise<void> {
