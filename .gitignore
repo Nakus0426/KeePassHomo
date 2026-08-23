@@ -11,3 +11,6 @@ oh_modules/
 **/.test
 /.appanalyzer
 **/.preview
+.zcode
+.codegenie
+/sign

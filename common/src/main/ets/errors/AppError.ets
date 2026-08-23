@@ -1,6 +1,6 @@
-import { VaultRepositoryError } from '../vault/FileVaultRepository'
-import { VaultEngineError } from '../vault/KdbxVaultEngine'
-import { WebDavProbeError } from '../sync/WebDavProbe'
+import { VaultRepositoryError, VaultRepositoryErrorCategory } from '../vault/FileVaultRepository'
+import { VaultEngineError, VaultEngineErrorCategory } from '../vault/KdbxVaultEngine'
+import { WebDavProbeError, WebDavProbeErrorCategory } from '../sync/WebDavProbe'
 
 export enum AppErrorCategory {
   File = 'file',

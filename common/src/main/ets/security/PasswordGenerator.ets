@@ -1,4 +1,5 @@
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 
 const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz'
@@ -262,6 +263,7 @@ export class PasswordGenerator {
     }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   private randomIndex(limit: number): number {
     try {
       const maximum = Math.floor(256 / limit) * limit

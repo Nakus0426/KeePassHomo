@@ -1,6 +1,7 @@
-import { url, util } from '@kit.ArkTS'
+import { url } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { rcp } from '@kit.RemoteCommunicationKit'
+import { StrUtil } from '@pura/harmony-utils'
 
 export enum WebDavProbeErrorCategory {
   InvalidInput = 'invalid_input',
@@ -52,40 +53,40 @@ export class WebDavProbe {
       'depth': '0',
     }
     if (username.length > 0) {
-      const credentials = new util.TextEncoder().encodeInto(`${username}:${password}`)
-      headers.authorization = `Basic ${new util.Base64Helper().encodeToStringSync(credentials, util.Type.BASIC)}`
-      credentials.fill(0)
+      headers.authorization = `Basic ${StrUtil.strToBase64(`${username}:${password}`)}`
     }
 
-    const session = rcp.createSession()
     try {
-      const propfind = new rcp.Request(urlText, 'PROPFIND', headers, PROPFIND_BODY)
-      const propfindResponse = await session.fetch(propfind)
-      this.assertStatus(propfindResponse.statusCode, 207)
+      const session = rcp.createSession()
+      try {
+        const propfind = new rcp.Request(urlText, 'PROPFIND', headers, PROPFIND_BODY)
+        const propfindResponse = await session.fetch(propfind)
+        this.assertStatus(propfindResponse.statusCode, 207)
 
-      const headHeaders: rcp.RequestHeaders = {}
-      if (headers.authorization !== undefined) {
-        headHeaders.authorization = headers.authorization
+        const headHeaders: rcp.RequestHeaders = {}
+        if (headers.authorization !== undefined) {
+          headHeaders.authorization = headers.authorization
+        }
+        const headResponse = await session.fetch(new rcp.Request(urlText, 'HEAD', headHeaders))
+        this.assertStatus(headResponse.statusCode, 200)
+        const etag = this.firstHeader(headResponse.headers.etag)
+        if (etag.length > 0) {
+          return { statusCode: propfindResponse.statusCode, versionSource: 'ETag', version: etag }
+        }
+        const lastModified = this.firstHeader(headResponse.headers['last-modified'])
+        if (lastModified.length > 0) {
+          return { statusCode: propfindResponse.statusCode, versionSource: 'Last-Modified', version: lastModified }
+        }
+        throw new WebDavProbeError(WebDavProbeErrorCategory.MissingVersion,
+          'WebDAV 资源未提供 ETag 或 Last-Modified 版本标识')
+      } finally {
+        session.close()
       }
-      const headResponse = await session.fetch(new rcp.Request(urlText, 'HEAD', headHeaders))
-      this.assertStatus(headResponse.statusCode, 200)
-      const etag = this.firstHeader(headResponse.headers.etag)
-      if (etag.length > 0) {
-        return { statusCode: propfindResponse.statusCode, versionSource: 'ETag', version: etag }
-      }
-      const lastModified = this.firstHeader(headResponse.headers['last-modified'])
-      if (lastModified.length > 0) {
-        return { statusCode: propfindResponse.statusCode, versionSource: 'Last-Modified', version: lastModified }
-      }
-      throw new WebDavProbeError(WebDavProbeErrorCategory.MissingVersion,
-        'WebDAV 资源未提供 ETag 或 Last-Modified 版本标识')
     } catch (error) {
       if (error instanceof WebDavProbeError) {
         throw error
       }
       throw this.classifyTransportError(error as BusinessError)
-    } finally {
-      session.close()
     }
   }
 

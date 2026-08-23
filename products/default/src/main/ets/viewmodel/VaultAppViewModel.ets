@@ -1,6 +1,33 @@
 import { common } from '@kit.AbilityKit'
-import { AppErrorModel, Logger, VaultEntry, VaultFormat, VaultGroup, VaultSource } from '@ohos/common'
-import { VaultBrowseMode, VaultFileSummary } from '../model/StageOneVaultStore'
+import {
+  AppErrorFactory,
+  AppErrorModel,
+  VaultEngineError,
+  VaultEngineErrorCategory,
+  VaultEntry,
+  VaultEntryInput,
+  VaultFormat,
+  VaultGroup,
+  VaultRepositoryError,
+  VaultRepositoryErrorCategory,
+  VaultSource,
+} from '@ohos/common'
+import { formatISO9075 } from '@wolfx/date-fns'
+import { FileUtil, LogUtil } from '@pura/harmony-utils'
+import {
+  ROUTE_CREATE_VAULT,
+  ROUTE_ENTRY_DETAIL,
+  ROUTE_ENTRY_EDIT,
+  ROUTE_FILE_SUMMARY,
+  ROUTE_GENERATOR,
+  ROUTE_SECURITY,
+  ROUTE_SETTINGS,
+  ROUTE_UNLOCK,
+  ROUTE_VAULT,
+  ROUTE_WELCOME,
+} from '../constants/RouteConstants'
+import { stageOneVaultStore, VaultBrowseMode, VaultFileSummary } from '../model/StageOneVaultStore'
+import { appSessionState } from '../state/AppSessionState'
 import { GeneratorViewModel } from './GeneratorViewModel'
 import { VaultSessionViewModel } from './VaultSessionViewModel'
 
@@ -43,7 +70,7 @@ export class VaultAppViewModel {
   readonly generator: GeneratorViewModel = new GeneratorViewModel()
   readonly session: VaultSessionViewModel = new VaultSessionViewModel()
   readonly navPathStack: NavPathStack = new NavPathStack()
-  private readonly logger: Logger = new Logger()
+
   private splashTimer: number = -1
   private revealTimer: number = -1
 
@@ -220,6 +247,11 @@ export class VaultAppViewModel {
     this.setStatus('')
   }
 
+  openUnlock(): void {
+    this.pushRoute(ROUTE_UNLOCK)
+    this.setStatus('')
+  }
+
   showWebDavPending(): void {
     this.setStatus('此来源将在 WebDAV 阶段开放')
   }
@@ -275,7 +307,7 @@ export class VaultAppViewModel {
       this.resetRoute(ROUTE_VAULT)
       this.setStatus('')
     } catch (error) {
-      this.logger.error('保险库解锁失败')
+      LogUtil.error('保险库解锁失败')
       const repositoryError: VaultRepositoryError = error as VaultRepositoryError
       if (repositoryError.category === VaultRepositoryErrorCategory.NotFound ||
         repositoryError.category === VaultRepositoryErrorCategory.PermissionDenied) {
@@ -554,14 +586,15 @@ export class VaultAppViewModel {
   }
 
   formatSize(size: number): string {
-    if (size < 1024) {
-      return `${size} B`
-    }
-    return `${(size / 1024).toFixed(1)} KB`
+    return FileUtil.getFormatFileSize(size, 1)
   }
 
   formatName(format: VaultFormat): string {
     return format === VaultFormat.Kdbx31 ? 'KDBX 3.1' : 'KDBX 4.x'
+  }
+
+  formatTime(time: number): string {
+    return formatISO9075(new Date(time))
   }
 
   hasRecentVault(): boolean {
@@ -653,6 +686,6 @@ export class VaultAppViewModel {
     const appError: AppErrorModel = AppErrorFactory.from(error, operation)
     this.lastError = appError
     this.status = appError.message
-    this.logger.error(`${operation}，错误分类=${appError.category}，错误码=${appError.logCode}`)
+    LogUtil.error(`${operation}，错误分类=${appError.category}，错误码=${appError.logCode}`)
   }
 }

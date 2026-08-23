@@ -1,7 +1,8 @@
 import { util } from '@kit.ArkTS'
 import { asset } from '@kit.AssetStoreKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { SuppressWarnings, SuppressWarningsType } from '@kit.BasicServicesKit'
 import { userAuth } from '@kit.UserAuthenticationKit'
+import { RandomUtil } from '@pura/harmony-utils'
 
 const LOCAL_UNLOCK_ALIAS: Uint8Array = new util.TextEncoder().encodeInto('KeePassHomo.LocalUnlockMaterial')
 
@@ -15,19 +16,33 @@ export class LocalUnlockMaterialStore {
     attributes.set(asset.Tag.AUTH_TYPE, asset.AuthType.ANY)
     attributes.set(asset.Tag.SYNC_TYPE, asset.SyncType.NEVER)
     attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
-    await asset.add(attributes)
+    try {
+      await asset.add(attributes)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
   }
 
   async readAfterAuthentication(): Promise<Uint8Array> {
     const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
     query.set(asset.Tag.ALIAS, LOCAL_UNLOCK_ALIAS)
-    const challenge = await asset.preQuery(query)
+    let challenge: Uint8Array
+    try {
+      challenge = await asset.preQuery(query)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
     try {
       const token = await this.authenticate(challenge)
       query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
       query.set(asset.Tag.AUTH_CHALLENGE, challenge)
       query.set(asset.Tag.AUTH_TOKEN, token)
-      const results = await asset.query(query)
+      let results: Array<asset.AssetMap>
+      try {
+        results = await asset.query(query)
+      } catch (error) {
+        throw new Error((error as Error).message)
+      }
       if (results.length !== 1) {
         throw new Error('本机快速解锁材料查询结果无效')
       }
@@ -35,19 +50,33 @@ export class LocalUnlockMaterialStore {
     } finally {
       const handle: asset.AssetMap = new Map<asset.Tag, asset.Value>()
       handle.set(asset.Tag.AUTH_CHALLENGE, challenge)
-      await asset.postQuery(handle)
+      try {
+        await asset.postQuery(handle)
+      } catch (error) {
+        throw new Error((error as Error).message)
+      }
     }
   }
 
   async remove(): Promise<void> {
     const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
     query.set(asset.Tag.ALIAS, LOCAL_UNLOCK_ALIAS)
-    await asset.remove(query)
+    try {
+      await asset.remove(query)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
   }
 
+  @SuppressWarnings({ rules: [SuppressWarningsType.SYSCAP] })
   async verifyRoute(): Promise<void> {
-    const randomData: cryptoFramework.DataBlob = await cryptoFramework.createRandom().generateRandom(32)
-    const material = randomData.data
+    let material: Uint8Array
+    try {
+      // @SuppressWarnings syscap
+      material = RandomUtil.getRandomUint8Array(32)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
     await this.save(material)
     try {
       const restored = await this.readAfterAuthentication()
@@ -77,7 +106,12 @@ export class LocalUnlockMaterialStore {
     const widgetParam: userAuth.WidgetParam = {
       title: '验证本机快速解锁材料',
     }
-    const authInstance = userAuth.getUserAuthInstance(authParam, widgetParam)
+    let authInstance: userAuth.UserAuthInstance
+    try {
+      authInstance = userAuth.getUserAuthInstance(authParam, widgetParam)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
     return new Promise<Uint8Array>((resolve, reject) => {
       const callback: userAuth.IAuthCallback = {
         onResult: (result: userAuth.UserAuthResult): void => {

@@ -1,0 +1,180 @@
+{
+  "string": [
+    {
+      "name": "all_entries",
+      "value": "全部条目"
+    },
+    {
+      "name": "no_entries",
+      "value": "保险库还是空的"
+    },
+    {
+      "name": "no_entries_description",
+      "value": "创建第一个登录条目，密码会保存在当前 KDBX 文件中"
+    },
+    {
+      "name": "new_entry",
+      "value": "新建条目"
+    },
+    {
+      "name": "choose_template",
+      "value": "选择模板"
+    },
+    {
+      "name": "login_template",
+      "value": "登录"
+    },
+    {
+      "name": "login_template_description",
+      "value": "网站或应用账号"
+    },
+    {
+      "name": "credit_card_template",
+      "value": "银行卡"
+    },
+    {
+      "name": "secure_note_template",
+      "value": "安全笔记"
+    },
+    {
+      "name": "identity_template",
+      "value": "身份信息"
+    },
+    {
+      "name": "wifi_template",
+      "value": "Wi-Fi"
+    },
+    {
+      "name": "license_template",
+      "value": "软件许可证"
+    },
+    {
+      "name": "not_available",
+      "value": "暂不可用"
+    },
+    {
+      "name": "entry_title",
+      "value": "标题"
+    },
+    {
+      "name": "username",
+      "value": "用户名"
+    },
+    {
+      "name": "password",
+      "value": "密码"
+    },
+    {
+      "name": "website",
+      "value": "网址"
+    },
+    {
+      "name": "notes",
+      "value": "备注"
+    },
+    {
+      "name": "tags",
+      "value": "标签（逗号分隔）"
+    },
+    {
+      "name": "group",
+      "value": "分组"
+    },
+    {
+      "name": "default_group",
+      "value": "默认分组"
+    },
+    {
+      "name": "generate",
+      "value": "生成"
+    },
+    {
+      "name": "save",
+      "value": "保存"
+    },
+    {
+      "name": "saving",
+      "value": "正在保存"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "unsaved_title",
+      "value": "尚未保存修改"
+    },
+    {
+      "name": "unsaved_message",
+      "value": "保存修改、放弃修改，或继续编辑"
+    },
+    {
+      "name": "discard",
+      "value": "放弃修改"
+    },
+    {
+      "name": "continue_editing",
+      "value": "继续编辑"
+    },
+    {
+      "name": "required_fields",
+      "value": "请填写标题和密码"
+    },
+    {
+      "name": "upgrade_required",
+      "value": "此保险库使用 KDBX 3.1，当前以只读方式打开"
+    },
+    {
+      "name": "upgrade_description",
+      "value": "升级前必须先保存完整备份。备份失败时不会修改原文件。"
+    },
+    {
+      "name": "backup_and_upgrade",
+      "value": "创建备份并升级"
+    },
+    {
+      "name": "upgrading",
+      "value": "正在备份并升级"
+    },
+    {
+      "name": "upgrade_success",
+      "value": "已升级为 KDBX 4，备份文件：%s"
+    },
+    {
+      "name": "search_vault",
+      "value": "搜索标题、用户名、网址、备注或标签"
+    },
+    {
+      "name": "favorites",
+      "value": "收藏"
+    },
+    {
+      "name": "archived",
+      "value": "归档"
+    },
+    {
+      "name": "groups",
+      "value": "分组"
+    },
+    {
+      "name": "no_results",
+      "value": "没有匹配条目"
+    },
+    {
+      "name": "add_favorite",
+      "value": "收藏"
+    },
+    {
+      "name": "remove_favorite",
+      "value": "取消收藏"
+    },
+    {
+      "name": "archive_entry",
+      "value": "归档条目"
+    },
+    {
+      "name": "restore_entry",
+      "value": "恢复条目"
+    }
+  ]
+}

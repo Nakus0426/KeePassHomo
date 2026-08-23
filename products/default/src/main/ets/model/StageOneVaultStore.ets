@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit'
-import { fileIo, picker } from '@kit.CoreFileKit'
-import { preferences } from '@kit.ArkData'
+import { picker } from '@kit.CoreFileKit'
+import { FileUtil, PreferencesUtil } from '@pura/harmony-utils'
 import {
   DefaultVaultSession,
   FileVaultRepository,
@@ -75,25 +75,28 @@ export class StageOneVaultStore {
   async initialize(context: common.UIAbilityContext): Promise<void> {
     this.context = context
     this.repository = new FileVaultRepository(context.filesDir)
-    const data: preferences.Preferences = await preferences.getPreferences(context, PREFERENCES_NAME)
-    const uri: string = data.getSync(SOURCE_URI, '') as string
-    if (uri.length === 0) {
-      return
-    }
-    this.source = {
-      type: VaultSourceType.LocalFile,
-      uri,
-      displayName: data.getSync(SOURCE_NAME, '') as string,
-      readOnly: data.getSync(SOURCE_READ_ONLY, false) as boolean,
-    }
-    const keyFileUri: string = data.getSync(KEY_FILE_URI, '') as string
-    if (keyFileUri.length > 0) {
-      this.keyFileSource = {
-        type: VaultSourceType.LocalFile,
-        uri: keyFileUri,
-        displayName: data.getSync(KEY_FILE_NAME, '') as string,
-        readOnly: true,
+    try {
+      const uri: string = PreferencesUtil.getSync(SOURCE_URI, '') as string
+      if (uri.length === 0) {
+        return
       }
+      this.source = {
+        type: VaultSourceType.LocalFile,
+        uri,
+        displayName: PreferencesUtil.getSync(SOURCE_NAME, '') as string,
+        readOnly: PreferencesUtil.getSync(SOURCE_READ_ONLY, false) as boolean,
+      }
+      const keyFileUri: string = PreferencesUtil.getSync(KEY_FILE_URI, '') as string
+      if (keyFileUri.length > 0) {
+        this.keyFileSource = {
+          type: VaultSourceType.LocalFile,
+          uri: keyFileUri,
+          displayName: PreferencesUtil.getSync(KEY_FILE_NAME, '') as string,
+          readOnly: true,
+        }
+      }
+    } catch (error) {
+      throw new Error((error as Error).message)
     }
   }
 
@@ -133,13 +136,17 @@ export class StageOneVaultStore {
     }
     this.source = selectedSource
     await this.persistRecentSource()
-    const stat: fileIo.Stat = fileIo.statSync(source.uri)
-    return {
-      name: source.displayName,
-      format,
-      size: stat.size,
-      modifiedAt: stat.mtime,
-      readOnly,
+    try {
+      const stat = FileUtil.statSync(source.uri)
+      return {
+        name: source.displayName,
+        format,
+        size: stat.size,
+        modifiedAt: stat.mtime,
+        readOnly,
+      }
+    } catch (error) {
+      throw new Error((error as Error).message)
     }
   }
 
@@ -153,7 +160,7 @@ export class StageOneVaultStore {
     return this.inspect({
       type: VaultSourceType.LocalFile,
       uri: uris[0],
-      displayName: this.fileName(uris[0]),
+      displayName: FileUtil.getFileName(uris[0]),
       readOnly: false,
     })
   }
@@ -166,7 +173,7 @@ export class StageOneVaultStore {
     this.pendingCreateSource = {
       type: VaultSourceType.LocalFile,
       uri: uris[0],
-      displayName: this.fileName(uris[0]),
+      displayName: FileUtil.getFileName(uris[0]),
       readOnly: false,
     }
     return this.pendingCreateSource.displayName
@@ -180,7 +187,7 @@ export class StageOneVaultStore {
     await this.selectKeyFile({
       type: VaultSourceType.LocalFile,
       uri: uris[0],
-      displayName: this.fileName(uris[0]),
+      displayName: FileUtil.getFileName(uris[0]),
       readOnly: true,
     })
   }
@@ -324,7 +331,7 @@ export class StageOneVaultStore {
     const backupSource: VaultSource = {
       type: VaultSourceType.LocalFile,
       uri: uris[0],
-      displayName: this.fileName(uris[0]),
+      displayName: FileUtil.getFileName(uris[0]),
       readOnly: false,
     }
     const repository: FileVaultRepository = this.requireRepository()
@@ -404,13 +411,15 @@ export class StageOneVaultStore {
     if (this.context === undefined || this.source === undefined) {
       throw new Error('保险库来源尚未初始化')
     }
-    const data: preferences.Preferences = await preferences.getPreferences(this.context, PREFERENCES_NAME)
-    data.putSync(SOURCE_URI, this.source.uri)
-    data.putSync(SOURCE_NAME, this.source.displayName)
-    data.putSync(SOURCE_READ_ONLY, this.source.readOnly)
-    data.putSync(KEY_FILE_URI, this.keyFileSource?.uri ?? '')
-    data.putSync(KEY_FILE_NAME, this.keyFileSource?.displayName ?? '')
-    await data.flush()
+    try {
+      PreferencesUtil.putSync(SOURCE_URI, this.source.uri, PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_NAME, this.source.displayName, PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_READ_ONLY, this.source.readOnly, PREFERENCES_NAME)
+      PreferencesUtil.putSync(KEY_FILE_URI, this.keyFileSource?.uri ?? '', PREFERENCES_NAME)
+      PreferencesUtil.putSync(KEY_FILE_NAME, this.keyFileSource?.displayName ?? '', PREFERENCES_NAME)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
   }
 
   private requireRepository(): FileVaultRepository {
@@ -425,10 +434,6 @@ export class StageOneVaultStore {
       throw new Error('保险库服务尚未初始化')
     }
     return this.context
-  }
-
-  private fileName(uri: string): string {
-    return decodeURIComponent(uri.split('/').pop() as string)
   }
 
   private backupFileName(fileName: string): string {

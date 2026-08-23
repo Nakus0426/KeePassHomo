@@ -14,7 +14,11 @@ export class SecureClipboard {
     property.shareOption = pasteboard.ShareOption.LOCALDEVICE
     data.setProperty(property)
     const systemPasteboard = pasteboard.getSystemPasteboard()
-    await systemPasteboard.setData(data)
+    try {
+      await systemPasteboard.setData(data)
+    } catch (error) {
+      throw new Error((error as Error).message)
+    }
     return { changeCount: systemPasteboard.getChangeCount() }
   }
 

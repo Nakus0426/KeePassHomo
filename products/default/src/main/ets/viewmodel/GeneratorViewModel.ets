@@ -1,7 +1,6 @@
 import {
   AppErrorFactory,
   AppErrorModel,
-  Logger,
   MemorableCase,
   MemorablePasswordOptions,
   PasswordGenerator,
@@ -9,6 +8,7 @@ import {
   PinOptions,
   RandomPasswordOptions,
 } from '@ohos/common'
+import { LogUtil } from '@pura/harmony-utils'
 
 export enum GeneratorMode {
   Random,
@@ -36,7 +36,7 @@ export class GeneratorViewModel {
   @Trace pinLength: number = 6
   @Trace pinAvoidPatterns: boolean = true
   private readonly generator: PasswordGenerator = new PasswordGenerator()
-  private readonly logger: Logger = new Logger()
+
 
   setMode(mode: GeneratorMode): void {
     this.mode = mode
@@ -133,7 +133,7 @@ export class GeneratorViewModel {
       this.value = ''
       const appError: AppErrorModel = AppErrorFactory.from(error, '生成密码失败，请重试')
       this.status = appError.message
-      this.logger.error(`生成密码失败，错误分类=${appError.category}，错误码=${appError.logCode}`)
+      LogUtil.error(`生成密码失败，错误分类=${appError.category}，错误码=${appError.logCode}`)
     }
   }
 

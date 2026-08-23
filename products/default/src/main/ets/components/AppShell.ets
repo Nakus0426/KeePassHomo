@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination, HdsNavigation } from '@kit.UIDesignKit'
-import { Logger } from '@ohos/common'
+import { LogUtil, ToastUtil } from '@pura/harmony-utils'
 import {
   ROUTE_CREATE_VAULT,
   ROUTE_ENTRY_DETAIL,
@@ -17,15 +17,16 @@ import {
   ROUTE_WELCOME,
 } from '../constants/RouteConstants'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
+import { SplashContent } from '../pages/onboarding/SplashContent'
 import { PendingModulePage } from '../pages/modules/PendingModulePage'
-import {
-  CreateVaultPage,
-  FileSummaryPage,
-  SplashContent,
-  UnlockPage,
-  WelcomePage,
-} from '../pages/onboarding/OnboardingPages'
-import { EntryDetailPage, EntryEditPage, TemplatePage, VaultHomePage } from '../pages/vault/VaultPages'
+import { CreateVaultPage } from '../pages/onboarding/CreateVaultPage'
+import { FileSummaryPage } from '../pages/onboarding/FileSummaryPage'
+import { UnlockPage } from '../pages/onboarding/UnlockPage'
+import { WelcomePage } from '../pages/onboarding/WelcomePage'
+import { EntryDetailPage } from '../pages/vault/EntryDetailPage'
+import { EntryEditPage } from '../pages/vault/EntryEditPage'
+import { TemplatePage } from '../pages/vault/TemplatePage'
+import { VaultHomePage } from '../pages/vault/VaultHomePage'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { VaultAppViewModel } from '../viewmodel/VaultAppViewModel'
 
@@ -86,7 +87,6 @@ struct ModuleNavigationBar {
 export struct AppShell {
   @Local private viewModel: VaultAppViewModel = new VaultAppViewModel()
   @Local private session: AppSessionState = appSessionState
-  private readonly logger: Logger = new Logger()
   private lastBackPressedAt: number = 0
   private lastBackRoute: string = ''
 
@@ -123,13 +123,13 @@ export struct AppShell {
       this.lastBackPressedAt = now
       this.lastBackRoute = route
       try {
-        this.getUIContext().getPromptAction().showToast({
-          message: $r('app.string.press_back_again_to_background'),
+        ToastUtil.showToast($r('app.string.press_back_again_to_background'), {
+          uiContext: this.getUIContext(),
           duration: 2000,
         })
       } catch (error) {
         const businessError: BusinessError = error as BusinessError
-        this.logger.error(`返回桌面提示显示失败，错误码=${businessError.code}`)
+        LogUtil.error(`返回桌面提示显示失败，错误码=${businessError.code}`)
       }
       return
     }
@@ -137,11 +137,11 @@ export struct AppShell {
     this.lastBackRoute = ''
     try {
       this.context().moveAbilityToBackground().catch((error: BusinessError) => {
-        this.logger.error(`返回桌面失败，错误码=${error.code}`)
+        LogUtil.error(`返回桌面失败，错误码=${error.code}`)
       })
     } catch (error) {
       const businessError: BusinessError = error as BusinessError
-      this.logger.error(`返回桌面失败，错误码=${businessError.code}`)
+      LogUtil.error(`返回桌面失败，错误码=${businessError.code}`)
     }
   }
 

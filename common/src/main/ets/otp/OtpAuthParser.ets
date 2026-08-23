@@ -18,7 +18,12 @@ export interface OtpAuthConfig {
 
 export class OtpAuthParser {
   parse(uriText: string): OtpAuthConfig {
-    const uri: url.URL = url.URL.parseURL(uriText)
+    let uri: url.URL
+    try {
+      uri = url.URL.parseURL(uriText)
+    } catch (error) {
+      throw new Error('二维码不是有效的 otpauth URI')
+    }
     if (uri.protocol !== 'otpauth:') {
       throw new Error('二维码不是 otpauth URI')
     }

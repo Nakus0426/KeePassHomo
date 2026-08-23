@@ -1,0 +1,184 @@
+{
+  "string": [
+    {
+      "name": "preparing_vault",
+      "value": "正在准备保险库"
+    },
+    {
+      "name": "retry",
+      "value": "重试"
+    },
+    {
+      "name": "error_details",
+      "value": "查看错误详情"
+    },
+    {
+      "name": "welcome_title",
+      "value": "密码管理器"
+    },
+    {
+      "name": "welcome_description",
+      "value": "本地优先的 KeePass 客户端"
+    },
+    {
+      "name": "local_storage_title",
+      "value": "数据保存在您的 KDBX 文件中"
+    },
+    {
+      "name": "local_storage_description",
+      "value": "完全本地存储，无需账号，隐私由您掌控"
+    },
+    {
+      "name": "choose_data_source",
+      "value": "选择数据源"
+    },
+    {
+      "name": "create_vault",
+      "value": "创建新保险库"
+    },
+    {
+      "name": "create_vault_description",
+      "value": "在本地创建一个由主密码保护的 KDBX 文件"
+    },
+    {
+      "name": "create_vault_source_description",
+      "value": "在本地创建一个新的 KDBX 文件"
+    },
+    {
+      "name": "vault_details",
+      "value": "保险库信息"
+    },
+    {
+      "name": "vault_credentials",
+      "value": "解锁凭据"
+    },
+    {
+      "name": "open_local_vault",
+      "value": "打开本地 KDBX"
+    },
+    {
+      "name": "open_local_vault_description",
+      "value": "从设备存储中打开已有的 KDBX 文件"
+    },
+    {
+      "name": "connect_webdav",
+      "value": "连接 WebDAV"
+    },
+    {
+      "name": "connect_webdav_description",
+      "value": "从 WebDAV 服务器打开 KDBX 文件"
+    },
+    {
+      "name": "privacy_statement",
+      "value": "所有数据仅保存在您的设备或您连接的服务器上"
+    },
+    {
+      "name": "privacy_statement_secondary",
+      "value": "应用不会收集或上传任何数据"
+    },
+    {
+      "name": "not_available_current_stage",
+      "value": "此来源将在 WebDAV 阶段开放"
+    },
+    {
+      "name": "vault_name",
+      "value": "保险库名称"
+    },
+    {
+      "name": "personal_vault",
+      "value": "个人保险库"
+    },
+    {
+      "name": "save_location",
+      "value": "保存位置"
+    },
+    {
+      "name": "choose_save_location",
+      "value": "选择保存位置"
+    },
+    {
+      "name": "confirm_password",
+      "value": "确认主密码"
+    },
+    {
+      "name": "generate_password_suggestion",
+      "value": "生成主密码建议"
+    },
+    {
+      "name": "password_saved_ack",
+      "value": "我已妥善保存生成的主密码"
+    },
+    {
+      "name": "password_mismatch",
+      "value": "两次输入的主密码不一致"
+    },
+    {
+      "name": "key_file_warning",
+      "value": "遗失密钥文件将无法打开保险库"
+    },
+    {
+      "name": "create_summary",
+      "value": "创建摘要"
+    },
+    {
+      "name": "format_kdbx4",
+      "value": "格式：KDBX 4.x"
+    },
+    {
+      "name": "with_key_file",
+      "value": "凭据：主密码 + 密钥文件"
+    },
+    {
+      "name": "without_key_file",
+      "value": "凭据：仅主密码"
+    },
+    {
+      "name": "creating",
+      "value": "正在创建"
+    },
+    {
+      "name": "file_summary",
+      "value": "文件摘要"
+    },
+    {
+      "name": "reselect_file",
+      "value": "重新选择"
+    },
+    {
+      "name": "unlock_vault",
+      "value": "解锁保险库"
+    },
+    {
+      "name": "local_file",
+      "value": "本地文件"
+    },
+    {
+      "name": "unlocking",
+      "value": "正在解锁"
+    },
+    {
+      "name": "wrong_credential",
+      "value": "凭据不正确或文件无法解密"
+    },
+    {
+      "name": "choose_another_vault",
+      "value": "切换保险库"
+    },
+    {
+      "name": "file_format",
+      "value": "文件格式"
+    },
+    {
+      "name": "file_size",
+      "value": "文件大小"
+    },
+    {
+      "name": "last_modified",
+      "value": "最后修改时间"
+    },
+    {
+      "name": "file_status",
+      "value": "文件状态"
+    }
+  ]
+}

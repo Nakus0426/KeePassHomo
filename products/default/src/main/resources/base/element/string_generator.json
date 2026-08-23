@@ -1,0 +1,104 @@
+{
+  "string": [
+    {
+      "name": "random_password",
+      "value": "随机"
+    },
+    {
+      "name": "memorable_password",
+      "value": "易记"
+    },
+    {
+      "name": "pin_code",
+      "value": "PIN"
+    },
+    {
+      "name": "password_length_value",
+      "value": "密码长度：%d"
+    },
+    {
+      "name": "include_uppercase",
+      "value": "包含大写字母"
+    },
+    {
+      "name": "include_lowercase",
+      "value": "包含小写字母"
+    },
+    {
+      "name": "include_digits",
+      "value": "包含数字"
+    },
+    {
+      "name": "include_symbols",
+      "value": "包含符号"
+    },
+    {
+      "name": "exclude_similar",
+      "value": "排除易混淆字符"
+    },
+    {
+      "name": "minimum_digits_value",
+      "value": "最少数字：%d"
+    },
+    {
+      "name": "minimum_symbols_value",
+      "value": "最少符号：%d"
+    },
+    {
+      "name": "word_count_value",
+      "value": "单词数量：%d"
+    },
+    {
+      "name": "separator",
+      "value": "分隔符"
+    },
+    {
+      "name": "no_separator",
+      "value": "无"
+    },
+    {
+      "name": "letter_case",
+      "value": "字母大小写"
+    },
+    {
+      "name": "lowercase",
+      "value": "小写"
+    },
+    {
+      "name": "capitalize",
+      "value": "首字母"
+    },
+    {
+      "name": "uppercase",
+      "value": "大写"
+    },
+    {
+      "name": "append_number",
+      "value": "末尾追加数字"
+    },
+    {
+      "name": "pin_length_value",
+      "value": "PIN 长度：%d"
+    },
+    {
+      "name": "avoid_pin_patterns",
+      "value": "避开连续和相邻重复数字"
+    },
+    {
+      "name": "generator_strength",
+      "value": "估算强度：%s（约 %d 位熵）"
+    },
+    {
+      "name": "no_candidate",
+      "value": "当前规则无法生成密码"
+    },
+    {
+      "name": "regenerate",
+      "value": "重新生成"
+    },
+    {
+      "name": "fill_current_entry",
+      "value": "填入当前条目"
+    }
+  ]
+}

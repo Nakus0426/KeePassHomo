@@ -31,6 +31,10 @@
     {
       "name": "module_content_bottom_padding",
       "value": "112vp"
+    },
+    {
+      "name": "marquee_fade_width",
+      "value": "16vp"
     }
   ]
 }

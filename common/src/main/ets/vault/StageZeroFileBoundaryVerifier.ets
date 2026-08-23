@@ -5,36 +5,35 @@ import {
   VaultRepositoryErrorCategory,
 } from './FileVaultRepository'
 import { VaultSource } from './VaultContracts'
-import { Logger } from '../utils/Logger'
+import { LogUtil } from '@pura/harmony-utils'
 
 export class StageZeroFileBoundaryVerifier {
   private readonly repository: FileVaultRepository
-  private readonly logger: Logger = new Logger()
 
   constructor(repository: FileVaultRepository) {
     this.repository = repository
   }
 
   async verify(source: VaultSource): Promise<void> {
-    this.logger.info('阶段 0 文件边界验证开始')
+    LogUtil.info('阶段 0 文件边界验证开始')
     await this.repository.persistAccess(source)
-    this.logger.info('阶段 0 文件边界：持久授权写入完成')
+    LogUtil.info('阶段 0 文件边界：持久授权写入完成')
     await this.repository.activateAccess(source)
-    this.logger.info('阶段 0 文件边界：持久授权激活完成')
+    LogUtil.info('阶段 0 文件边界：持久授权激活完成')
     const persistentState: boolean = await this.repository.hasPersistentAccess(source)
     if (!persistentState) {
-      this.logger.warn('阶段 0 文件边界：API 26 持久授权状态检查返回 false，以激活和实际文件访问结果为准')
+      LogUtil.warn('阶段 0 文件边界：API 26 持久授权状态检查返回 false，以激活和实际文件访问结果为准')
     }
     await this.repository.read(source)
-    this.logger.info('阶段 0 文件边界：持久授权实际读取成功')
+    LogUtil.info('阶段 0 文件边界：持久授权实际读取成功')
     if (!this.repository.isWritable(source)) {
       throw new Error('所选测试文件不可写')
     }
     await this.verifyReadOnlyBoundary(source)
-    this.logger.info('阶段 0 文件边界：只读写入拒绝验证成功')
+    LogUtil.info('阶段 0 文件边界：只读写入拒绝验证成功')
     this.verifyStorageErrorContract()
-    this.logger.info('阶段 0 文件边界：空间、只读和授权失效错误码分类成功')
-    this.logger.info('阶段 0 文件边界验证完成')
+    LogUtil.info('阶段 0 文件边界：空间、只读和授权失效错误码分类成功')
+    LogUtil.info('阶段 0 文件边界验证完成')
   }
 
   private async verifyReadOnlyBoundary(source: VaultSource): Promise<void> {

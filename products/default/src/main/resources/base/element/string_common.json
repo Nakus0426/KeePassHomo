@@ -1,0 +1,112 @@
+{
+  "string": [
+    {
+      "name": "ability_desc",
+      "value": "KeePassHomo 主窗口"
+    },
+    {
+      "name": "app_title",
+      "value": "KeePassHomo"
+    },
+    {
+      "name": "master_password",
+      "value": "主密码"
+    },
+    {
+      "name": "select_key_file",
+      "value": "选择密钥文件（可选）"
+    },
+    {
+      "name": "privacy_cover",
+      "value": "保险库已遮挡"
+    },
+    {
+      "name": "back",
+      "value": "返回"
+    },
+    {
+      "name": "continue_action",
+      "value": "继续"
+    },
+    {
+      "name": "show",
+      "value": "显示"
+    },
+    {
+      "name": "hide",
+      "value": "隐藏"
+    },
+    {
+      "name": "copy",
+      "value": "复制"
+    },
+    {
+      "name": "edit",
+      "value": "编辑"
+    },
+    {
+      "name": "read_only",
+      "value": "只读"
+    },
+    {
+      "name": "writable",
+      "value": "可读写"
+    },
+    {
+      "name": "read_only_explanation",
+      "value": "当前保险库以只读方式打开，不能新增或编辑条目"
+    },
+    {
+      "name": "password_weak",
+      "value": "强度：较弱"
+    },
+    {
+      "name": "password_medium",
+      "value": "强度：一般"
+    },
+    {
+      "name": "password_strong",
+      "value": "强度：较强"
+    },
+    {
+      "name": "copied_countdown",
+      "value": "已复制，将在 %d 秒后清除"
+    },
+    {
+      "name": "password_hidden",
+      "value": "••••••••••••"
+    },
+    {
+      "name": "vault_home",
+      "value": "保险库"
+    },
+    {
+      "name": "lock",
+      "value": "锁定"
+    },
+    {
+      "name": "password_generator",
+      "value": "密码生成器"
+    },
+    {
+      "name": "security_center",
+      "value": "安全中心"
+    },
+    {
+      "name": "settings",
+      "value": "设置"
+    },
+    {
+      "name": "module_pending",
+      "value": "此模块将在后续阶段开放"
+    },
+    {
+      "name": "route_not_found",
+      "value": "页面路由不存在"
+    },
+    {
+      "name": "press_back_again_to_background",
+      "value": "再次返回则回到桌面"
+    }
+  ]
+}

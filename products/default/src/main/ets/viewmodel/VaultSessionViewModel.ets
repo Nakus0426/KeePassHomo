@@ -2,10 +2,10 @@ import {
   AppErrorFactory,
   AppErrorModel,
   ClipboardWriteToken,
-  Logger,
   ReauthenticationPurpose,
   SecureClipboard,
 } from '@ohos/common'
+import { LogUtil } from '@pura/harmony-utils'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
 
@@ -15,7 +15,7 @@ const CLIPBOARD_SECONDS: number = 30
 @ObservedV2
 export class VaultSessionViewModel {
   @Trace clipboardSeconds: number = 0
-  private readonly logger: Logger = new Logger()
+
   private readonly clipboard: SecureClipboard = new SecureClipboard()
   private clipboardToken: ClipboardWriteToken | undefined
   private clipboardTimer: number = -1
@@ -115,6 +115,6 @@ export class VaultSessionViewModel {
 
   private logError(operation: string, error: Object): void {
     const appError: AppErrorModel = AppErrorFactory.from(error, operation)
-    this.logger.error(`${operation}，错误分类=${appError.category}，错误码=${appError.logCode}`)
+    LogUtil.error(`${operation}，错误分类=${appError.category}，错误码=${appError.logCode}`)
   }
 }

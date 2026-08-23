@@ -1,6 +1,6 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo, fileShare } from '@kit.CoreFileKit'
-import { Logger } from '../utils/Logger'
+import { FileUtil, LogUtil } from '@pura/harmony-utils'
 import { VaultRepository, VaultSource } from './VaultContracts'
 
 export enum VaultRepositoryErrorCategory {
@@ -41,21 +41,20 @@ export function classifyVaultRepositoryErrorCode(code: number): VaultRepositoryE
 
 export class FileVaultRepository implements VaultRepository {
   private readonly stagingDirectory: string
-  private readonly logger: Logger = new Logger()
 
   constructor(stagingDirectory: string) {
     this.stagingDirectory = stagingDirectory
   }
 
   async read(source: VaultSource): Promise<ArrayBuffer> {
-    this.logger.info(`文件读取开始，来源类型=${source.type}`)
+    LogUtil.info(`文件读取开始，来源类型=${source.type}`)
     try {
-      const stat: fileIo.Stat = fileIo.statSync(source.uri)
-      const file: fileIo.File = fileIo.openSync(source.uri, fileIo.OpenMode.READ_ONLY)
+      const stat: fileIo.Stat = FileUtil.statSync(source.uri)
+      const file: fileIo.File = FileUtil.openSync(source.uri, fileIo.OpenMode.READ_ONLY)
       const data: ArrayBuffer = new ArrayBuffer(stat.size)
-      fileIo.readSync(file.fd, data, { offset: 0, length: stat.size })
-      fileIo.closeSync(file)
-      this.logger.info(`文件读取成功，字节数=${stat.size}`)
+      FileUtil.readSync(file.fd, data, { offset: 0, length: stat.size })
+      FileUtil.closeSync(file)
+      LogUtil.info(`文件读取成功，字节数=${stat.size}`)
       return data
     } catch (error) {
       this.logBoundaryError('文件读取', error)
@@ -64,26 +63,26 @@ export class FileVaultRepository implements VaultRepository {
   }
 
   async persistAccess(source: VaultSource): Promise<void> {
-    this.logger.info(`持久授权开始，模式=${this.modeName(source)}`)
+    LogUtil.info(`持久授权开始，模式=${this.modeName(source)}`)
     try {
       const combined: fileShare.PolicyInfo = this.combinedPolicy(source)
-      const combinedState: boolean = (await fileShare.checkPersistentPermission([combined]))[0]
-      this.logger.info(`持久授权组合策略检查结果=${combinedState}`)
+      const combinedState: boolean = (await FileUtil.checkPersistentPermission([combined]))[0]
+      LogUtil.info(`持久授权组合策略检查结果=${combinedState}`)
       if (combinedState) {
-        this.logger.info('持久授权已存在，跳过迁移')
+        LogUtil.info('持久授权已存在，跳过迁移')
         return
       }
       for (const policy of this.policies(source)) {
-        const policyState: boolean = (await fileShare.checkPersistentPermission([policy]))[0]
-        this.logger.info(`持久授权单项策略检查，模式=${policy.operationMode}，结果=${policyState}`)
+        const policyState: boolean = (await FileUtil.checkPersistentPermission([policy]))[0]
+        LogUtil.info(`持久授权单项策略检查，模式=${policy.operationMode}，结果=${policyState}`)
         if (policyState) {
-          this.logger.info(`撤销旧持久授权开始，模式=${policy.operationMode}`)
-          await fileShare.revokePermission([policy])
-          this.logger.info(`撤销旧持久授权成功，模式=${policy.operationMode}`)
+          LogUtil.info(`撤销旧持久授权开始，模式=${policy.operationMode}`)
+          await FileUtil.revokePermission([policy])
+          LogUtil.info(`撤销旧持久授权成功，模式=${policy.operationMode}`)
         }
       }
-      await fileShare.persistPermission([combined])
-      this.logger.info('持久授权组合策略写入成功')
+      await FileUtil.persistPermission([combined])
+      LogUtil.info('持久授权组合策略写入成功')
     } catch (error) {
       this.logBoundaryError('持久授权', error)
       throw this.classifyFileError(error as BusinessError)
@@ -91,10 +90,10 @@ export class FileVaultRepository implements VaultRepository {
   }
 
   async hasPersistentAccess(source: VaultSource): Promise<boolean> {
-    this.logger.info(`持久授权状态检查开始，模式=${this.modeName(source)}`)
+    LogUtil.info(`持久授权状态检查开始，模式=${this.modeName(source)}`)
     try {
-      const result: boolean[] = await fileShare.checkPersistentPermission([this.combinedPolicy(source)])
-      this.logger.info(`持久授权状态检查结果=${result[0]}`)
+      const result: boolean[] = await FileUtil.checkPersistentPermission([this.combinedPolicy(source)])
+      LogUtil.info(`持久授权状态检查结果=${result[0]}`)
       return result[0]
     } catch (error) {
       this.logBoundaryError('持久授权状态检查', error)
@@ -103,10 +102,10 @@ export class FileVaultRepository implements VaultRepository {
   }
 
   async activateAccess(source: VaultSource): Promise<void> {
-    this.logger.info(`持久授权激活开始，模式=${this.modeName(source)}`)
+    LogUtil.info(`持久授权激活开始，模式=${this.modeName(source)}`)
     try {
-      await fileShare.activatePermission([this.combinedPolicy(source)])
-      this.logger.info('持久授权激活成功')
+      await FileUtil.activatePermission([this.combinedPolicy(source)])
+      LogUtil.info('持久授权激活成功')
     } catch (error) {
       this.logBoundaryError('持久授权激活', error)
       throw this.classifyFileError(error as BusinessError)
@@ -114,13 +113,13 @@ export class FileVaultRepository implements VaultRepository {
   }
 
   async revokeAccess(source: VaultSource): Promise<void> {
-    this.logger.info(`持久授权撤销开始，模式=${this.modeName(source)}`)
+    LogUtil.info(`持久授权撤销开始，模式=${this.modeName(source)}`)
     try {
       const policy: fileShare.PolicyInfo = this.combinedPolicy(source)
-      await fileShare.deactivatePermission([policy])
-      this.logger.info('持久授权取消使能成功')
-      await fileShare.revokePermission([policy])
-      this.logger.info('持久授权撤销成功')
+      await FileUtil.deactivatePermission([policy])
+      LogUtil.info('持久授权取消使能成功')
+      await FileUtil.revokePermission([policy])
+      LogUtil.info('持久授权撤销成功')
     } catch (error) {
       this.logBoundaryError('持久授权撤销', error)
       throw this.classifyFileError(error as BusinessError)
@@ -195,14 +194,14 @@ export class FileVaultRepository implements VaultRepository {
 
   isWritable(source: VaultSource): boolean {
     if (source.readOnly) {
-      this.logger.info('可写检查跳过，来源声明为只读')
+      LogUtil.info('可写检查跳过，来源声明为只读')
       return false
     }
-    this.logger.info('文件可写检查开始')
+    LogUtil.info('文件可写检查开始')
     try {
-      const file: fileIo.File = fileIo.openSync(source.uri, fileIo.OpenMode.READ_WRITE)
-      fileIo.closeSync(file)
-      this.logger.info('文件可写检查成功')
+      const file: fileIo.File = FileUtil.openSync(source.uri, fileIo.OpenMode.READ_WRITE)
+      FileUtil.closeSync(file)
+      LogUtil.info('文件可写检查成功')
       return true
     } catch (error) {
       this.logBoundaryError('文件可写检查', error)
@@ -220,15 +219,15 @@ export class FileVaultRepository implements VaultRepository {
       : fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC
     let file: fileIo.File | undefined
     try {
-      file = fileIo.openSync(uri, mode)
-      fileIo.writeSync(file.fd, data)
-      fileIo.fsyncSync(file.fd)
+      file = FileUtil.openSync(uri, mode)
+      FileUtil.writeSync(file.fd, data)
+      FileUtil.fsyncSync(file.fd)
     } catch (error) {
       throw this.classifyFileError(error as BusinessError)
     } finally {
       if (file !== undefined) {
         try {
-          fileIo.closeSync(file)
+          FileUtil.closeSync(file)
         } catch (error) {
           throw this.classifyFileError(error as BusinessError)
         }
@@ -238,8 +237,8 @@ export class FileVaultRepository implements VaultRepository {
 
   private removeIfExists(uri: string): void {
     try {
-      if (fileIo.accessSync(uri)) {
-        fileIo.unlinkSync(uri)
+      if (FileUtil.accessSync(uri)) {
+        FileUtil.unlinkSync(uri)
       }
     } catch (error) {
       throw this.classifyFileError(error as BusinessError)
@@ -276,7 +275,7 @@ export class FileVaultRepository implements VaultRepository {
   private logBoundaryError(operation: string, boundaryError: BusinessError): void {
     const code: string = boundaryError.code === undefined ? 'unknown' : boundaryError.code.toString()
     const message: string = boundaryError.message === undefined ? 'unknown' : boundaryError.message
-    this.logger.error(`${operation}失败，错误码=${code}，错误消息=${message}`)
+    LogUtil.error(`${operation}失败，错误码=${code}，错误消息=${message}`)
   }
 
   private classifyFileError(error: BusinessError): VaultRepositoryError {

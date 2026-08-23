@@ -55,6 +55,17 @@
 - 只有在 API 26 下确认状态管理 V2 无法满足具体场景，并记录官方依据、限制和影响后，才允许局部使用状态管理
   V1；禁止因沿用旧代码或开发便利而新增 V1 状态，禁止无边界混用 V1 与 V2
 - 系统能力：优先使用 `@kit.*` 模块，不使用已废弃接口
+- 通用工具：统一使用 **`@pura/harmony-utils`**（`^1.4.2`）提供的工具类，禁止重复自研等价封装。常用映射：
+  日志 `LogUtil`、首选项 `PreferencesUtil`、文件与持久授权 `FileUtil`、Toast `ToastUtil`、
+  Base64 与编码 `StrUtil`/`Base64Util`、随机字节 `RandomUtil.getRandomUint8Array`、
+  日期格式化 `DateUtil.getFormatDateStr`、文件大小格式化 `FileUtil.getFormatFileSize`
+- `AppUtil.init(context)` 与 `LogUtil.init(domain, tag)` 必须在 `UIAbility.onCreate` 中调用；
+  依赖 `AppUtil.getContext()` 的工具（如 `PreferencesUtil`）只能在初始化之后使用
+- 安全语义不使用工具库等价物，保留自研并记录原因（禁止安全降级）：
+  `PasswordGenerator.randomIndex` 必须用 `cryptoFramework` 加密安全随机数（`RandomUtil.getRandomInt` 底层是 `Math.random`）；
+  `SecureClipboard` 保留 changeCount 所有权清除与本机限定属性（`PasteboardUtil.setData` 丢弃 changeCount 且不支持属性设置）；
+  asset `preQuery`/`postQuery` 三段式与 userAuth 认证流程保留自研
+- `@kit.*` 中的类型与枚举（如 `fileIo.Stat`、`fileShare.PolicyInfo`）可与工具库方法配合使用，不算自研封装
 - 日志：使用 `hilog`，禁止使用临时打印替代正式日志
 - 资源：使用 HarmonyOS 资源系统及 `$r(...)` 引用
 - 目标设备：**Phone** 和 **Tablet**
@@ -67,6 +78,7 @@
 
 - 避免多层嵌套，提前返回
 - 单一职责，Ability 仅处理生命周期和窗口初始化，业务 UI 放在 Page 或 Component 中
+- 页面文件组织：一个 `.ets` 文件只允许定义一个页面（`@Component`/`@ComponentV2` 页面结构体），禁止将多个页面集中在 `*Pages.ets` 或单个页面文件中。仅在当前页面内复用的组件、Builder 和页面辅助组件可与页面同文件；被多个页面复用时再拆到独立文件。
 - ArkUI 组件使用 `@Entry`、`@Component`、`@Builder` 等既有声明式模式
 - `build()` 中只描述 UI 结构，避免执行副作用、复杂计算或异步操作
 - 状态必须使用与生命周期匹配的 ArkUI 状态装饰器或项目现有状态容器
@@ -94,6 +106,7 @@
 - 删除被系统资源替代或已无引用的应用资源；不确定系统资源含义、设备差异或深浅色行为时，先查官方文档和 SDK 定义，不凭名称猜测
 - 深浅色资源使用 `resources/base` 与 `resources/dark` 的同名资源覆盖机制
 - 不同设备资源使用 HarmonyOS 限定词目录，不在运行时手写资源选择逻辑
+- 字符串资源按页面或功能拆分到 `resources/*/element/string_<scope>.json`；跨页面共用文案放入 `string_common.json`，无法归属单一页面的文案也放入公共资源；所有文件根节点保持 `string`，资源 key 保持全局唯一。
 - `json5`、资源名、模块名和引用必须满足 HarmonyOS 命名及 schema 约束
 - 修改图标、启动页、权限或 Ability 配置时，检查 AppScope 与模块配置的覆盖优先级
 - 禁止手动修改 `build`、`oh_modules` 等生成目录
