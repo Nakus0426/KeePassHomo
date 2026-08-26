@@ -1,4 +1,3 @@
-import { ResUtil } from '@pura/harmony-utils'
 
 export interface ColorMetricsLike {
   getColor(): ResourceColor
@@ -23,6 +22,22 @@ export class ColorUtil {
     const alphaChannel: number = Math.round(alpha * 255)
     const argb: number = ColorUtil.resolveToArgb(color)
     return ((argb & 0x00FFFFFF) | (alphaChannel << 24)) >>> 0
+  }
+
+  /**
+   * 为颜色设置透明度并返回 #AARRGGBB 字符串。
+   *
+   * linearGradient 的零透明度颜色不能使用数值型 0x00RRGGBB，
+   * 使用字符串可以避免 ArkUI 忽略 Alpha 通道。
+   */
+  static withAlphaHex(color: ResourceColor | ColorMetricsLike, alpha: number): string {
+    if (!(alpha >= 0 && alpha <= 1)) {
+      throw new Error(`透明度取值非法：${alpha}，应在 [0, 1] 区间`)
+    }
+    const alphaChannel: number = Math.round(alpha * 255)
+    const argb: number = ColorUtil.resolveToArgb(color)
+    return `#${ColorUtil.toHexByte(alphaChannel)}${ColorUtil.toHexByte((argb >> 16) & 0xFF)}${ColorUtil.toHexByte(
+      (argb >> 8) & 0xFF)}${ColorUtil.toHexByte(argb & 0xFF)}`
   }
 
   private static resolveToArgb(color: ResourceColor | ColorMetricsLike): number {
@@ -91,5 +106,10 @@ export class ColorUtil {
       throw new Error(`颜色字符串包含非法字符：${hex.substring(index, index + 2)}`)
     }
     return value
+  }
+
+  private static toHexByte(value: number): string {
+    const hex: string = value.toString(16).toUpperCase()
+    return hex.length === 1 ? `0${hex}` : hex
   }
 }

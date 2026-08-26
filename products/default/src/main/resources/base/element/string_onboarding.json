@@ -45,10 +45,6 @@
       "value": "在本地创建一个新的 KDBX 文件"
     },
     {
-      "name": "vault_details",
-      "value": "保险库信息"
-    },
-    {
       "name": "vault_credentials",
       "value": "解锁凭据"
     },

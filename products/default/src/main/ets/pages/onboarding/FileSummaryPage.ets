@@ -4,7 +4,7 @@ import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/Immersiv
 import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 import { uiMaterial } from '@kit.ArkUI'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
-import { DescriptionItem } from '../../components/DescriptionItem'
+import { Cell } from '../../components/Cell'
 import { Tag, TagType } from '../../components/Tag'
 import { ColorUtil } from '@ohos/common'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
@@ -86,23 +86,26 @@ export struct FileSummaryPage {
                 .alignItems(VerticalAlign.Center)
 
                 List() {
-                  DescriptionItem({
+                  Cell({
                     label: $r('app.string.file_format'),
                     value: this.viewModel.formatName(this.viewModel.fileSummary.format),
+                    clickable: false,
                   })
-                  DescriptionItem({
+                  Cell({
                     label: $r('app.string.file_size'),
                     value: this.viewModel.formatSize(this.viewModel.fileSummary.size),
+                    clickable: false,
                   })
-                  DescriptionItem({
+                  Cell({
                     label: $r('app.string.last_modified'),
                     value: this.viewModel.formatTime(this.viewModel.fileSummary.modifiedAt * 1000),
+                    clickable: false,
                   })
-                  DescriptionItem({
+                  Cell({
                     label: $r('app.string.file_status'),
                     valueBuilder: this.fileStatusBuilder,
+                    onCellClick: () => LogUtil.debug(JSON.stringify(this.viewModel.fileSummary)),
                   })
-                    .onClick(() => LogUtil.debug(JSON.stringify(this.viewModel.fileSummary)))
                 }
                 .width('100%')
                 .height('auto')
