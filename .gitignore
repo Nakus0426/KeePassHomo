@@ -14,3 +14,14 @@ oh_modules/
 .zcode
 .codegenie
 /sign
+/.codex
+*.p12
+*.p7b
+*.cer
+*.pem
+*.key
+*.jks
+*.keystore
+*.kdbx
+.env
+.env.*
