@@ -5,6 +5,7 @@ import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 import { ColorUtil } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { FormItem } from '../../components/FormItem'
 
 @ComponentV2
 export struct CreateVaultPage {
@@ -14,6 +15,22 @@ export struct CreateVaultPage {
 
   @Computed
   get topAvoidAreaHeight() {
+    let res: number = 0
+    try {
+      const titlebarDefaultHeightPx =
+        ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
+      const paddingTopPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
+      res =
+        this.getUIContext().px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarDefaultHeightPx + paddingTopPx)
+    } catch (error) {
+      LogUtil.error(error.message)
+    }
+
+    return res
+  }
+
+  @Computed
+  get scrollBottomAvoidAreaHeight() {
     let res: number = 0
     try {
       const titlebarDefaultHeightPx =
@@ -43,11 +60,85 @@ export struct CreateVaultPage {
     ]
   }
 
+  @Builder
+  vaultNameBuilder() {
+    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.vaultName })
+      .height($r('app.float.control_height'))
+      .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .onChange((value: string) => this.viewModel.setVaultName(value))
+  }
+
+  @Builder
+  saveLocationBuilder() {
+    Button() {
+      Row({ space: $r('sys.float.padding_level4') }) {
+        Text(this.viewModel?.createFileName?.length === undefined || this.viewModel.createFileName.length === 0
+          ? $r('app.string.select_placeholder') : this.viewModel?.createFileName)
+          .fontColor($r('sys.color.font_secondary'))
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        SymbolGlyph($r('sys.symbol.chevron_forward'))
+          .fontSize($r('sys.float.Title_S'))
+          .fontColor([$r('sys.color.font_secondary')])
+      }
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    }
+    .width('100%')
+    .height($r('app.float.control_height'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .onClick(() => this.viewModel?.chooseCreateLocation())
+  }
+
+  @Builder
+  masterPasswordBuilder() {
+    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.masterPassword })
+      .type(InputType.Password)
+      .height($r('app.float.control_height'))
+      .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .onChange((value: string) => this.viewModel?.setMasterPassword(value))
+  }
+
+  @Builder
+  confirmPasswordBuilder() {
+    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.confirmPassword })
+      .type(InputType.Password)
+      .height($r('app.float.control_height'))
+      .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+      .backgroundColor($r('sys.color.comp_background_primary'))
+      .onChange((value: string) => this.viewModel?.setConfirmPassword(value))
+  }
+
+  @Builder
+  keyFileBuilder() {
+    Button() {
+      Row({ space: $r('sys.float.padding_level4') }) {
+        Text(
+          this.viewModel?.currentKeyFileName()?.length === undefined || this.viewModel.currentKeyFileName().length === 0
+            ? $r('app.string.select_placeholder') : this.viewModel?.currentKeyFileName())
+          .fontColor($r('sys.color.font_secondary'))
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        SymbolGlyph($r('sys.symbol.chevron_forward'))
+          .fontSize($r('sys.float.Title_S'))
+          .fontColor([$r('sys.color.font_secondary')])
+      }
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    }
+    .width('100%')
+    .height($r('app.float.control_height'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .onClick(() => this.viewModel?.chooseCreateLocation())
+  }
+
   build() {
     HdsNavDestination() {
       Stack() {
         Scroll() {
-          Column({ space: $r('sys.float.padding_level6') }) {
+          Column() {
             Column({ space: $r('sys.float.padding_level6') }) {
               Image($r('app.media.safe'))
                 .width('128vp')
@@ -64,108 +155,70 @@ export struct CreateVaultPage {
             .width('100%')
             .alignItems(HorizontalAlign.Center)
             .margin({ bottom: $r('sys.float.padding_level8') })
-            
-            Text($r('app.string.vault_name'))
-              .width('100%')
-              .fontColor($r('sys.color.font_secondary'))
-            TextInput({ placeholder: $r('app.string.personal_vault'), text: this.viewModel.vaultName })
-              .width('100%')
-              .height($r('app.float.control_height'))
-              .backgroundColor($r('sys.color.background_secondary'))
-              .onChange((value: string) => this.viewModel.setVaultName(value))
-            Text($r('app.string.save_location'))
-              .width('100%')
-              .fontColor($r('sys.color.font_secondary'))
-            Button(this.viewModel.createFileName.length === 0
-              ? $r('app.string.choose_save_location') : this.viewModel.createFileName)
-              .width('100%')
-              .height($r('app.float.control_height'))
-              .backgroundColor($r('sys.color.background_secondary'))
-              .fontColor($r('sys.color.font_primary'))
-              .onClick(() => this.viewModel.chooseCreateLocation())
 
+            FormItem(
+              { label: $r('app.string.vault_name'), contentBuilder: this.vaultNameBuilder, reserveFeedbackSpace: true })
 
-            Text($r('app.string.vault_credentials'))
-              .width('100%')
-              .fontSize($r('app.float.text_heading'))
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_primary'))
-            Column({ space: 12 }) {
-              TextInput({ placeholder: $r('app.string.master_password'), text: this.viewModel.masterPassword })
-                .type(InputType.Password)
-                .width('100%')
-                .height($r('app.float.control_height'))
-                .backgroundColor($r('sys.color.background_secondary'))
-                .onChange((value: string) => this.viewModel.setMasterPassword(value))
-              TextInput({ placeholder: $r('app.string.confirm_password'), text: this.viewModel.confirmPassword })
-                .type(InputType.Password)
-                .width('100%')
-                .height($r('app.float.control_height'))
-                .backgroundColor($r('sys.color.background_secondary'))
-                .onChange((value: string) => this.viewModel.setConfirmPassword(value))
-              Text(this.viewModel.passwordStrength())
-                .width('100%')
-                .fontSize($r('app.float.text_caption'))
-                .fontColor($r('sys.color.font_secondary'))
-              if (this.viewModel.confirmPassword.length > 0 &&
-                this.viewModel.masterPassword !== this.viewModel.confirmPassword) {
-                Text($r('app.string.password_mismatch'))
-                  .width('100%')
-                  .fontColor($r('sys.color.warning'))
+            FormItem({
+              label: $r('app.string.save_location'),
+              contentBuilder: this.saveLocationBuilder,
+              reserveFeedbackSpace: true,
+            })
+
+            FormItem({
+              label: $r('app.string.master_password'),
+              contentBuilder: this.masterPasswordBuilder,
+              reserveFeedbackSpace: true,
+            })
+
+            FormItem({
+              label: $r('app.string.confirm_password'),
+              contentBuilder: this.masterPasswordBuilder,
+              reserveFeedbackSpace: true,
+            })
+
+            FormItem({
+              label: $r('app.string.key_file_label'),
+              contentBuilder: this.keyFileBuilder,
+              reserveFeedbackSpace: true,
+            })
+
+            Row({ space: $r('sys.float.padding_level8') }) {
+              Stack() {
+                SymbolGlyph($r('sys.symbol.folder_fill'))
+                  .fontSize($r('sys.float.Title_L'))
+                  .fontColor([$r('sys.color.brand')])
               }
-              Button($r('app.string.generate_password_suggestion'))
-                .width('100%')
-                .height($r('app.float.control_height'))
-                .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-                .fontColor($r('sys.color.brand'))
-                .onClick(() => this.viewModel.generateMasterPassword())
-              if (this.viewModel.generatedMasterPassword) {
-                Row({ space: 8 }) {
-                  Checkbox({ name: 'generated_password_saved', group: 'create_vault' })
-                    .select(this.viewModel.generatedPasswordSaved)
-                    .onChange((value: boolean) => this.viewModel.setGeneratedPasswordSaved(value))
-                  Text($r('app.string.password_saved_ack'))
-                    .fontSize($r('sys.float.Body_L'))
+              .padding($r('sys.float.padding_level4'))
+              .borderRadius('50%')
+              .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+
+              Column({ space: $r('sys.float.padding_level2') }) {
+                Text() {
+                  Span($r('app.string.format'))
+                    .fontColor($r('sys.color.font_secondary'))
+                  Span(' ')
+                  Span($r('app.string.kdbx4'))
                     .fontColor($r('sys.color.font_primary'))
-                    .layoutWeight(1)
+                    .fontWeight(FontWeight.Medium)
                 }
-                .width('100%')
-              }
-              Button(this.viewModel.currentKeyFileName().length === 0
-                ? $r('app.string.select_key_file') : this.viewModel.currentKeyFileName())
-                .width('100%')
-                .height($r('app.float.control_height'))
-                .backgroundColor($r('sys.color.background_secondary'))
-                .fontColor($r('sys.color.font_primary'))
-                .onClick(() => this.viewModel.chooseKeyFile())
-              Text($r('app.string.key_file_warning'))
-                .width('100%')
-                .fontSize($r('app.float.text_caption'))
-                .fontColor($r('sys.color.alert'))
-            }
-            .width('100%')
-            .padding($r('sys.float.padding_level8'))
-            .backgroundColor($r('sys.color.comp_background_primary'))
-            .borderRadius($r('sys.float.corner_radius_level8'))
 
-            Text($r('app.string.create_summary'))
-              .width('100%')
-              .fontSize($r('app.float.text_heading'))
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_primary'))
-            Column({ space: 8 }) {
-              Text($r('app.string.format_kdbx4'))
-                .width('100%')
-                .fontColor($r('sys.color.font_secondary'))
-              Text(this.viewModel.currentKeyFileName().length === 0
-                ? $r('app.string.without_key_file') : $r('app.string.with_key_file'))
-                .width('100%')
-                .fontColor($r('sys.color.font_secondary'))
+                Text() {
+                  Span($r('app.string.credential'))
+                    .fontColor($r('sys.color.font_secondary'))
+                  Span(' ')
+                  Span(this.viewModel.currentKeyFileName().length === 0
+                    ? $r('app.string.create_summary_without_key_file') : $r('app.string.create_summary_with_key_file'))
+                    .fontColor($r('sys.color.font_primary'))
+                    .fontWeight(FontWeight.Medium)
+                }
+              }
+              .alignItems(HorizontalAlign.Start)
             }
-            .width('100%')
             .padding($r('sys.float.padding_level8'))
-            .backgroundColor($r('sys.color.comp_background_primary'))
-            .borderRadius($r('sys.float.corner_radius_level8'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .borderRadius($r('sys.float.corner_radius_level10'))
+            .width('100%')
           }
           .width('100%')
           .constraintSize({ maxWidth: $r('app.float.content_max_width') })
@@ -179,6 +232,7 @@ export struct CreateVaultPage {
 
         Row({ space: $r('sys.float.padding_level6') }) {
           Button(this.viewModel.busy ? $r('app.string.creating') : $r('app.string.create_vault'))
+            .height($r('app.float.control_height'))
             .enabled(!this.viewModel.busy)
             .backgroundColor($r('sys.color.brand'))
             .layoutWeight(1)

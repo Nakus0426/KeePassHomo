@@ -1,3 +1,4 @@
+import { ResUtil } from '@pura/harmony-utils'
 
 export interface ColorMetricsLike {
   getColor(): ResourceColor

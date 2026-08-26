@@ -46,12 +46,13 @@ export struct DataSourceCard {
     .width('100%')
     .padding($r('sys.float.padding_level8'))
     .enabled(this.selectable)
-    .backgroundColor($r('sys.color.comp_background_list_card'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .systemMaterial(new uiMaterial.ImmersiveMaterial({
       interactive: true,
       lightEffect: { color: undefined },
+      materialColor: $r('sys.color.comp_background_primary'),
       style: uiMaterial.ImmersiveStyle.REGULAR,
+      applyShadow: false,
     }))
     .onClick(() => this.onSelect())
   }

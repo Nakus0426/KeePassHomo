@@ -45,10 +45,6 @@
       "value": "在本地创建一个新的 KDBX 文件"
     },
     {
-      "name": "vault_credentials",
-      "value": "解锁凭据"
-    },
-    {
       "name": "open_local_vault",
       "value": "打开本地 KDBX"
     },
@@ -81,16 +77,8 @@
       "value": "保险库名称"
     },
     {
-      "name": "personal_vault",
-      "value": "个人保险库"
-    },
-    {
       "name": "save_location",
       "value": "保存位置"
-    },
-    {
-      "name": "choose_save_location",
-      "value": "选择保存位置"
     },
     {
       "name": "confirm_password",
@@ -113,20 +101,12 @@
       "value": "遗失密钥文件将无法打开保险库"
     },
     {
-      "name": "create_summary",
-      "value": "创建摘要"
+      "name": "create_summary_with_key_file",
+      "value": "主密码 + 密钥文件"
     },
     {
-      "name": "format_kdbx4",
-      "value": "格式：KDBX 4.x"
-    },
-    {
-      "name": "with_key_file",
-      "value": "凭据：主密码 + 密钥文件"
-    },
-    {
-      "name": "without_key_file",
-      "value": "凭据：仅主密码"
+      "name": "create_summary_without_key_file",
+      "value": "仅主密码"
     },
     {
       "name": "creating",

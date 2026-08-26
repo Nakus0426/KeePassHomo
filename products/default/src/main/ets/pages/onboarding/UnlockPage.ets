@@ -1,8 +1,6 @@
-import { common } from '@kit.AbilityKit'
-import { uiMaterial } from '@kit.ArkUI'
-import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { ROUTE_CREATE_VAULT, ROUTE_FILE_SUMMARY, ROUTE_UNLOCK, ROUTE_WELCOME } from '../../constants/RouteConstants'
-import { PageTopBar, StatusText } from '../../components/PageChrome'
+import { HdsNavDestination } from '@kit.UIDesignKit'
+import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
+import { StatusText } from '../../components/PageChrome'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
@@ -45,7 +43,7 @@ export struct UnlockPage {
         .width('100%')
 
         Button(this.viewModel.currentKeyFileName().length === 0
-          ? $r('app.string.select_key_file') : this.viewModel.currentKeyFileName())
+          ? $r('app.string.key_file_label') : this.viewModel.currentKeyFileName())
           .width('100%')
           .height($r('app.float.control_height'))
           .backgroundColor($r('sys.color.comp_background_primary'))

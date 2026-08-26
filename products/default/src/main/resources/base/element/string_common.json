@@ -13,8 +13,8 @@
       "value": "主密码"
     },
     {
-      "name": "select_key_file",
-      "value": "选择密钥文件（可选）"
+      "name": "key_file_label",
+      "value": "密钥文件（可选）"
     },
     {
       "name": "privacy_cover",
@@ -107,6 +107,26 @@
     {
       "name": "press_back_again_to_background",
       "value": "再次返回则回到桌面"
+    },
+    {
+      "name": "text_input_placeholder",
+      "value": "请输入"
+    },
+    {
+      "name": "select_placeholder",
+      "value": "请选择"
+    },
+    {
+      "name": "kdbx4",
+      "value": "KDBX 4.x"
+    },
+    {
+      "name": "format",
+      "value": "格式"
+    },
+    {
+      "name": "credential",
+      "value": "凭据"
     }
   ]
 }
