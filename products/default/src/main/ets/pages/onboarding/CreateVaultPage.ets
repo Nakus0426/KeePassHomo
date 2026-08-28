@@ -304,12 +304,9 @@ export struct CreateVaultPage {
             PasswordStrengthIndicator({ password: this.form.masterPassword })
               .margin({ left: $r('sys.float.padding_level8'), bottom: $r('sys.float.padding_level12') })
 
-            FormItem({
-              label: $r('app.string.key_file_label'),
-              contentBuilder: this.keyFileBuilder,
-              reserveFeedbackSpace: true,
-            })
+            FormItem({ label: $r('app.string.key_file_label'), contentBuilder: this.keyFileBuilder })
               .id('field_keyFile')
+              .margin({ bottom: $r('sys.float.padding_level8') })
 
             Row({ space: $r('sys.float.padding_level8') }) {
               Stack() {
