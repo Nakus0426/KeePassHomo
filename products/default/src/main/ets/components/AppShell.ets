@@ -9,7 +9,7 @@ import {
 } from '../constants/RouteConstants'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
-import { vaultAppViewModel, VaultAppViewModel } from '../viewmodel/VaultAppViewModel'
+import { appViewModel, AppViewModel } from '../viewmodel/AppViewModel'
 import { SplashContent } from '../pages/onboarding/SplashContent'
 
 @ComponentV2
@@ -45,7 +45,7 @@ struct ModuleNavigationBar {
     .layoutWeight(1)
     .height(56)
     .backgroundColor(Color.Transparent)
-    .onClick(() => vaultAppViewModel.switchModule(route))
+    .onClick(() => appViewModel.switchModule(route))
   }
 
   build() {
@@ -66,14 +66,14 @@ struct ModuleNavigationBar {
 
 @ComponentV2
 export struct AppShell {
-  @Local private viewModel: VaultAppViewModel = vaultAppViewModel
+  @Local private viewModel: AppViewModel = appViewModel
   @Local private session: AppSessionState = appSessionState
   private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
     this.uiObserver = this.getUIContext().getUIObserver()
     appRouter.attach(this.uiObserver)
-    vaultAppViewModel.initialize(this.context())
+    appViewModel.initialize(this.context())
   }
 
   aboutToDisappear(): void {
@@ -81,22 +81,22 @@ export struct AppShell {
       appRouter.detach(this.uiObserver)
       this.uiObserver = undefined
     }
-    vaultAppViewModel.dispose()
+    appViewModel.dispose()
   }
 
   @Monitor('session.vaultLocked')
   onVaultLockChanged(_monitor: IMonitor): void {
-    vaultAppViewModel.onVaultLockChanged()
+    appViewModel.onVaultLockChanged()
   }
 
   @Monitor('session.sensitiveEpoch')
   onSensitiveEpochChanged(_monitor: IMonitor): void {
-    vaultAppViewModel.onSensitiveEpochChanged()
+    appViewModel.onSensitiveEpochChanged()
   }
 
   @Monitor('session.foregroundEpoch')
   onForegroundEpochChanged(_monitor: IMonitor): void {
-    vaultAppViewModel.onForegroundEpochChanged()
+    appViewModel.onForegroundEpochChanged()
   }
 
   private context(): common.UIAbilityContext {
@@ -106,7 +106,7 @@ export struct AppShell {
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       HdsNavigation(appRouter.stack) {
-        SplashContent({ viewModel: vaultAppViewModel })
+        SplashContent({ viewModel: appViewModel })
       }
       .width('100%')
       .height('100%')
@@ -120,7 +120,7 @@ export struct AppShell {
           .zIndex(1)
       }
       if (this.session.privacyCovered) {
-        SplashContent({ viewModel: vaultAppViewModel })
+        SplashContent({ viewModel: appViewModel })
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
           .zIndex(2)
       }

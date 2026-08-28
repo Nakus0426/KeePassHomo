@@ -1,10 +1,10 @@
 import { common } from '@kit.AbilityKit'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { AppViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct SplashContent {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  @Param viewModel: AppViewModel = new AppViewModel()
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
 
   private context(): common.UIAbilityContext {

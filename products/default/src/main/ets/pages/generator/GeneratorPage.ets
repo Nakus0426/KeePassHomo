@@ -4,11 +4,11 @@ import { PageTopBar } from '../../components/PageChrome'
 import { GeneratorContent } from './GeneratorComponents'
 import { appRouter } from '../../navigation/AppRouter'
 import { GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
-import { vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct GeneratorPage {
-  private readonly generator: GeneratorViewModel = vaultAppViewModel.generator
+  private readonly generator: GeneratorViewModel = appViewModel.generator
 
   build() {
     HdsNavDestination() {
@@ -16,13 +16,13 @@ export struct GeneratorPage {
         PageTopBar({
           title: $r('app.string.password_generator'),
           showLock: true,
-          onLock: () => vaultAppViewModel.lockVault(),
+          onLock: () => appViewModel.lockVault(),
         })
         GeneratorContent({
           viewModel: this.generator,
-          clipboardSeconds: vaultAppViewModel.clipboardSeconds,
-          onCopy: (value: string) => vaultAppViewModel.copyValue(value),
-          onActivity: () => vaultAppViewModel.recordActivity(),
+          clipboardSeconds: appViewModel.clipboardSeconds,
+          onCopy: (value: string) => appViewModel.copyValue(value),
+          onActivity: () => appViewModel.recordActivity(),
         })
           .layoutWeight(1)
       }

@@ -1,6 +1,6 @@
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { uiMaterial } from '@kit.ArkUI'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { Cell } from '../../components/Cell'
@@ -12,7 +12,7 @@ const READ_ONLY_BANNER_OPACITY: number = 0.2
 
 @ComponentV2
 export struct FileSummaryPage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private colorMode: ColorModeState = colorModeState
 

@@ -3,7 +3,8 @@ import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignK
 import { GeneratorContent } from '../generator/GeneratorComponents'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { CreateVaultViewModel } from '../../viewmodel/CreateVaultViewModel'
 import { BounceAnimator, ColorUtil } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { FormItem } from '../../components/FormItem'
@@ -12,7 +13,8 @@ import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityTog
 
 @ComponentV2
 export struct CreateVaultPage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
+  @Local private form: CreateVaultViewModel = new CreateVaultViewModel()
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private colorMode: ColorModeState = colorModeState
   @Local private generatorSheetVisible: boolean = false
@@ -31,9 +33,9 @@ export struct CreateVaultPage {
   }
 
   private handleSubmit(): void {
-    const invalidFieldKey: string | undefined = this.viewModel.validateCreateForm()
+    const invalidFieldKey: string | undefined = this.form.validate()
     if (invalidFieldKey === undefined) {
-      this.viewModel.createVault()
+      this.viewModel.createVault(this.form.vaultName, this.form.masterPassword)
       return
     }
     this.scrollToField(invalidFieldKey)
@@ -63,7 +65,10 @@ export struct CreateVaultPage {
   }
 
   private fillMasterPasswordFromGenerator(): void {
-    this.viewModel.fillMasterPasswordFromGenerator()
+    this.form.setMasterPassword(this.viewModel.generator.value)
+    this.form.setConfirmPassword(this.viewModel.generator.value)
+    this.viewModel.generator.clearSensitiveState()
+    this.viewModel.recordActivity()
     this.generatorSheetVisible = false
   }
 
@@ -132,24 +137,24 @@ export struct CreateVaultPage {
 
   @LocalBuilder
   vaultNameBuilder() {
-    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.vaultName })
+    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.vaultName })
       .height($r('app.float.control_height'))
       .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
       .backgroundColor($r('sys.color.comp_background_primary'))
-      .onChange((value: string) => this.viewModel.setVaultName(value))
+      .onChange((value: string) => this.form.setVaultName(value))
   }
 
   @LocalBuilder
   masterPasswordBuilder() {
     Row({ space: $r('sys.float.padding_level2') }) {
-      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.masterPassword })
+      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.masterPassword })
         .type(InputType.Password)
         .showPasswordIcon(false)
         .showPassword(this.masterPasswordVisible)
         .height($r('app.float.control_height'))
         .layoutWeight(1)
         .backgroundColor(Color.Transparent)
-        .onChange((value: string) => this.viewModel?.setMasterPassword(value))
+        .onChange((value: string) => this.form.setMasterPassword(value))
 
       PasswordVisibilityToggle({
         visible: this.masterPasswordVisible,
@@ -178,14 +183,14 @@ export struct CreateVaultPage {
   @LocalBuilder
   confirmPasswordBuilder() {
     Row({ space: $r('sys.float.padding_level2') }) {
-      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.viewModel?.confirmPassword })
+      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.confirmPassword })
         .type(InputType.Password)
         .showPasswordIcon(false)
         .showPassword(this.confirmPasswordVisible)
         .height($r('app.float.control_height'))
         .layoutWeight(1)
         .backgroundColor(Color.Transparent)
-        .onChange((value: string) => this.viewModel?.setConfirmPassword(value))
+        .onChange((value: string) => this.form.setConfirmPassword(value))
 
       PasswordVisibilityToggle({
         visible: this.confirmPasswordVisible,
@@ -266,9 +271,9 @@ export struct CreateVaultPage {
               {
                 label: $r('app.string.vault_name'),
                 contentBuilder: this.vaultNameBuilder,
-                value: this.viewModel.vaultName,
-                schema: this.viewModel.vaultNameSchema,
-                controller: this.viewModel.vaultNameController,
+                value: this.form.vaultName,
+                schema: this.form.vaultNameSchema,
+                controller: this.form.vaultNameController,
                 reserveFeedbackSpace: true,
                 required: true,
               })
@@ -277,9 +282,9 @@ export struct CreateVaultPage {
             FormItem({
               label: $r('app.string.master_password'),
               contentBuilder: this.masterPasswordBuilder,
-              value: this.viewModel.masterPassword,
-              schema: this.viewModel.masterPasswordSchema,
-              controller: this.viewModel.masterPasswordController,
+              value: this.form.masterPassword,
+              schema: this.form.masterPasswordSchema,
+              controller: this.form.masterPasswordController,
               reserveFeedbackSpace: true,
               required: true,
             })
@@ -288,15 +293,15 @@ export struct CreateVaultPage {
             FormItem({
               label: $r('app.string.confirm_password'),
               contentBuilder: this.confirmPasswordBuilder,
-              value: this.viewModel.confirmPassword,
-              schema: this.viewModel.confirmPasswordSchema,
-              controller: this.viewModel.confirmPasswordController,
+              value: this.form.confirmPassword,
+              schema: this.form.confirmPasswordSchema,
+              controller: this.form.confirmPasswordController,
               reserveFeedbackSpace: true,
               required: true,
             })
               .id('field_confirmPassword')
 
-            PasswordStrengthIndicator({ password: this.viewModel.masterPassword })
+            PasswordStrengthIndicator({ password: this.form.masterPassword })
               .margin({ left: $r('sys.float.padding_level8'), bottom: $r('sys.float.padding_level12') })
 
             FormItem({
@@ -438,4 +443,3 @@ export struct CreateVaultPage {
 export function createVaultPageBuilder() {
   CreateVaultPage()
 }
-

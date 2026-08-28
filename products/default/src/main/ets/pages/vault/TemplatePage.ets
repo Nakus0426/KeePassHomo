@@ -1,12 +1,13 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { VaultGroup } from '@ohos/common'
+import { ROUTE_ENTRY_EDIT } from '../../constants/RouteConstants'
 import { PageTopBar } from '../../components/PageChrome'
 import { appRouter } from '../../navigation/AppRouter'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct TemplatePage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
 
   @Builder
   private templateRow(title: Resource, description: Resource, enabled: boolean) {
@@ -27,7 +28,10 @@ export struct TemplatePage {
         .enabled(enabled)
         .backgroundColor(enabled ? $r('sys.color.comp_emphasize_secondary') : $r('sys.color.background_secondary'))
         .fontColor(enabled ? $r('sys.color.brand') : $r('sys.color.font_secondary'))
-        .onClick(() => this.viewModel.startNewEntry())
+        .onClick(() => {
+          appRouter.push(ROUTE_ENTRY_EDIT)
+          this.viewModel.recordActivity()
+        })
     }
     .width('100%')
     .padding($r('sys.float.padding_level8'))

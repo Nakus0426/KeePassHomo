@@ -1,25 +1,30 @@
-import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { VaultEntry, VaultFormat, VaultGroup } from '@ohos/common'
-import { ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
+import { ROUTE_ENTRY_DETAIL, ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
 import { PageTopBar, StatusText } from '../../components/PageChrome'
 import { VaultBrowseMode } from '../../model/StageOneVaultStore'
 import { appRouter } from '../../navigation/AppRouter'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { EntryDetailParam } from '../../navigation/RouteParams'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { vaultHomeViewModel, VaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 
 @ComponentV2
 export struct VaultHomePage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
+  private readonly home: VaultHomeViewModel = vaultHomeViewModel
 
   @Builder
   private browseModeButton(title: Resource, mode: VaultBrowseMode) {
     Button(title)
       .layoutWeight(1)
-      .backgroundColor(this.viewModel.browseMode === mode
+      .backgroundColor(this.home.browseMode === mode
         ? $r('sys.color.brand') : $r('sys.color.comp_background_primary'))
-      .fontColor(this.viewModel.browseMode === mode
+      .fontColor(this.home.browseMode === mode
         ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
-      .onClick(() => this.viewModel.setBrowseMode(mode))
+      .onClick(() => {
+        this.home.setBrowseMode(mode)
+        this.viewModel.recordActivity()
+      })
   }
 
   build() {
@@ -61,11 +66,14 @@ export struct VaultHomePage {
           }
         }
         StatusText({ status: this.viewModel.status })
-        TextInput({ placeholder: $r('app.string.search_vault'), text: this.viewModel.searchQuery })
+        TextInput({ placeholder: $r('app.string.search_vault'), text: this.home.searchQuery })
           .width('100%')
           .height($r('app.float.control_height'))
           .backgroundColor($r('sys.color.comp_background_primary'))
-          .onChange((value: string) => this.viewModel.setSearchQuery(value))
+          .onChange((value: string) => {
+            this.home.setSearchQuery(value)
+            this.viewModel.recordActivity()
+          })
         Row({ space: 8 }) {
           this.browseModeButton($r('app.string.all_entries'), VaultBrowseMode.All)
           this.browseModeButton($r('app.string.favorites'), VaultBrowseMode.Favorites)
@@ -76,18 +84,24 @@ export struct VaultHomePage {
         Scroll() {
           Row({ space: 8 }) {
             Button($r('app.string.groups'))
-              .backgroundColor(this.viewModel.selectedGroupUuid.length === 0
+              .backgroundColor(this.home.selectedGroupUuid.length === 0
                 ? $r('sys.color.brand') : $r('sys.color.comp_background_primary'))
-              .fontColor(this.viewModel.selectedGroupUuid.length === 0
+              .fontColor(this.home.selectedGroupUuid.length === 0
                 ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
-              .onClick(() => this.viewModel.selectBrowseGroup(''))
+              .onClick(() => {
+                this.home.selectBrowseGroup('')
+                this.viewModel.recordActivity()
+              })
             ForEach(this.viewModel.groups(), (group: VaultGroup) => {
               Button(group.name)
-                .backgroundColor(this.viewModel.selectedGroupUuid === group.uuid
+                .backgroundColor(this.home.selectedGroupUuid === group.uuid
                   ? $r('sys.color.brand') : $r('sys.color.comp_background_primary'))
-                .fontColor(this.viewModel.selectedGroupUuid === group.uuid
+                .fontColor(this.home.selectedGroupUuid === group.uuid
                   ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
-                .onClick(() => this.viewModel.selectBrowseGroup(group.uuid))
+                .onClick(() => {
+                  this.home.selectBrowseGroup(group.uuid)
+                  this.viewModel.recordActivity()
+                })
             }, (group: VaultGroup) => group.uuid)
           }
         }
@@ -95,7 +109,7 @@ export struct VaultHomePage {
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)
 
-        if (this.viewModel.entries().length === 0) {
+        if (this.home.entries().length === 0) {
           Column({ space: 12 }) {
             Text($r('app.string.no_entries'))
               .fontSize($r('app.float.text_heading'))
@@ -112,7 +126,7 @@ export struct VaultHomePage {
           .width('100%')
           .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
-        } else if (this.viewModel.visibleEntries().length === 0) {
+        } else if (this.home.visibleEntries().length === 0) {
           Column() {
             Text($r('app.string.no_results'))
               .fontSize($r('app.float.text_heading'))
@@ -123,7 +137,7 @@ export struct VaultHomePage {
           .justifyContent(FlexAlign.Center)
         } else {
           List({ space: 8 }) {
-            ForEach(this.viewModel.visibleEntries(), (entry: VaultEntry) => {
+            ForEach(this.home.visibleEntries(), (entry: VaultEntry) => {
               ListItem() {
                 Row({ space: 12 }) {
                   Text(entry.title.substring(0, 1).toUpperCase())
@@ -156,7 +170,11 @@ export struct VaultHomePage {
                 .padding($r('sys.float.padding_level8'))
                 .backgroundColor($r('sys.color.comp_background_primary'))
                 .borderRadius($r('sys.float.corner_radius_level4'))
-                .onClick(() => this.viewModel.openEntry(entry.uuid))
+                .onClick(() => {
+                  const detailParam: EntryDetailParam = { entryUuid: entry.uuid }
+                  appRouter.push(ROUTE_ENTRY_DETAIL, detailParam)
+                  this.viewModel.recordActivity()
+                })
               }
             }, (entry: VaultEntry) => entry.uuid)
           }

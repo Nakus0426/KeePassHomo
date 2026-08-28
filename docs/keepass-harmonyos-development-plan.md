@@ -98,8 +98,11 @@ View（ArkUI）
 ### 3.4 路由与模块边界
 
 - [x] 使用 `Navigation + NavPathStack + NavDestination` 建立真实页面栈。
+- [x] 采用系统路由表：`module.json5` 配置 `routerMap`，`route_map.json` 注册全部页面，各页面导出 `@Builder` 构建函数，跳转经 `pushPathByName` 由系统路由表解析。
+- [x] 路由操作统一收敛到 `AppRouter` 单例（`push`/`pop`/`resetTo`/`backToPreviousRoute`/`topParam`），`currentRoute` 由 `uiObserver.on('navDestinationUpdate')` 自动同步，页面不再手动回写。
 - [x] 集中维护认证、保险库、条目、安全中心、生成器和设置路由名称。
-- [x] 路由参数不传递密码、凭据、TOTP 密钥、完整条目或其他敏感数据。
+- [x] 路由参数不传递密码、凭据、TOTP 密钥、完整条目或其他敏感数据；非敏感定位信息（如条目 UUID）通过路由 `param` 传递，页面在 `aboutToAppear` 读取。
+- [x] 页面表单与编辑状态归属页面域 ViewModel（随 NavDestination 入栈创建、出栈销毁，不跨导航残留）；浏览状态等模块级状态归属独立域 ViewModel；会话与生命周期状态归属 `AppViewModel`。
 - [x] Phone 使用单栈导航和四模块悬浮胶囊底栏。
 - [ ] 每个主模块拥有独立页面入口、ViewModel 和内部路由，不再集中于单个巨型页面组件。
 - [x] 页面文件按一页一文件组织；仅当前页面使用的组件可与页面同文件，跨页面复用的组件再抽取为独立文件，禁止多个页面集中在同一个 `.ets` 文件。

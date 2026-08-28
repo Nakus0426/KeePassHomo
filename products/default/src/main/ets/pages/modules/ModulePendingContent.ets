@@ -1,5 +1,5 @@
 import { PageTopBar } from '../../components/PageChrome'
-import { vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appViewModel } from '../../viewmodel/AppViewModel'
 
 /**
  * 未开放模块的占位内容，由 SecurityPage / SettingsPage 等模块首页复用。
@@ -13,7 +13,7 @@ export struct ModulePendingContent {
       PageTopBar({
         title: this.title,
         showLock: true,
-        onLock: () => vaultAppViewModel.lockVault(),
+        onLock: () => appViewModel.lockVault(),
       })
       Column({ space: 8 }) {
         Text($r('app.string.module_pending'))
@@ -33,6 +33,6 @@ export struct ModulePendingContent {
       bottom: $r('app.float.module_content_bottom_padding'),
       left: $r('sys.float.padding_level12'),
     })
-    .onTouch(() => vaultAppViewModel.recordActivity())
+    .onTouch(() => appViewModel.recordActivity())
   }
 }

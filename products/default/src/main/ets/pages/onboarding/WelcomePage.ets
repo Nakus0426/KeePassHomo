@@ -2,7 +2,7 @@ import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
 import { appRouter } from '../../navigation/AppRouter'
-import { vaultAppViewModel, VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appViewModel, AppViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct DataSourceCard {
@@ -62,7 +62,7 @@ export struct DataSourceCard {
 
 @ComponentV2
 export struct WelcomePage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
 
   build() {
     HdsNavDestination() {

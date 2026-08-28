@@ -1,14 +1,31 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
+import { PASSWORD_REVEAL_SECONDS } from '../../constants/SecurityConstants'
 import { StatusText } from '../../components/PageChrome'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { appRouter } from '../../navigation/AppRouter'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct UnlockPage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
+  @Local private unlockPassword: string = ''
+  @Local private showUnlockPassword: boolean = false
+  private revealTimer: number = -1
+
+  private revealPassword(): void {
+    this.showUnlockPassword = true
+    this.revealTimer = setTimeout(() => this.showUnlockPassword = false, PASSWORD_REVEAL_SECONDS * 1000)
+  }
+
+  private hidePassword(): void {
+    this.showUnlockPassword = false
+    if (this.revealTimer >= 0) {
+      clearTimeout(this.revealTimer)
+      this.revealTimer = -1
+    }
+  }
 
   build() {
     HdsNavDestination() {
@@ -26,18 +43,17 @@ export struct UnlockPage {
         Text($r('app.string.local_file'))
           .fontColor($r('sys.color.font_secondary'))
         Row({ space: 8 }) {
-          TextInput({ placeholder: $r('app.string.master_password'), text: this.viewModel.unlockPassword })
-            .type(this.viewModel.showUnlockPassword ? InputType.Normal : InputType.Password)
+          TextInput({ placeholder: $r('app.string.master_password'), text: this.unlockPassword })
+            .type(this.showUnlockPassword ? InputType.Normal : InputType.Password)
             .height($r('app.float.control_height'))
             .layoutWeight(1)
             .backgroundColor($r('sys.color.comp_background_primary'))
-            .onChange((value: string) => this.viewModel.setUnlockPassword(value))
-          Button(this.viewModel.showUnlockPassword ? $r('app.string.hide') : $r('app.string.show'))
+            .onChange((value: string) => this.unlockPassword = value)
+          Button(this.showUnlockPassword ? $r('app.string.hide') : $r('app.string.show'))
             .height($r('app.float.control_height'))
             .backgroundColor($r('sys.color.comp_emphasize_secondary'))
             .fontColor($r('sys.color.brand'))
-            .onClick(() => this.viewModel.showUnlockPassword
-              ? this.viewModel.hidePasswords() : this.viewModel.revealPassword(ROUTE_UNLOCK))
+            .onClick(() => this.showUnlockPassword ? this.hidePassword() : this.revealPassword())
         }
         .width('100%')
 
@@ -52,9 +68,9 @@ export struct UnlockPage {
         Button(this.viewModel.busy ? $r('app.string.unlocking') : $r('app.string.unlock_vault'))
           .width('100%')
           .height($r('app.float.control_height'))
-          .enabled(!this.viewModel.busy && !this.viewModel.unlockBlocked && this.viewModel.unlockPassword.length > 0)
+          .enabled(!this.viewModel.busy && !this.viewModel.unlockBlocked && this.unlockPassword.length > 0)
           .backgroundColor($r('sys.color.brand'))
-          .onClick(() => this.viewModel.unlockVault())
+          .onClick(() => this.viewModel.unlockVault(this.unlockPassword))
         Button($r('app.string.choose_another_vault'))
           .backgroundColor(Color.Transparent)
           .fontColor($r('sys.color.brand'))
@@ -73,6 +89,7 @@ export struct UnlockPage {
       top: this.getUIContext().px2vp(this.immersiveLayout.topAvoidAreaHeightPx),
       bottom: this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx),
     })
+    .onHidden(() => this.hidePassword())
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true
@@ -84,4 +101,3 @@ export struct UnlockPage {
 export function unlockPageBuilder() {
   UnlockPage()
 }
-

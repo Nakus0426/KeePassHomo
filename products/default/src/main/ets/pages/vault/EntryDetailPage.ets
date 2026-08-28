@@ -1,12 +1,41 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ROUTE_ENTRY_DETAIL } from '../../constants/RouteConstants'
+import { ROUTE_ENTRY_DETAIL, ROUTE_ENTRY_EDIT } from '../../constants/RouteConstants'
+import { PASSWORD_REVEAL_SECONDS } from '../../constants/SecurityConstants'
 import { PageTopBar } from '../../components/PageChrome'
 import { appRouter } from '../../navigation/AppRouter'
-import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { EntryDetailParam, EntryEditParam } from '../../navigation/RouteParams'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct EntryDetailPage {
-  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
+  private readonly viewModel: AppViewModel = appViewModel
+  @Local private entryUuid: string = ''
+  @Local private showPassword: boolean = false
+  private revealTimer: number = -1
+
+  aboutToAppear(): void {
+    const param: EntryDetailParam | undefined = appRouter.topParam() as EntryDetailParam | undefined
+    this.entryUuid = param?.entryUuid ?? ''
+  }
+
+  private revealPassword(): void {
+    this.showPassword = true
+    this.revealTimer = setTimeout(() => this.showPassword = false, PASSWORD_REVEAL_SECONDS * 1000)
+  }
+
+  private hidePassword(): void {
+    this.showPassword = false
+    if (this.revealTimer >= 0) {
+      clearTimeout(this.revealTimer)
+      this.revealTimer = -1
+    }
+  }
+
+  private editEntry(): void {
+    const editParam: EntryEditParam = { entryUuid: this.entryUuid }
+    appRouter.push(ROUTE_ENTRY_EDIT, editParam)
+    this.viewModel.recordActivity()
+  }
 
   @Builder
   private detailField(label: Resource, value: string) {
@@ -43,15 +72,14 @@ export struct EntryDetailPage {
         .fontSize($r('app.float.text_caption'))
         .fontColor($r('sys.color.font_secondary'))
       Row({ space: 8 }) {
-        Text(this.viewModel.showEntryPassword ? value : $r('app.string.password_hidden'))
+        Text(this.showPassword ? value : $r('app.string.password_hidden'))
           .layoutWeight(1)
           .fontSize($r('sys.float.Body_L'))
           .fontColor($r('sys.color.font_primary'))
-        Button(this.viewModel.showEntryPassword ? $r('app.string.hide') : $r('app.string.show'))
+        Button(this.showPassword ? $r('app.string.hide') : $r('app.string.show'))
           .backgroundColor(Color.Transparent)
           .fontColor($r('sys.color.brand'))
-          .onClick(() => this.viewModel.showEntryPassword
-            ? this.viewModel.hidePasswords() : this.viewModel.revealPassword(ROUTE_ENTRY_DETAIL))
+          .onClick(() => this.showPassword ? this.hidePassword() : this.revealPassword())
         Button($r('app.string.copy'))
           .backgroundColor(Color.Transparent)
           .fontColor($r('sys.color.brand'))
@@ -73,40 +101,40 @@ export struct EntryDetailPage {
           showBack: true,
           onBack: () => appRouter.pop(),
         })
-        Text(this.viewModel.entry(this.viewModel.selectedEntryUuid).title)
+        Text(this.viewModel.entry(this.entryUuid).title)
           .width('100%')
           .fontSize($r('sys.float.Title_L'))
           .fontWeight(FontWeight.Bold)
-        Text(this.viewModel.entry(this.viewModel.selectedEntryUuid).groupPath)
+        Text(this.viewModel.entry(this.entryUuid).groupPath)
           .width('100%')
           .fontColor($r('sys.color.font_secondary'))
         Row({ space: 8 }) {
-          Button(this.viewModel.entry(this.viewModel.selectedEntryUuid).favorite
+          Button(this.viewModel.entry(this.entryUuid).favorite
             ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'))
             .enabled(!this.viewModel.busy && !this.viewModel.currentSource().readOnly)
             .backgroundColor($r('sys.color.comp_emphasize_secondary'))
             .fontColor($r('sys.color.brand'))
-            .onClick(() => this.viewModel.toggleFavorite())
-          Button(this.viewModel.entry(this.viewModel.selectedEntryUuid).archived
+            .onClick(() => this.viewModel.toggleFavorite(this.entryUuid))
+          Button(this.viewModel.entry(this.entryUuid).archived
             ? $r('app.string.restore_entry') : $r('app.string.archive_entry'))
             .enabled(!this.viewModel.busy && !this.viewModel.currentSource().readOnly)
             .backgroundColor($r('sys.color.comp_background_primary'))
             .fontColor($r('sys.color.font_primary'))
-            .onClick(() => this.viewModel.toggleArchived())
+            .onClick(() => this.viewModel.toggleArchived(this.entryUuid))
         }
         .width('100%')
 
         this.detailField($r('app.string.username'),
-          this.viewModel.field(this.viewModel.entry(this.viewModel.selectedEntryUuid), 'UserName'))
+          this.viewModel.field(this.viewModel.entry(this.entryUuid), 'UserName'))
         this.passwordField(
-          this.viewModel.field(this.viewModel.entry(this.viewModel.selectedEntryUuid), 'Password'))
+          this.viewModel.field(this.viewModel.entry(this.entryUuid), 'Password'))
         this.detailField($r('app.string.website'),
-          this.viewModel.field(this.viewModel.entry(this.viewModel.selectedEntryUuid), 'URL'))
+          this.viewModel.field(this.viewModel.entry(this.entryUuid), 'URL'))
         this.detailField($r('app.string.notes'),
-          this.viewModel.field(this.viewModel.entry(this.viewModel.selectedEntryUuid), 'Notes'))
-        if (this.viewModel.entry(this.viewModel.selectedEntryUuid).tags.length > 0) {
+          this.viewModel.field(this.viewModel.entry(this.entryUuid), 'Notes'))
+        if (this.viewModel.entry(this.entryUuid).tags.length > 0) {
           this.detailField($r('app.string.tags'),
-            this.viewModel.entry(this.viewModel.selectedEntryUuid).tags.join(', '))
+            this.viewModel.entry(this.entryUuid).tags.join(', '))
         }
         if (this.viewModel.clipboardSeconds > 0) {
           Text($r('app.string.copied_countdown', this.viewModel.clipboardSeconds))
@@ -120,7 +148,7 @@ export struct EntryDetailPage {
             .width('100%')
             .height($r('app.float.control_height'))
             .backgroundColor($r('sys.color.brand'))
-            .onClick(() => this.viewModel.startEditEntry())
+            .onClick(() => this.editEntry())
         }
       }
       .width('100%')
@@ -131,6 +159,7 @@ export struct EntryDetailPage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
+    .onHidden(() => this.hidePassword())
   }
 }
 
