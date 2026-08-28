@@ -145,10 +145,12 @@ export class FileVaultRepository implements VaultRepository {
         readOnly: false,
       })
       await validate(candidate)
-      const backup: ArrayBuffer = await this.read(source)
-      this.writeFile(backupUri, backup, true)
-      backupCreated = true
-      this.overwrite(source.uri, candidate)
+      if (FileUtil.accessSync(source.uri)) {
+        const backup: ArrayBuffer = await this.read(source)
+        this.writeFile(backupUri, backup, true)
+        backupCreated = true
+      }
+      this.writeFile(source.uri, candidate, true)
       await validate(await this.read(source))
       removeBackup = true
     } catch (error) {

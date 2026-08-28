@@ -2,6 +2,8 @@ export { BreakpointSystem, BreakPointType } from './src/main/ets/utils/Breakpoin
 
 export { ColorUtil } from './src/main/ets/utils/ColorUtil'
 
+export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
+
 export {
   VaultSourceType,
   VaultFormat,
@@ -53,6 +55,10 @@ export {
   PinOptions,
   PasswordStrength,
 } from './src/main/ets/security/PasswordGenerator'
+
+export {
+  PasswordStrengthCalculator, StrengthLevel,
+} from './src/main/ets/security/PasswordStrengthCalculator'
 
 export { LocalUnlockMaterialStore } from './src/main/ets/security/LocalUnlockMaterialStore'
 

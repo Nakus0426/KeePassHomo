@@ -77,8 +77,16 @@
       "value": "保险库名称"
     },
     {
-      "name": "save_location",
-      "value": "保存位置"
+      "name": "vault_name_required",
+      "value": "请输入保险库名称"
+    },
+    {
+      "name": "master_password_required",
+      "value": "请输入主密码"
+    },
+    {
+      "name": "confirm_password_required",
+      "value": "请再次输入主密码"
     },
     {
       "name": "confirm_password",
@@ -87,10 +95,6 @@
     {
       "name": "generate_password_suggestion",
       "value": "生成主密码建议"
-    },
-    {
-      "name": "password_saved_ack",
-      "value": "我已妥善保存生成的主密码"
     },
     {
       "name": "password_mismatch",

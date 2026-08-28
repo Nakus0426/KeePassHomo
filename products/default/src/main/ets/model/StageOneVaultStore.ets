@@ -39,11 +39,20 @@ export enum VaultBrowseMode {
   Archived,
 }
 
+/**
+ * 用户在保存对话框中取消选择。区别于真实的创建失败，
+ * 调用方应静默中止流程而非提示错误。
+ */
+export class UserCancelledError extends Error {
+  constructor() {
+    super('用户取消了保存位置选择')
+  }
+}
+
 export class StageOneVaultStore {
   private context: common.UIAbilityContext | undefined
   private repository: FileVaultRepository | undefined
   private source: VaultSource | undefined
-  private pendingCreateSource: VaultSource | undefined
   private keyFileSource: VaultSource | undefined
   private credential: VaultCredential | undefined
   private engine: KdbxVaultEngine = new KdbxVaultEngine()
@@ -66,6 +75,10 @@ export class StageOneVaultStore {
 
   get currentKeyFileName(): string {
     return this.keyFileSource?.displayName ?? ''
+  }
+
+  get currentKeyFileUri(): string {
+    return this.keyFileSource?.uri ?? ''
   }
 
   get currentFormat(): VaultFormat {
@@ -165,20 +178,6 @@ export class StageOneVaultStore {
     })
   }
 
-  async chooseCreateLocation(vaultName: string): Promise<string> {
-    const options = new picker.DocumentSaveOptions()
-    options.newFileNames = [`${vaultName}.kdbx`]
-    options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
-    this.pendingCreateSource = {
-      type: VaultSourceType.LocalFile,
-      uri: uris[0],
-      displayName: FileUtil.getFileName(uris[0]),
-      readOnly: false,
-    }
-    return this.pendingCreateSource.displayName
-  }
-
   async chooseKeyFile(): Promise<void> {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
@@ -211,12 +210,20 @@ export class StageOneVaultStore {
   }
 
   async createVault(name: string, password: string): Promise<void> {
-    if (this.pendingCreateSource === undefined) {
-      throw new Error('尚未选择保险库保存位置')
+    const options = new picker.DocumentSaveOptions()
+    options.newFileNames = [`${name}.kdbx`]
+    options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
+    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
+    if (uris === undefined || uris.length === 0) {
+      throw new UserCancelledError()
     }
-    const source: VaultSource = this.pendingCreateSource
+    const source: VaultSource = {
+      type: VaultSourceType.LocalFile,
+      uri: uris[0],
+      displayName: FileUtil.getFileName(uris[0]),
+      readOnly: false,
+    }
     const repository: FileVaultRepository = this.requireRepository()
-    await repository.persistAccess(source)
     const credential: VaultCredential = await this.readCredential(password)
     this.engine = new KdbxVaultEngine()
     const document: VaultDocument = await this.engine.create(name, credential)
@@ -224,8 +231,8 @@ export class StageOneVaultStore {
     await repository.writeSafely(source, data, async (candidate: ArrayBuffer): Promise<void> => {
       await new KdbxVaultEngine().validate(candidate, credential)
     })
+    await repository.persistAccess(source)
     this.source = source
-    this.pendingCreateSource = undefined
     this.credential = credential
     this.session.unlock(document)
     await this.persistRecentSource()

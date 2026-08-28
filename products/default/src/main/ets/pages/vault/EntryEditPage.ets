@@ -17,7 +17,7 @@ export struct EntryEditPage {
   })
 
   private openGeneratorSheet(): void {
-    this.viewModel.prepareEditorGenerator()
+    this.viewModel.prepareGenerator()
     this.generatorSheetVisible = true
   }
 

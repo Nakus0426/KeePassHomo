@@ -2,6 +2,11 @@ import { common } from '@kit.AbilityKit'
 import {
   AppErrorFactory,
   AppErrorModel,
+  custom,
+  required,
+  stringSchema,
+  ValidationSchema,
+  ValidationValue,
   VaultEngineError,
   VaultEngineErrorCategory,
   VaultEntry,
@@ -26,8 +31,9 @@ import {
   ROUTE_VAULT,
   ROUTE_WELCOME,
 } from '../constants/RouteConstants'
-import { stageOneVaultStore, VaultBrowseMode, VaultFileSummary } from '../model/StageOneVaultStore'
+import { stageOneVaultStore, UserCancelledError, VaultBrowseMode, VaultFileSummary } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
+import { FormItemController } from '../components/FormItem'
 import { GeneratorViewModel } from './GeneratorViewModel'
 import { VaultSessionViewModel } from './VaultSessionViewModel'
 
@@ -42,11 +48,8 @@ export class VaultAppViewModel {
   @Trace splashTimedOut: boolean = false
   @Trace fileSummary: VaultFileSummary | undefined = undefined
   @Trace vaultName: string = '个人保险库'
-  @Trace createFileName: string = ''
   @Trace masterPassword: string = ''
   @Trace confirmPassword: string = ''
-  @Trace generatedMasterPassword: boolean = false
-  @Trace generatedPasswordSaved: boolean = false
   @Trace unlockPassword: string = ''
   @Trace showUnlockPassword: boolean = false
   @Trace unlockFailures: number = 0
@@ -70,6 +73,16 @@ export class VaultAppViewModel {
   readonly generator: GeneratorViewModel = new GeneratorViewModel()
   readonly session: VaultSessionViewModel = new VaultSessionViewModel()
   readonly navPathStack: NavPathStack = new NavPathStack()
+  readonly vaultNameController: FormItemController = new FormItemController()
+  readonly masterPasswordController: FormItemController = new FormItemController()
+  readonly confirmPasswordController: FormItemController = new FormItemController()
+  readonly vaultNameSchema: ValidationSchema = stringSchema([required($r('app.string.vault_name_required'))])
+  readonly masterPasswordSchema: ValidationSchema = stringSchema([required($r('app.string.master_password_required'))])
+  readonly confirmPasswordSchema: ValidationSchema = stringSchema([
+    required($r('app.string.confirm_password_required')),
+    custom((value: ValidationValue): ResourceStr | undefined =>
+    value === this.masterPassword ? undefined : $r('app.string.password_mismatch'), 'confirmMatch'),
+  ])
 
   private splashTimer: number = -1
   private revealTimer: number = -1
@@ -124,15 +137,13 @@ export class VaultAppViewModel {
 
   setMasterPassword(value: string): void {
     this.masterPassword = value
-    this.generatedMasterPassword = false
+    if (this.confirmPassword.length > 0) {
+      this.confirmPasswordController.validate(this.confirmPassword)
+    }
   }
 
   setConfirmPassword(value: string): void {
     this.confirmPassword = value
-  }
-
-  setGeneratedPasswordSaved(value: boolean): void {
-    this.generatedPasswordSaved = value
   }
 
   setUnlockPassword(value: string): void {
@@ -206,16 +217,6 @@ export class VaultAppViewModel {
       this.currentRoute === ROUTE_GENERATOR || this.currentRoute === ROUTE_SETTINGS
   }
 
-  async chooseCreateLocation(): Promise<void> {
-    const name: string = this.vaultName.trim().length === 0 ? '个人保险库' : this.vaultName.trim()
-    try {
-      this.createFileName = await stageOneVaultStore.chooseCreateLocation(name)
-      this.setStatus('')
-    } catch (error) {
-      this.reportBoundaryError('选择保存位置失败', error)
-    }
-  }
-
   async chooseLocalVault(): Promise<void> {
     this.busy = true
     try {
@@ -280,19 +281,24 @@ export class VaultAppViewModel {
     return false
   }
 
+  /**
+   * 按表单字段顺序执行创建保险库校验，返回首个未通过字段的 key，
+   * 全部通过时返回 undefined。
+   */
+  validateCreateForm(): string | undefined {
+    if (!this.vaultNameController.validate(this.vaultName)) {
+      return 'vaultName'
+    }
+    if (!this.masterPasswordController.validate(this.masterPassword)) {
+      return 'masterPassword'
+    }
+    if (!this.confirmPasswordController.validate(this.confirmPassword)) {
+      return 'confirmPassword'
+    }
+    return undefined
+  }
+
   async createVault(): Promise<void> {
-    if (this.vaultName.trim().length === 0 || this.createFileName.length === 0 || this.masterPassword.length === 0) {
-      this.setStatus('请填写库名、选择保存位置并输入主密码')
-      return
-    }
-    if (this.masterPassword !== this.confirmPassword) {
-      this.setStatus('两次输入的主密码不一致')
-      return
-    }
-    if (this.generatedMasterPassword && !this.generatedPasswordSaved) {
-      this.setStatus('请确认已妥善保存生成的主密码')
-      return
-    }
     this.busy = true
     try {
       await stageOneVaultStore.createVault(this.vaultName.trim(), this.masterPassword)
@@ -303,6 +309,10 @@ export class VaultAppViewModel {
       this.resetRoute(ROUTE_VAULT)
       this.setStatus('')
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        this.setStatus('')
+        return
+      }
       this.reportBoundaryError('创建保险库失败', error)
     } finally {
       this.busy = false
@@ -344,19 +354,7 @@ export class VaultAppViewModel {
     }
   }
 
-  generateMasterPassword(): void {
-    try {
-      const password: string = this.generator.generateMasterPassword()
-      this.masterPassword = password
-      this.confirmPassword = password
-      this.generatedMasterPassword = true
-      this.generatedPasswordSaved = false
-    } catch (error) {
-      this.reportBoundaryError('生成主密码失败', error)
-    }
-  }
-
-  prepareEditorGenerator(): void {
+  prepareGenerator(): void {
     this.generator.status = ''
     this.generator.regenerate()
     this.recordActivity()
@@ -364,6 +362,13 @@ export class VaultAppViewModel {
 
   fillEditorFromGenerator(): void {
     this.editorPassword = this.generator.value
+    this.generator.clearSensitiveState()
+    this.recordActivity()
+  }
+
+  fillMasterPasswordFromGenerator(): void {
+    this.masterPassword = this.generator.value
+    this.confirmPassword = this.generator.value
     this.generator.clearSensitiveState()
     this.recordActivity()
   }
@@ -629,6 +634,11 @@ export class VaultAppViewModel {
     return stageOneVaultStore.currentKeyFileName
   }
 
+  currentKeyFileUri(): string {
+    this.revision
+    return stageOneVaultStore.currentKeyFileUri
+  }
+
   currentFormat(): VaultFormat {
     this.revision
     return stageOneVaultStore.currentFormat
@@ -673,8 +683,6 @@ export class VaultAppViewModel {
     this.masterPassword = ''
     this.confirmPassword = ''
     this.unlockPassword = ''
-    this.generatedPasswordSaved = false
-    this.generatedMasterPassword = false
   }
 
   private clearEditorSensitiveState(): void {

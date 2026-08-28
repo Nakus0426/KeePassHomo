@@ -150,10 +150,6 @@ export class GeneratorViewModel {
     return this.generator.estimatePin(this.pinOptions())
   }
 
-  generateMasterPassword(): string {
-    return this.generator.generate()
-  }
-
   clearSensitiveState(): void {
     this.value = ''
     this.status = ''

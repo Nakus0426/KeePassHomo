@@ -2,7 +2,7 @@ export type ValidationValue = string | number
 
 export interface ValidationError {
   rule: string
-  message: string
+  message: ResourceStr
 }
 
 export interface ValidationResult {
@@ -13,14 +13,14 @@ export interface ValidationResult {
 export interface ValidationRule {
   readonly name: string
 
-  validate(value: ValidationValue): string | undefined
+  validate(value: ValidationValue): ResourceStr | undefined
 }
 
 export interface ValidationSchema {
   validate(value: ValidationValue): ValidationResult
 }
 
-type ValidationFunction = (value: ValidationValue) => string | undefined
+type ValidationFunction = (value: ValidationValue) => ResourceStr | undefined
 
 function passResult(): ValidationResult {
   return { valid: true, errors: [] }
@@ -32,7 +32,7 @@ function collectResult(value: ValidationValue, rules: Array<ValidationRule>): Va
     if (typeof value === 'string' && value.trim().length === 0 && rule.name !== 'required') {
       continue
     }
-    const message: string | undefined = rule.validate(value)
+    const message: ResourceStr | undefined = rule.validate(value)
     if (message !== undefined) {
       errors.push({ rule: rule.name, message })
     }
@@ -49,7 +49,7 @@ class Rule implements ValidationRule {
     this.validator = validator
   }
 
-  validate(value: ValidationValue): string | undefined {
+  validate(value: ValidationValue): ResourceStr | undefined {
     return this.validator(value)
   }
 }
@@ -98,8 +98,8 @@ export function numberSchema(rules: Array<ValidationRule> = []): NumberSchema {
   return new NumberSchema(rules)
 }
 
-export function required(message: string = '此项为必填项'): ValidationRule {
-  return new Rule('required', (value: ValidationValue): string | undefined => {
+export function required(message: ResourceStr = '此项为必填项'): ValidationRule {
+  return new Rule('required', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'string' && value.trim().length === 0) {
       return message
     }
@@ -107,8 +107,8 @@ export function required(message: string = '此项为必填项'): ValidationRule
   })
 }
 
-export function minLength(length: number, message: string = `长度不能少于 ${length} 个字符`): ValidationRule {
-  return new Rule('minLength', (value: ValidationValue): string | undefined => {
+export function minLength(length: number, message: ResourceStr = `长度不能少于 ${length} 个字符`): ValidationRule {
+  return new Rule('minLength', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'string' && value.length < length) {
       return message
     }
@@ -116,8 +116,8 @@ export function minLength(length: number, message: string = `长度不能少于 
   })
 }
 
-export function maxLength(length: number, message: string = `长度不能超过 ${length} 个字符`): ValidationRule {
-  return new Rule('maxLength', (value: ValidationValue): string | undefined => {
+export function maxLength(length: number, message: ResourceStr = `长度不能超过 ${length} 个字符`): ValidationRule {
+  return new Rule('maxLength', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'string' && value.length > length) {
       return message
     }
@@ -125,8 +125,8 @@ export function maxLength(length: number, message: string = `长度不能超过 
   })
 }
 
-export function length(expected: number, message: string = `长度必须为 ${expected} 个字符`): ValidationRule {
-  return new Rule('length', (value: ValidationValue): string | undefined => {
+export function length(expected: number, message: ResourceStr = `长度必须为 ${expected} 个字符`): ValidationRule {
+  return new Rule('length', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'string' && value.length !== expected) {
       return message
     }
@@ -134,9 +134,9 @@ export function length(expected: number, message: string = `长度必须为 ${ex
   })
 }
 
-export function email(message: string = '请输入有效的邮箱地址'): ValidationRule {
+export function email(message: ResourceStr = '请输入有效的邮箱地址'): ValidationRule {
   const pattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return new Rule('email', (value: ValidationValue): string | undefined => {
+  return new Rule('email', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'string' && !pattern.test(value)) {
       return message
     }
@@ -144,8 +144,8 @@ export function email(message: string = '请输入有效的邮箱地址'): Valid
   })
 }
 
-export function min(expected: number, message: string = `数值不能小于 ${expected}`): ValidationRule {
-  return new Rule('min', (value: ValidationValue): string | undefined => {
+export function min(expected: number, message: ResourceStr = `数值不能小于 ${expected}`): ValidationRule {
+  return new Rule('min', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'number' && value < expected) {
       return message
     }
@@ -153,8 +153,8 @@ export function min(expected: number, message: string = `数值不能小于 ${ex
   })
 }
 
-export function max(expected: number, message: string = `数值不能大于 ${expected}`): ValidationRule {
-  return new Rule('max', (value: ValidationValue): string | undefined => {
+export function max(expected: number, message: ResourceStr = `数值不能大于 ${expected}`): ValidationRule {
+  return new Rule('max', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'number' && value > expected) {
       return message
     }
@@ -162,8 +162,8 @@ export function max(expected: number, message: string = `数值不能大于 ${ex
   })
 }
 
-export function integer(message: string = '请输入整数'): ValidationRule {
-  return new Rule('integer', (value: ValidationValue): string | undefined => {
+export function integer(message: ResourceStr = '请输入整数'): ValidationRule {
+  return new Rule('integer', (value: ValidationValue): ResourceStr | undefined => {
     if (typeof value === 'number' && !Number.isInteger(value)) {
       return message
     }

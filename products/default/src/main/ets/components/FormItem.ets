@@ -10,7 +10,7 @@ export enum FormItemStatus {
 export class FormItemController {
   @Trace status: FormItemStatus = FormItemStatus.Idle
   @Trace result: ValidationResult = { valid: true, errors: [] }
-  @Trace message: string = ''
+  @Trace message: ResourceStr = ''
   private schema: ValidationSchema | undefined = undefined
 
   setSchema(schema: ValidationSchema | undefined): void {
@@ -39,6 +39,7 @@ export struct FormItem {
   @Param schema: ValidationSchema | undefined = undefined
   @Param controller: FormItemController = new FormItemController()
   @Param reserveFeedbackSpace: boolean = false
+  @Param required: boolean = false
   @BuilderParam labelBuilder?: () => void
   @BuilderParam contentBuilder: () => void
 
@@ -57,31 +58,52 @@ export struct FormItem {
   }
 
   build() {
-    Column({ space: $r('sys.float.padding_level4') }) {
-      if (this.labelBuilder !== undefined) {
-        this.labelBuilder()
-      } else if (this.label !== undefined) {
-        Text(this.label)
-          .width('100%')
-          .fontColor($r('sys.color.font_secondary'))
-          .fontSize($r('sys.float.Body_M'))
+    Column() {
+      Column({ space: $r('sys.float.padding_level4') }) {
+        if (this.labelBuilder !== undefined) {
+          this.labelBuilder()
+        } else if (this.label !== undefined) {
+          Row({ space: $r('sys.float.padding_level2') }) {
+            Text() {
+              Span(this.label)
+                .fontColor($r('sys.color.font_secondary'))
+                .fontSize($r('sys.float.Body_M'))
+              if (this.required) {
+                Span(' ')
+                  .fontSize($r('sys.float.Body_S'))
+                Span('*')
+                  .fontColor($r('sys.color.warning'))
+                  .fontSize($r('sys.float.Body_M'))
+              }
+            }
+            .width('100%')
+          }
           .margin({ left: $r('sys.float.padding_level8') })
-      }
+        }
 
-      this.contentBuilder()
+        this.contentBuilder()
+      }
 
       if (this.reserveFeedbackSpace || this.controller.status === FormItemStatus.Invalid) {
         Row() {
-          Text(this.controller.message)
-            .width('100%')
-            .fontColor($r('sys.color.alert'))
-            .fontSize($r('sys.float.Body_S'))
-            .lineHeight('16vp')
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text() {
+            SymbolSpan($r('sys.symbol.exclamationmark_circle_fill'))
+            Span(' ')
+            Span(this.controller.message)
+          }
+          .width('100%')
+          .fontColor($r('sys.color.alert'))
+          .fontSize($r('sys.float.Body_S'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .width('100%')
-        .height('16vp')
+        .height($r('sys.float.Body_L'))
+        .margin({
+          top: $r('sys.float.padding_level2'),
+          bottom: $r('sys.float.padding_level2'),
+          left: $r('sys.float.padding_level8'),
+        })
         .visibility(this.controller.status === FormItemStatus.Invalid
           ? Visibility.Visible : Visibility.Hidden)
       }
