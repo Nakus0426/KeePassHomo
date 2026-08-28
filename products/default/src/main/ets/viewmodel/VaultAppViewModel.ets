@@ -33,6 +33,7 @@ import {
 } from '../constants/RouteConstants'
 import { stageOneVaultStore, UserCancelledError, VaultBrowseMode, VaultFileSummary } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
+import { appRouter } from '../navigation/AppRouter'
 import { FormItemController } from '../components/FormItem'
 import { GeneratorViewModel } from './GeneratorViewModel'
 import { VaultSessionViewModel } from './VaultSessionViewModel'
@@ -41,7 +42,6 @@ const PASSWORD_REVEAL_SECONDS: number = 10
 
 @ObservedV2
 export class VaultAppViewModel {
-  @Trace currentRoute: string = ''
   @Trace busy: boolean = false
   @Trace status: string = ''
   @Trace lastError: AppErrorModel | undefined = undefined
@@ -72,7 +72,6 @@ export class VaultAppViewModel {
   @Trace revision: number = 0
   readonly generator: GeneratorViewModel = new GeneratorViewModel()
   readonly session: VaultSessionViewModel = new VaultSessionViewModel()
-  readonly navPathStack: NavPathStack = new NavPathStack()
   readonly vaultNameController: FormItemController = new FormItemController()
   readonly masterPasswordController: FormItemController = new FormItemController()
   readonly confirmPasswordController: FormItemController = new FormItemController()
@@ -88,7 +87,6 @@ export class VaultAppViewModel {
   private revealTimer: number = -1
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
-    this.currentRoute = ''
     this.setStatus('')
     this.splashTimedOut = false
     this.splashTimer = setTimeout(() => this.splashTimedOut = true, 8000)
@@ -96,7 +94,7 @@ export class VaultAppViewModel {
       await stageOneVaultStore.initialize(context)
       this.refreshVault()
       const initialRoute: string = stageOneVaultStore.hasRecentVault ? ROUTE_UNLOCK : ROUTE_WELCOME
-      setTimeout(() => this.resetRoute(initialRoute), 0)
+      setTimeout(() => appRouter.resetTo(initialRoute), 0)
     } catch (error) {
       this.reportBoundaryError('应用初始化失败，请重新启动应用', error)
       this.splashTimedOut = true
@@ -110,25 +108,6 @@ export class VaultAppViewModel {
     clearTimeout(this.splashTimer)
     clearTimeout(this.revealTimer)
     this.session.dispose()
-  }
-
-  resetRoute(route: string, animated: boolean = false): void {
-    this.navPathStack.clear()
-    this.currentRoute = route
-    this.navPathStack.pushPathByName(route, undefined, animated)
-  }
-
-  pushRoute(route: string): void {
-    this.currentRoute = route
-    this.navPathStack.pushPathByName(route, undefined)
-  }
-
-  popRoute(): void {
-    this.navPathStack.pop()
-  }
-
-  showRoute(route: string): void {
-    this.currentRoute = route
   }
 
   setVaultName(value: string): void {
@@ -198,23 +177,18 @@ export class VaultAppViewModel {
   }
 
   switchModule(route: string): void {
-    if (this.currentRoute === route && this.navPathStack.size() > 0) {
+    if (appRouter.currentRoute === route && appRouter.stack.size() > 0) {
       return
     }
-    if (this.currentRoute === ROUTE_GENERATOR) {
+    if (appRouter.currentRoute === ROUTE_GENERATOR) {
       this.generator.clearSensitiveState()
     }
     appSessionState.setCurrentModule(route)
-    this.resetRoute(route, false)
+    appRouter.resetTo(route)
     if (route === ROUTE_GENERATOR) {
       this.generator.regenerate()
     }
     this.recordActivity()
-  }
-
-  isModuleRoute(): boolean {
-    return this.currentRoute === ROUTE_VAULT || this.currentRoute === ROUTE_SECURITY ||
-      this.currentRoute === ROUTE_GENERATOR || this.currentRoute === ROUTE_SETTINGS
   }
 
   async chooseLocalVault(): Promise<void> {
@@ -223,10 +197,10 @@ export class VaultAppViewModel {
       this.fileSummary = await stageOneVaultStore.chooseLocalVault()
       this.refreshVault()
       // 已在摘要页（重选文件场景）不重复入栈，fileSummary 更新即刷新当前页
-      const stackTop: string | undefined =
-        this.navPathStack.getAllPathName()[this.navPathStack.getAllPathName().length - 1]
+      const pathNames: Array<string> = appRouter.stack.getAllPathName()
+      const stackTop: string | undefined = pathNames[pathNames.length - 1]
       if (stackTop !== ROUTE_FILE_SUMMARY) {
-        this.pushRoute(ROUTE_FILE_SUMMARY)
+        appRouter.push(ROUTE_FILE_SUMMARY)
       }
       this.setStatus('')
     } catch (error) {
@@ -249,12 +223,12 @@ export class VaultAppViewModel {
   openCreateVault(): void {
     stageOneVaultStore.clearKeyFile()
     this.refreshVault()
-    this.pushRoute(ROUTE_CREATE_VAULT)
+    appRouter.push(ROUTE_CREATE_VAULT)
     this.setStatus('')
   }
 
   openUnlock(): void {
-    this.pushRoute(ROUTE_UNLOCK)
+    appRouter.push(ROUTE_UNLOCK)
     this.setStatus('')
   }
 
@@ -265,20 +239,8 @@ export class VaultAppViewModel {
   chooseAnotherVault(): void {
     stageOneVaultStore.clearKeyFile()
     this.refreshVault()
-    this.pushRoute(ROUTE_WELCOME)
+    appRouter.push(ROUTE_WELCOME)
     this.setStatus('')
-  }
-
-  /**
-   * 路由栈存在下层目的地时返回上一页；Welcome 等根级页面据此区分
-   * 「返回上一页」与「双击返回桌面」两种行为。
-   */
-  backToPreviousRoute(): boolean {
-    if (this.navPathStack.getAllPathName().length > 1) {
-      this.navPathStack.pop()
-      return true
-    }
-    return false
   }
 
   /**
@@ -306,7 +268,7 @@ export class VaultAppViewModel {
       this.refreshVault()
       this.session.markUnlocked()
       appSessionState.setCurrentModule(ROUTE_VAULT)
-      this.resetRoute(ROUTE_VAULT)
+      appRouter.resetTo(ROUTE_VAULT)
       this.setStatus('')
     } catch (error) {
       if (error instanceof UserCancelledError) {
@@ -331,7 +293,7 @@ export class VaultAppViewModel {
       this.refreshVault()
       this.session.markUnlocked()
       appSessionState.setCurrentModule(ROUTE_VAULT)
-      this.resetRoute(ROUTE_VAULT)
+      appRouter.resetTo(ROUTE_VAULT)
       this.setStatus('')
     } catch (error) {
       LogUtil.error('保险库解锁失败')
@@ -383,7 +345,7 @@ export class VaultAppViewModel {
     this.editorTags = ''
     this.editorGroupUuid = stageOneVaultStore.defaultGroupUuid()
     this.editorInitialValue = this.editorValue()
-    this.pushRoute(ROUTE_ENTRY_EDIT)
+    appRouter.push(ROUTE_ENTRY_EDIT)
     this.recordActivity()
   }
 
@@ -397,7 +359,7 @@ export class VaultAppViewModel {
     this.editorTags = entry.tags.join(', ')
     this.editorGroupUuid = entry.groupUuid
     this.editorInitialValue = this.editorValue()
-    this.pushRoute(ROUTE_ENTRY_EDIT)
+    appRouter.push(ROUTE_ENTRY_EDIT)
     this.recordActivity()
   }
 
@@ -423,8 +385,8 @@ export class VaultAppViewModel {
       this.editorInitialValue = this.editorValue()
       this.clearEditorSensitiveState()
       this.refreshVault()
-      this.resetRoute(ROUTE_VAULT, false)
-      this.pushRoute(ROUTE_ENTRY_DETAIL)
+      appRouter.resetTo(ROUTE_VAULT)
+      appRouter.push(ROUTE_ENTRY_DETAIL)
       this.setStatus('')
       this.recordActivity()
     } catch (error) {
@@ -482,7 +444,7 @@ export class VaultAppViewModel {
       await stageOneVaultStore.setArchived(entry.uuid, !entry.archived)
       this.refreshVault()
       this.setStatus('')
-      this.resetRoute(ROUTE_VAULT)
+      appRouter.resetTo(ROUTE_VAULT)
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('更新归档状态失败', error)
@@ -494,7 +456,7 @@ export class VaultAppViewModel {
   openEntry(entryUuid: string): void {
     this.selectedEntryUuid = entryUuid
     this.showEntryPassword = false
-    this.pushRoute(ROUTE_ENTRY_DETAIL)
+    appRouter.push(ROUTE_ENTRY_DETAIL)
     this.recordActivity()
   }
 
@@ -510,9 +472,9 @@ export class VaultAppViewModel {
     this.unsavedDialogVisible = false
     this.clearEditorSensitiveState()
     if (this.selectedEntryUuid.length === 0) {
-      this.resetRoute(ROUTE_VAULT)
+      appRouter.resetTo(ROUTE_VAULT)
     } else {
-      this.popRoute()
+      appRouter.pop()
     }
   }
 
@@ -574,7 +536,7 @@ export class VaultAppViewModel {
       this.clearCredentialInputs()
       this.generator.clearSensitiveState()
       this.session.onVaultLocked()
-      this.resetRoute(ROUTE_UNLOCK)
+      appRouter.resetTo(ROUTE_UNLOCK)
     }
   }
 
@@ -587,7 +549,7 @@ export class VaultAppViewModel {
     const locked: boolean = this.session.onForeground()
     this.refreshVault()
     if (locked && this.isUnlockedRoute()) {
-      this.resetRoute(ROUTE_UNLOCK)
+      appRouter.resetTo(ROUTE_UNLOCK)
     }
     appSessionState.privacyCovered = false
   }
@@ -693,9 +655,9 @@ export class VaultAppViewModel {
   }
 
   private isUnlockedRoute(): boolean {
-    return this.currentRoute !== '' && this.currentRoute !== ROUTE_WELCOME &&
-      this.currentRoute !== ROUTE_CREATE_VAULT && this.currentRoute !== ROUTE_FILE_SUMMARY &&
-      this.currentRoute !== ROUTE_UNLOCK
+    return appRouter.currentRoute !== '' && appRouter.currentRoute !== ROUTE_WELCOME &&
+      appRouter.currentRoute !== ROUTE_CREATE_VAULT && appRouter.currentRoute !== ROUTE_FILE_SUMMARY &&
+      appRouter.currentRoute !== ROUTE_UNLOCK
   }
 
   private refreshVault(): void {
@@ -714,3 +676,8 @@ export class VaultAppViewModel {
     LogUtil.error(`${operation}，错误分类=${appError.category}，错误码=${appError.logCode}`)
   }
 }
+
+/**
+ * 应用级单例：与 AppShell 同生命周期的全局 ViewModel，各页面直接引用。
+ */
+export const vaultAppViewModel: VaultAppViewModel = new VaultAppViewModel()

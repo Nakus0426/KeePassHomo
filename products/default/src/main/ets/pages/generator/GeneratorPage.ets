@@ -1,24 +1,14 @@
-import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { MemorableCase } from '@ohos/common'
-import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
+import { ROUTE_GENERATOR } from '../../constants/RouteConstants'
 import { PageTopBar } from '../../components/PageChrome'
 import { GeneratorContent } from './GeneratorComponents'
+import { appRouter } from '../../navigation/AppRouter'
+import { GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
+import { vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct GeneratorPage {
-  @Param viewModel: GeneratorViewModel = new GeneratorViewModel()
-  @Param clipboardSeconds: number = 0
-  @Event onLock: () => void = () => {
-  }
-  @Event onCopy: (value: string) => void = () => {
-  }
-  @Event onActivity: () => void = () => {
-  }
-  @Event onShown: () => void = () => {
-  }
-  @Event onRootBack: () => void = () => {
-  }
+  private readonly generator: GeneratorViewModel = vaultAppViewModel.generator
 
   build() {
     HdsNavDestination() {
@@ -26,13 +16,13 @@ export struct GeneratorPage {
         PageTopBar({
           title: $r('app.string.password_generator'),
           showLock: true,
-          onLock: () => this.onLock(),
+          onLock: () => vaultAppViewModel.lockVault(),
         })
         GeneratorContent({
-          viewModel: this.viewModel,
-          clipboardSeconds: this.clipboardSeconds,
-          onCopy: (value: string) => this.onCopy(value),
-          onActivity: () => this.onActivity(),
+          viewModel: this.generator,
+          clipboardSeconds: vaultAppViewModel.clipboardSeconds,
+          onCopy: (value: string) => vaultAppViewModel.copyValue(value),
+          onActivity: () => vaultAppViewModel.recordActivity(),
         })
           .layoutWeight(1)
       }
@@ -48,11 +38,15 @@ export struct GeneratorPage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.onShown())
-    .onHidden(() => this.viewModel.clearSensitiveState())
+    .onHidden(() => this.generator.clearSensitiveState())
     .onBackPressed(() => {
-      this.onRootBack()
+      appRouter.handleRootBack(ROUTE_GENERATOR)
       return true
     })
   }
+}
+
+@Builder
+export function generatorPageBuilder() {
+  GeneratorPage()
 }

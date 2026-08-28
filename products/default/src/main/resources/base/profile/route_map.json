@@ -1,0 +1,59 @@
+{
+  "routerMap": [
+    {
+      "name": "welcome",
+      "pageSourceFile": "src/main/ets/pages/onboarding/WelcomePage.ets",
+      "buildFunction": "welcomePageBuilder"
+    },
+    {
+      "name": "createVault",
+      "pageSourceFile": "src/main/ets/pages/onboarding/CreateVaultPage.ets",
+      "buildFunction": "createVaultPageBuilder"
+    },
+    {
+      "name": "fileSummary",
+      "pageSourceFile": "src/main/ets/pages/onboarding/FileSummaryPage.ets",
+      "buildFunction": "fileSummaryPageBuilder"
+    },
+    {
+      "name": "unlock",
+      "pageSourceFile": "src/main/ets/pages/onboarding/UnlockPage.ets",
+      "buildFunction": "unlockPageBuilder"
+    },
+    {
+      "name": "vault",
+      "pageSourceFile": "src/main/ets/pages/vault/VaultHomePage.ets",
+      "buildFunction": "vaultHomePageBuilder"
+    },
+    {
+      "name": "security",
+      "pageSourceFile": "src/main/ets/pages/modules/SecurityPage.ets",
+      "buildFunction": "securityPageBuilder"
+    },
+    {
+      "name": "generator",
+      "pageSourceFile": "src/main/ets/pages/generator/GeneratorPage.ets",
+      "buildFunction": "generatorPageBuilder"
+    },
+    {
+      "name": "settings",
+      "pageSourceFile": "src/main/ets/pages/modules/SettingsPage.ets",
+      "buildFunction": "settingsPageBuilder"
+    },
+    {
+      "name": "template",
+      "pageSourceFile": "src/main/ets/pages/vault/TemplatePage.ets",
+      "buildFunction": "templatePageBuilder"
+    },
+    {
+      "name": "entryEdit",
+      "pageSourceFile": "src/main/ets/pages/vault/EntryEditPage.ets",
+      "buildFunction": "entryEditPageBuilder"
+    },
+    {
+      "name": "entryDetail",
+      "pageSourceFile": "src/main/ets/pages/vault/EntryDetailPage.ets",
+      "buildFunction": "entryDetailPageBuilder"
+    }
+  ]
+}

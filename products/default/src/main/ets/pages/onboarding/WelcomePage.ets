@@ -1,7 +1,8 @@
 import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appRouter } from '../../navigation/AppRouter'
+import { vaultAppViewModel, VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct DataSourceCard {
@@ -61,9 +62,7 @@ export struct DataSourceCard {
 
 @ComponentV2
 export struct WelcomePage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
-  @Event onRootBack: () => void = () => {
-  }
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
 
   build() {
     HdsNavDestination() {
@@ -171,13 +170,17 @@ export struct WelcomePage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.viewModel.showRoute(ROUTE_WELCOME))
     .onBackPressed(() => {
-      if (this.viewModel.backToPreviousRoute()) {
+      if (appRouter.backToPreviousRoute()) {
         return true
       }
-      this.onRootBack()
+      appRouter.handleRootBack(ROUTE_WELCOME)
       return true
     })
   }
+}
+
+@Builder
+export function welcomePageBuilder() {
+  WelcomePage()
 }

@@ -1,10 +1,9 @@
 import { uiMaterial } from '@kit.ArkUI'
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { ROUTE_CREATE_VAULT } from '../../constants/RouteConstants'
 import { GeneratorContent } from '../generator/GeneratorComponents'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 import { BounceAnimator, ColorUtil } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { FormItem } from '../../components/FormItem'
@@ -13,7 +12,7 @@ import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityTog
 
 @ComponentV2
 export struct CreateVaultPage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private colorMode: ColorModeState = colorModeState
   @Local private generatorSheetVisible: boolean = false
@@ -432,9 +431,11 @@ export struct CreateVaultPage {
       },
     })
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => {
-      this.viewModel.showRoute(ROUTE_CREATE_VAULT)
-    })
   }
+}
+
+@Builder
+export function createVaultPageBuilder() {
+  CreateVaultPage()
 }
 

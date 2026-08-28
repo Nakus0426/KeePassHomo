@@ -1,15 +1,12 @@
-import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { VaultEntry, VaultFormat, VaultGroup } from '@ohos/common'
-import { ROUTE_ENTRY_DETAIL, ROUTE_ENTRY_EDIT, ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
-import { GeneratorContent } from '../generator/GeneratorComponents'
-import { PageTopBar, StatusText } from '../../components/PageChrome'
-import { VaultBrowseMode } from '../../model/StageOneVaultStore'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { VaultGroup } from '@ohos/common'
+import { PageTopBar } from '../../components/PageChrome'
+import { appRouter } from '../../navigation/AppRouter'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct TemplatePage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
 
   @Builder
   private templateRow(title: Resource, description: Resource, enabled: boolean) {
@@ -44,7 +41,7 @@ export struct TemplatePage {
         PageTopBar({
           title: $r('app.string.choose_template'),
           showBack: true,
-          onBack: () => this.viewModel.popRoute(),
+          onBack: () => appRouter.pop(),
         })
         this.templateRow($r('app.string.login_template'), $r('app.string.login_template_description'), true)
         this.templateRow($r('app.string.credit_card_template'), $r('app.string.not_available'), false)
@@ -61,6 +58,10 @@ export struct TemplatePage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.viewModel.showRoute(ROUTE_TEMPLATE))
   }
+}
+
+@Builder
+export function templatePageBuilder() {
+  TemplatePage()
 }

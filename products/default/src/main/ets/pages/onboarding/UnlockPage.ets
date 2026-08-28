@@ -2,14 +2,13 @@ import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
 import { StatusText } from '../../components/PageChrome'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appRouter } from '../../navigation/AppRouter'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct UnlockPage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  @Event onRootBack: () => void = () => {
-  }
 
   build() {
     HdsNavDestination() {
@@ -74,11 +73,15 @@ export struct UnlockPage {
       top: this.getUIContext().px2vp(this.immersiveLayout.topAvoidAreaHeightPx),
       bottom: this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx),
     })
-    .onShown(() => this.viewModel.showRoute(ROUTE_UNLOCK))
     .onBackPressed(() => {
-      this.onRootBack()
+      appRouter.handleRootBack(ROUTE_UNLOCK)
       return true
     })
   }
+}
+
+@Builder
+export function unlockPageBuilder() {
+  UnlockPage()
 }
 

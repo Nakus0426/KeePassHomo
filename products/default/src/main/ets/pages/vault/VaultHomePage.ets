@@ -1,17 +1,15 @@
 import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { VaultEntry, VaultFormat, VaultGroup } from '@ohos/common'
-import { ROUTE_ENTRY_DETAIL, ROUTE_ENTRY_EDIT, ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
-import { GeneratorContent } from '../generator/GeneratorComponents'
+import { ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
 import { PageTopBar, StatusText } from '../../components/PageChrome'
 import { VaultBrowseMode } from '../../model/StageOneVaultStore'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { appRouter } from '../../navigation/AppRouter'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct VaultHomePage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
-  @Event onRootBack: () => void = () => {
-  }
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
 
   @Builder
   private browseModeButton(title: Resource, mode: VaultBrowseMode) {
@@ -108,7 +106,7 @@ export struct VaultHomePage {
             if (!this.viewModel.currentSource().readOnly) {
               Button($r('app.string.new_entry'))
                 .backgroundColor($r('sys.color.brand'))
-                .onClick(() => this.viewModel.pushRoute(ROUTE_TEMPLATE))
+                .onClick(() => appRouter.push(ROUTE_TEMPLATE))
             }
           }
           .width('100%')
@@ -170,7 +168,7 @@ export struct VaultHomePage {
               .width('100%')
               .height($r('app.float.control_height'))
               .backgroundColor($r('sys.color.brand'))
-              .onClick(() => this.viewModel.pushRoute(ROUTE_TEMPLATE))
+              .onClick(() => appRouter.push(ROUTE_TEMPLATE))
           }
         }
       }
@@ -187,10 +185,14 @@ export struct VaultHomePage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.viewModel.showRoute(ROUTE_VAULT))
     .onBackPressed(() => {
-      this.onRootBack()
+      appRouter.handleRootBack(ROUTE_VAULT)
       return true
     })
   }
+}
+
+@Builder
+export function vaultHomePageBuilder() {
+  VaultHomePage()
 }

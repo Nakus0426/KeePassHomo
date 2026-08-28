@@ -1,7 +1,6 @@
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
-import { ROUTE_FILE_SUMMARY } from '../../constants/RouteConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 import { uiMaterial } from '@kit.ArkUI'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { Cell } from '../../components/Cell'
@@ -13,7 +12,7 @@ const READ_ONLY_BANNER_OPACITY: number = 0.2
 
 @ComponentV2
 export struct FileSummaryPage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private colorMode: ColorModeState = colorModeState
 
@@ -211,6 +210,10 @@ export struct FileSummaryPage {
     })
     .hideBackButton(false)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.viewModel.showRoute(ROUTE_FILE_SUMMARY))
   }
+}
+
+@Builder
+export function fileSummaryPageBuilder() {
+  FileSummaryPage()
 }

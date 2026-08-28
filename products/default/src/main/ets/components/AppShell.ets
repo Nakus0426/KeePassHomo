@@ -1,38 +1,19 @@
 import { common } from '@kit.AbilityKit'
-import { BusinessError } from '@kit.BasicServicesKit'
-import { uiMaterial } from '@kit.ArkUI'
-import { HdsNavDestination, HdsNavigation } from '@kit.UIDesignKit'
-import { LogUtil, ToastUtil } from '@pura/harmony-utils'
+import { UIObserver, uiMaterial } from '@kit.ArkUI'
+import { HdsNavigation } from '@kit.UIDesignKit'
 import {
-  ROUTE_CREATE_VAULT,
-  ROUTE_ENTRY_DETAIL,
-  ROUTE_ENTRY_EDIT,
-  ROUTE_FILE_SUMMARY,
   ROUTE_GENERATOR,
   ROUTE_SECURITY,
   ROUTE_SETTINGS,
-  ROUTE_TEMPLATE,
-  ROUTE_UNLOCK,
   ROUTE_VAULT,
-  ROUTE_WELCOME,
 } from '../constants/RouteConstants'
-import { GeneratorPage } from '../pages/generator/GeneratorPage'
-import { SplashContent } from '../pages/onboarding/SplashContent'
-import { PendingModulePage } from '../pages/modules/PendingModulePage'
-import { CreateVaultPage } from '../pages/onboarding/CreateVaultPage'
-import { FileSummaryPage } from '../pages/onboarding/FileSummaryPage'
-import { UnlockPage } from '../pages/onboarding/UnlockPage'
-import { WelcomePage } from '../pages/onboarding/WelcomePage'
-import { EntryDetailPage } from '../pages/vault/EntryDetailPage'
-import { EntryEditPage } from '../pages/vault/EntryEditPage'
-import { TemplatePage } from '../pages/vault/TemplatePage'
-import { VaultHomePage } from '../pages/vault/VaultHomePage'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
-import { VaultAppViewModel } from '../viewmodel/VaultAppViewModel'
+import { appRouter } from '../navigation/AppRouter'
+import { vaultAppViewModel, VaultAppViewModel } from '../viewmodel/VaultAppViewModel'
+import { SplashContent } from '../pages/onboarding/SplashContent'
 
 @ComponentV2
 struct ModuleNavigationBar {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
   @Param session: AppSessionState = appSessionState
   private readonly material: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.THIN,
@@ -64,7 +45,7 @@ struct ModuleNavigationBar {
     .layoutWeight(1)
     .height(56)
     .backgroundColor(Color.Transparent)
-    .onClick(() => this.viewModel.switchModule(route))
+    .onClick(() => vaultAppViewModel.switchModule(route))
   }
 
   build() {
@@ -85,150 +66,61 @@ struct ModuleNavigationBar {
 
 @ComponentV2
 export struct AppShell {
-  @Local private viewModel: VaultAppViewModel = new VaultAppViewModel()
+  @Local private viewModel: VaultAppViewModel = vaultAppViewModel
   @Local private session: AppSessionState = appSessionState
-  private lastBackPressedAt: number = 0
-  private lastBackRoute: string = ''
+  private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
-    this.viewModel.initialize(this.context())
+    this.uiObserver = this.getUIContext().getUIObserver()
+    appRouter.attach(this.uiObserver)
+    vaultAppViewModel.initialize(this.context())
   }
 
   aboutToDisappear(): void {
-    this.viewModel.dispose()
+    if (this.uiObserver !== undefined) {
+      appRouter.detach(this.uiObserver)
+      this.uiObserver = undefined
+    }
+    vaultAppViewModel.dispose()
   }
 
   @Monitor('session.vaultLocked')
   onVaultLockChanged(_monitor: IMonitor): void {
-    this.viewModel.onVaultLockChanged()
+    vaultAppViewModel.onVaultLockChanged()
   }
 
   @Monitor('session.sensitiveEpoch')
   onSensitiveEpochChanged(_monitor: IMonitor): void {
-    this.viewModel.onSensitiveEpochChanged()
+    vaultAppViewModel.onSensitiveEpochChanged()
   }
 
   @Monitor('session.foregroundEpoch')
   onForegroundEpochChanged(_monitor: IMonitor): void {
-    this.viewModel.onForegroundEpochChanged()
+    vaultAppViewModel.onForegroundEpochChanged()
   }
 
   private context(): common.UIAbilityContext {
     return this.getUIContext().getHostContext() as common.UIAbilityContext
   }
 
-  private handleRootBack(route: string): void {
-    const now: number = Date.now()
-    if (route !== this.lastBackRoute || now - this.lastBackPressedAt > 2000) {
-      this.lastBackPressedAt = now
-      this.lastBackRoute = route
-      try {
-        ToastUtil.showToast($r('app.string.press_back_again_to_background'), {
-          uiContext: this.getUIContext(),
-          duration: 2000,
-        })
-      } catch (error) {
-        const businessError: BusinessError = error as BusinessError
-        LogUtil.error(`返回桌面提示显示失败，错误码=${businessError.code}`)
-      }
-      return
-    }
-    this.lastBackPressedAt = 0
-    this.lastBackRoute = ''
-    try {
-      this.context().moveAbilityToBackground().catch((error: BusinessError) => {
-        LogUtil.error(`返回桌面失败，错误码=${error.code}`)
-      })
-    } catch (error) {
-      const businessError: BusinessError = error as BusinessError
-      LogUtil.error(`返回桌面失败，错误码=${businessError.code}`)
-    }
-  }
-
-  @Builder
-  private routeDestination(name: string, param: Object) {
-    if (name === ROUTE_WELCOME) {
-      WelcomePage({
-        viewModel: this.viewModel,
-        onRootBack: () => this.handleRootBack(ROUTE_WELCOME),
-      })
-    } else if (name === ROUTE_CREATE_VAULT) {
-      CreateVaultPage({ viewModel: this.viewModel })
-    } else if (name === ROUTE_FILE_SUMMARY) {
-      FileSummaryPage({ viewModel: this.viewModel })
-    } else if (name === ROUTE_UNLOCK) {
-      UnlockPage({
-        viewModel: this.viewModel,
-        onRootBack: () => this.handleRootBack(ROUTE_UNLOCK),
-      })
-    } else if (name === ROUTE_VAULT) {
-      VaultHomePage({
-        viewModel: this.viewModel,
-        onRootBack: () => this.handleRootBack(ROUTE_VAULT),
-      })
-    } else if (name === ROUTE_SECURITY) {
-      PendingModulePage({
-        title: $r('app.string.security_center'),
-        route: ROUTE_SECURITY,
-        onLock: () => this.viewModel.lockVault(),
-        onActivity: () => this.viewModel.recordActivity(),
-        onShown: (route: string) => this.viewModel.showRoute(route),
-        onRootBack: () => this.handleRootBack(ROUTE_SECURITY),
-      })
-    } else if (name === ROUTE_GENERATOR) {
-      GeneratorPage({
-        viewModel: this.viewModel.generator,
-        clipboardSeconds: this.viewModel.clipboardSeconds,
-        onLock: () => this.viewModel.lockVault(),
-        onCopy: (value: string) => this.viewModel.copyValue(value),
-        onActivity: () => this.viewModel.recordActivity(),
-        onShown: () => this.viewModel.showRoute(ROUTE_GENERATOR),
-        onRootBack: () => this.handleRootBack(ROUTE_GENERATOR),
-      })
-    } else if (name === ROUTE_SETTINGS) {
-      PendingModulePage({
-        title: $r('app.string.settings'),
-        route: ROUTE_SETTINGS,
-        onLock: () => this.viewModel.lockVault(),
-        onActivity: () => this.viewModel.recordActivity(),
-        onShown: (route: string) => this.viewModel.showRoute(route),
-        onRootBack: () => this.handleRootBack(ROUTE_SETTINGS),
-      })
-    } else if (name === ROUTE_TEMPLATE) {
-      TemplatePage({ viewModel: this.viewModel })
-    } else if (name === ROUTE_ENTRY_EDIT) {
-      EntryEditPage({ viewModel: this.viewModel })
-    } else if (name === ROUTE_ENTRY_DETAIL) {
-      EntryDetailPage({ viewModel: this.viewModel })
-    } else {
-      HdsNavDestination() {
-        Text($r('app.string.route_not_found'))
-          .fontColor($r('sys.color.warning'))
-      }
-      .hideTitleBar(true)
-      .backgroundColor($r('sys.color.background_secondary'))
-    }
-  }
-
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      HdsNavigation(this.viewModel.navPathStack) {
-        SplashContent({ viewModel: this.viewModel })
+      HdsNavigation(appRouter.stack) {
+        SplashContent({ viewModel: vaultAppViewModel })
       }
       .width('100%')
       .height('100%')
       .hideTitleBar(true)
       .mode(NavigationMode.Stack)
-      .navDestination(this.routeDestination)
       .backgroundColor($r('sys.color.background_secondary'))
       .zIndex(0)
 
-      if (this.viewModel.isModuleRoute()) {
-        ModuleNavigationBar({ viewModel: this.viewModel, session: this.session })
+      if (appRouter.isModuleRoute()) {
+        ModuleNavigationBar()
           .zIndex(1)
       }
       if (this.session.privacyCovered) {
-        SplashContent({ viewModel: this.viewModel })
+        SplashContent({ viewModel: vaultAppViewModel })
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
           .zIndex(2)
       }

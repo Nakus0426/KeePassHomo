@@ -1,15 +1,14 @@
 import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { VaultEntry, VaultFormat, VaultGroup } from '@ohos/common'
-import { ROUTE_ENTRY_DETAIL, ROUTE_ENTRY_EDIT, ROUTE_TEMPLATE, ROUTE_VAULT } from '../../constants/RouteConstants'
+import { VaultGroup } from '@ohos/common'
+import { ROUTE_ENTRY_EDIT } from '../../constants/RouteConstants'
 import { GeneratorContent } from '../generator/GeneratorComponents'
 import { PageTopBar, StatusText } from '../../components/PageChrome'
-import { VaultBrowseMode } from '../../model/StageOneVaultStore'
-import { VaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
+import { VaultAppViewModel, vaultAppViewModel } from '../../viewmodel/VaultAppViewModel'
 
 @ComponentV2
 export struct EntryEditPage {
-  @Param viewModel: VaultAppViewModel = new VaultAppViewModel()
+  private readonly viewModel: VaultAppViewModel = vaultAppViewModel
   @Local private generatorSheetVisible: boolean = false
   private readonly generatorSheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
@@ -198,7 +197,6 @@ export struct EntryEditPage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .onShown(() => this.viewModel.showRoute(ROUTE_ENTRY_EDIT))
     .onBackPressed(() => {
       if (this.viewModel.unsavedDialogVisible) {
         this.viewModel.dismissUnsavedDialog()
@@ -208,4 +206,9 @@ export struct EntryEditPage {
       return true
     })
   }
+}
+
+@Builder
+export function entryEditPageBuilder() {
+  EntryEditPage()
 }
