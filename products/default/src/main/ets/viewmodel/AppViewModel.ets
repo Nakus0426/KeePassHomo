@@ -265,9 +265,11 @@ export class AppViewModel {
       const saved: VaultEntry = await stageOneVaultStore.saveEntry(editor.entryUuid, input)
       editor.markSaved()
       this.refreshVault()
-      appRouter.resetTo(ROUTE_VAULT)
       const detailParam: EntryDetailParam = { entryUuid: saved.uuid }
-      appRouter.push(ROUTE_ENTRY_DETAIL, detailParam)
+      appRouter.setStack([
+        { name: ROUTE_VAULT },
+        { name: ROUTE_ENTRY_DETAIL, param: detailParam },
+      ])
       this.setStatus('')
       this.recordActivity()
     } catch (error) {

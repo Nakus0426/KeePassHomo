@@ -17,6 +17,14 @@ const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
 const ROOT_BACK_TOAST_DURATION_MS: number = 2000
 
 /**
+ * setStack 使用的路由目标描述。
+ */
+export interface RouteTarget {
+  name: string
+  param?: Object
+}
+
+/**
  * 应用级路由器：唯一持有 NavPathStack，集中提供路由操作；
  * 通过 uiObserver 同步 currentRoute，页面无需手动回写。
  */
@@ -55,6 +63,16 @@ export class AppRouter {
   resetTo(route: string, param?: Object, animated: boolean = false): void {
     this.stack.clear()
     this.stack.pushPathByName(route, param, animated)
+  }
+
+  /**
+   * 清空路由栈并按序重建多层页面，同帧完成避免中间转场闪烁。
+   */
+  setStack(targets: RouteTarget[]): void {
+    this.stack.clear()
+    for (const target of targets) {
+      this.stack.pushPathByName(target.name, target.param)
+    }
   }
 
   /**
