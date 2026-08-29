@@ -5,9 +5,10 @@ import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/Immersiv
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { CreateVaultViewModel } from '../../viewmodel/CreateVaultViewModel'
-import { BounceAnimator, ColorUtil } from '@ohos/common'
+import { AnimationTokens, BounceAnimator, ColorUtil } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { FormItem } from '../../components/FormItem'
+import { FormTextField } from '../../components/FormTextField'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 
@@ -50,7 +51,10 @@ export struct CreateVaultPage {
     this.scroller.scrollTo({
       xOffset: 0,
       yOffset: Math.max(targetY, 0),
-      animation: { duration: 300, curve: Curve.EaseInOut },
+      animation: {
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      },
     })
   }
 
@@ -137,25 +141,22 @@ export struct CreateVaultPage {
 
   @LocalBuilder
   vaultNameBuilder() {
-    TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.vaultName })
-      .height($r('app.float.control_height'))
-      .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .onChange((value: string) => this.form.setVaultName(value))
+    FormTextField({
+      placeholder: $r('app.string.text_input_placeholder'),
+      text: this.form.vaultName,
+      onChange: (value: string) => this.form.setVaultName(value),
+    })
   }
 
   @LocalBuilder
   masterPasswordBuilder() {
-    Row({ space: $r('sys.float.padding_level2') }) {
-      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.masterPassword })
-        .type(InputType.Password)
-        .showPasswordIcon(false)
-        .showPassword(this.masterPasswordVisible)
-        .height($r('app.float.control_height'))
-        .layoutWeight(1)
-        .backgroundColor(Color.Transparent)
-        .onChange((value: string) => this.form.setMasterPassword(value))
-
+    FormTextField({
+      placeholder: $r('app.string.text_input_placeholder'),
+      text: this.form.masterPassword,
+      type: InputType.Password,
+      showPassword: this.masterPasswordVisible,
+      onChange: (value: string) => this.form.setMasterPassword(value),
+    }) {
       PasswordVisibilityToggle({
         visible: this.masterPasswordVisible,
         onChange: (visible: boolean) => this.masterPasswordVisible = visible,
@@ -172,37 +173,22 @@ export struct CreateVaultPage {
       .backgroundColor(Color.Transparent)
       .onClick(() => this.bounce.play(this.getUIContext(), () => this.openGeneratorSheet()))
     }
-    .height($r('app.float.control_height'))
-    .width('100%')
-    .padding({ right: $r('sys.float.padding_level4') })
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-    .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @LocalBuilder
   confirmPasswordBuilder() {
-    Row({ space: $r('sys.float.padding_level2') }) {
-      TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.form.confirmPassword })
-        .type(InputType.Password)
-        .showPasswordIcon(false)
-        .showPassword(this.confirmPasswordVisible)
-        .height($r('app.float.control_height'))
-        .layoutWeight(1)
-        .backgroundColor(Color.Transparent)
-        .onChange((value: string) => this.form.setConfirmPassword(value))
-
+    FormTextField({
+      placeholder: $r('app.string.text_input_placeholder'),
+      text: this.form.confirmPassword,
+      type: InputType.Password,
+      showPassword: this.confirmPasswordVisible,
+      onChange: (value: string) => this.form.setConfirmPassword(value),
+    }) {
       PasswordVisibilityToggle({
         visible: this.confirmPasswordVisible,
         onChange: (visible: boolean) => this.confirmPasswordVisible = visible,
       })
     }
-    .height($r('app.float.control_height'))
-    .width('100%')
-    .padding({ right: $r('sys.float.padding_level4') })
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-    .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
   }
 
   @LocalBuilder

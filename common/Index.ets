@@ -4,6 +4,8 @@ export { ColorUtil } from './src/main/ets/utils/ColorUtil'
 
 export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
 
+export { AnimationTokens } from './src/main/ets/animation/AnimationTokens'
+
 export {
   VaultSourceType,
   VaultFormat,
