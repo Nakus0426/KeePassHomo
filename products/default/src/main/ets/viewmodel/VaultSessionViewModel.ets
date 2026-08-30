@@ -20,10 +20,11 @@ export class VaultSessionViewModel {
   private clipboardToken: ClipboardWriteToken | undefined
   private clipboardTimer: number = -1
   private autoLockTimer: number = -1
+  private copyQueue: Promise<void> = Promise.resolve()
 
   dispose(): void {
     clearTimeout(this.autoLockTimer)
-    clearInterval(this.clipboardTimer)
+    this.stopClipboardTimer()
     this.clearClipboardIfOwned().catch((error: Object) => this.logError('退出时清除剪贴板失败', error))
   }
 
@@ -32,9 +33,21 @@ export class VaultSessionViewModel {
     this.scheduleAutoLock()
   }
 
-  async copyValue(value: string): Promise<void> {
-    await this.clearClipboardIfOwned()
-    this.clipboardToken = await this.clipboard.write(value)
+  copyValue(value: string): Promise<void> {
+    const task: Promise<void> = this.copyQueue.then(() => this.doCopyValue(value))
+    this.copyQueue = task.catch(() => {
+    })
+    return task
+  }
+
+  private async doCopyValue(value: string): Promise<void> {
+    this.stopClipboardTimer()
+    try {
+      this.clipboardToken = await this.clipboard.write(value)
+    } catch (error) {
+      await this.clearClipboardIfOwned()
+      throw error as Error
+    }
     this.clipboardSeconds = CLIPBOARD_SECONDS
     this.clipboardTimer = setInterval(() => {
       this.clipboardSeconds--
@@ -93,10 +106,7 @@ export class VaultSessionViewModel {
   }
 
   private async clearClipboardIfOwned(): Promise<void> {
-    if (this.clipboardTimer >= 0) {
-      clearInterval(this.clipboardTimer)
-      this.clipboardTimer = -1
-    }
+    this.stopClipboardTimer()
     this.clipboardSeconds = 0
     if (this.clipboardToken === undefined) {
       return
@@ -104,6 +114,13 @@ export class VaultSessionViewModel {
     const token: ClipboardWriteToken = this.clipboardToken
     this.clipboardToken = undefined
     await this.clipboard.clearIfOwned(token)
+  }
+
+  private stopClipboardTimer(): void {
+    if (this.clipboardTimer >= 0) {
+      clearInterval(this.clipboardTimer)
+      this.clipboardTimer = -1
+    }
   }
 
   private scheduleAutoLock(): void {

@@ -33,6 +33,10 @@
       "value": "112vp"
     },
     {
+      "name": "module_navigation_bar_height",
+      "value": "68vp"
+    },
+    {
       "name": "marquee_fade_width",
       "value": "16vp"
     }

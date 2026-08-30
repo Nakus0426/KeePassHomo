@@ -46,7 +46,7 @@ export default class DefaultAbility extends UIAbility {
       }
       const mainWindow: window.Window = windowStage.getMainWindowSync()
       this.mainWindow = mainWindow
-      mainWindow.setWindowPrivacyMode(true).catch((privacyError: BusinessError) => {
+      mainWindow.setWindowPrivacyMode(false).catch((privacyError: BusinessError) => {
         LogUtil.error(`隐私模式启用失败，错误码：${privacyError.code}`)
       })
       mainWindow.setWindowLayoutFullScreen(true).then(() => {

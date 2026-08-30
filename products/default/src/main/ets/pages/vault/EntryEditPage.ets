@@ -1,12 +1,20 @@
 import { uiMaterial } from '@kit.ArkUI'
-import { HdsNavDestination } from '@kit.UIDesignKit'
+import {
+  hdsMaterial,
+  HdsNavDestination,
+  HdsNavigation,
+  HdsNavigationTitleMode,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
 import { VaultGroup } from '@ohos/common'
+import { ResUtil } from '@pura/harmony-utils'
 import { ROUTE_VAULT } from '../../constants/RouteConstants'
-import { GeneratorContent } from '../generator/GeneratorComponents'
+import { GeneratorContent, PrimaryActionType } from '../generator/GeneratorComponents'
 import { StatusText } from '../../components/PageChrome'
 import { PASSWORD_REVEAL_SECONDS } from '../../constants/SecurityConstants'
 import { appRouter } from '../../navigation/AppRouter'
 import { EntryEditParam } from '../../navigation/RouteParams'
+import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
 
@@ -17,6 +25,7 @@ export struct EntryEditPage {
   @Local private generatorSheetVisible: boolean = false
   @Local private showPassword: boolean = false
   @Local private unsavedDialogVisible: boolean = false
+  @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   private readonly generatorSheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
     applyShadow: true,
@@ -67,6 +76,20 @@ export struct EntryEditPage {
     this.generatorSheetVisible = true
   }
 
+  // 半模态内底部操作区偏移 = 底部安全区高度
+  @Computed
+  get generatorBottomOffset(): number {
+    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
+  }
+
+  // 半模态内内容顶部避让 = 标题栏高度 + padding_level8（资源数值为 px，统一换算 vp）
+  @Computed
+  get generatorTopAvoidHeight(): number {
+    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
+    const gapPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
+  }
+
   private closeGeneratorSheet(): void {
     this.generatorSheetVisible = false
     this.viewModel.generator.clearSensitiveState()
@@ -81,19 +104,44 @@ export struct EntryEditPage {
 
   @Builder
   private generatorSheet() {
-    GeneratorContent({
-      viewModel: this.viewModel.generator,
-      clipboardSeconds: this.viewModel.clipboardSeconds,
-      showFillAction: true,
-      onCopy: (value: string) => this.viewModel.copyValue(value),
-      onFillEditor: () => this.fillPasswordFromGenerator(),
-      onActivity: () => this.viewModel.recordActivity(),
-    })
+    HdsNavigation() {
+      Column() {
+        GeneratorContent({
+          viewModel: this.viewModel.generator,
+          clipboardSeconds: this.viewModel.clipboardSeconds,
+          primaryAction: PrimaryActionType.Fill,
+          bottomOffset: this.generatorBottomOffset,
+          onFillEditor: () => this.fillPasswordFromGenerator(),
+          onActivity: () => this.viewModel.recordActivity(),
+        })
+      }
+      .width('100%')
+      .height('100%')
       .padding({
+        top: this.generatorTopAvoidHeight,
         right: $r('sys.float.padding_level8'),
-        bottom: $r('sys.float.padding_level8'),
         left: $r('sys.float.padding_level8'),
       })
+    }
+    .titleMode(HdsNavigationTitleMode.MODAL)
+    .titleBar({
+      avoidLayoutSafeArea: true,
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+        },
+      },
+      content: {
+        title: {
+          mainTitle: $r('app.string.password_generator'),
+        },
+      },
+    })
   }
 
   build() {
@@ -235,11 +283,8 @@ export struct EntryEditPage {
       .width('100%')
       .height('100%')
       .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
-        height: SheetSize.LARGE,
-        dragBar: true,
         backgroundColor: Color.Transparent,
         systemMaterial: this.generatorSheetMaterial,
-        title: { title: $r('app.string.password_generator') },
         onDisappear: () => this.closeGeneratorSheet(),
       })
     }

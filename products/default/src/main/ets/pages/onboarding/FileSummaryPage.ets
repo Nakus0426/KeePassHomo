@@ -60,7 +60,6 @@ export struct FileSummaryPage {
     HdsNavDestination() {
       Stack() {
         Scroll() {
-
           Column({ space: $r('sys.float.padding_level6') }) {
             if (this.viewModel.fileSummary !== undefined) {
               Column({ space: $r('sys.float.padding_level8') }) {
@@ -83,6 +82,7 @@ export struct FileSummaryPage {
                     .marqueeOptions({ start: true, fadeout: true })
                 }
                 .alignItems(VerticalAlign.Center)
+                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
 
                 List() {
                   Cell({
@@ -103,7 +103,7 @@ export struct FileSummaryPage {
                   Cell({
                     label: $r('app.string.file_status'),
                     valueBuilder: this.fileStatusBuilder,
-                    onCellClick: () => LogUtil.debug(JSON.stringify(this.viewModel.fileSummary)),
+                    clickable: false,
                   })
                 }
                 .width('100%')
@@ -113,17 +113,18 @@ export struct FileSummaryPage {
                 .divider({
                   strokeWidth: 1,
                   color: $r('sys.color.grid_menu_divider_color'),
+                  startMargin: $r('sys.float.padding_level8'),
+                  endMargin: $r('sys.float.padding_level8'),
                 })
                 .scrollBar(BarState.Off)
               }
               .backgroundColor($r('sys.color.comp_background_primary'))
               .padding({
                 top: $r('sys.float.padding_level8'),
-                right: $r('sys.float.padding_level8'),
                 bottom: 0,
-                left: $r('sys.float.padding_level8'),
               })
               .borderRadius($r('sys.float.corner_radius_level10'))
+              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
               .alignItems(HorizontalAlign.Start)
 
             }

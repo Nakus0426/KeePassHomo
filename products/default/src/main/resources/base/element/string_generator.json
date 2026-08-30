@@ -14,7 +14,7 @@
     },
     {
       "name": "password_length_value",
-      "value": "密码长度：%d"
+      "value": "密码长度"
     },
     {
       "name": "include_uppercase",
@@ -38,15 +38,15 @@
     },
     {
       "name": "minimum_digits_value",
-      "value": "最少数字：%d"
+      "value": "最少数字"
     },
     {
       "name": "minimum_symbols_value",
-      "value": "最少符号：%d"
+      "value": "最少符号"
     },
     {
       "name": "word_count_value",
-      "value": "单词数量：%d"
+      "value": "单词数量"
     },
     {
       "name": "separator",
@@ -78,7 +78,7 @@
     },
     {
       "name": "pin_length_value",
-      "value": "PIN 长度：%d"
+      "value": "PIN 长度"
     },
     {
       "name": "avoid_pin_patterns",
@@ -99,6 +99,14 @@
     {
       "name": "fill_current_entry",
       "value": "填入"
+    },
+    {
+      "name": "parameter_settings",
+      "value": "参数设置"
+    },
+    {
+      "name": "copy_success",
+      "value": "密码复制成功，将在30秒后清空"
     }
   ]
 }

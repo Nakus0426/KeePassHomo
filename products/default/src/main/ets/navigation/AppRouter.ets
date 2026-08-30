@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { UIObserver, uiObserver } from '@kit.ArkUI'
-import { AppUtil, LogUtil, ToastUtil } from '@pura/harmony-utils'
+import { promptAction, UIObserver, uiMaterial, uiObserver } from '@kit.ArkUI'
+import { AppUtil, LogUtil } from '@pura/harmony-utils'
 import {
   ROUTE_CREATE_VAULT,
   ROUTE_FILE_SUMMARY,
@@ -40,6 +40,8 @@ export class AppRouter {
     }
   private lastBackPressedAt: number = 0
   private lastBackRoute: string = ''
+  private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
+    { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
   attach(observer: UIObserver): void {
     observer.on('navDestinationUpdate', this.onNavDestinationUpdate)
@@ -112,8 +114,10 @@ export class AppRouter {
       this.lastBackPressedAt = now
       this.lastBackRoute = route
       try {
-        ToastUtil.showToast($r('app.string.press_back_again_to_background'), {
+        promptAction.showToast({
+          message: $r('app.string.press_back_again_to_background'),
           duration: ROOT_BACK_TOAST_DURATION_MS,
+          systemMaterial: this.toastMaterial,
         })
       } catch (error) {
         const businessError: BusinessError = error as BusinessError

@@ -56,7 +56,7 @@ struct ModuleNavigationBar {
       this.navigationItem($r('app.string.settings'), $r('sys.symbol.gearshape_fill'), ROUTE_SETTINGS)
     }
     .width('calc(100% - 32vp)')
-    .height(68)
+    .height($r('app.float.module_navigation_bar_height'))
     .padding(6)
     .margin({ left: 16, right: 16, bottom: 12 })
     .borderRadius(34)

@@ -6,29 +6,24 @@ export struct Cell {
   @Param showArrow: boolean | undefined = undefined
   @Event onCellClick: () => void = () => {
   }
+  @BuilderParam labelBuilder?: () => void
+  @BuilderParam valueBuilder?: () => void
 
   @Computed
-  get arrowVisible(): boolean {
+  get arrowVisible() {
     return this.showArrow ?? this.clickable
   }
 
-  @Builder
-  private emptyBuilder() {
-  }
-
-  @BuilderParam labelBuilder: () => void = this.emptyBuilder
-  @BuilderParam valueBuilder: () => void = this.emptyBuilder
-
   build() {
     ListItem() {
-      Row() {
+      Row({ space: $r('sys.float.padding_level8') }) {
         Row() {
           if (this.label !== undefined) {
             Text(this.label)
               .fontColor($r('sys.color.font_secondary'))
               .fontSize($r('sys.float.Body_M'))
               .textAlign(TextAlign.Start)
-          } else {
+          } else if (this.labelBuilder !== undefined) {
             this.labelBuilder()
           }
         }
@@ -42,7 +37,7 @@ export struct Cell {
               .fontSize($r('sys.float.Body_M'))
               .fontWeight(FontWeight.Medium)
               .textAlign(TextAlign.End)
-          } else {
+          } else if (this.valueBuilder !== undefined) {
             this.valueBuilder()
           }
           if (this.arrowVisible) {
@@ -56,11 +51,8 @@ export struct Cell {
         .justifyContent(FlexAlign.End)
         .alignItems(VerticalAlign.Center)
       }
-      .width('100%')
-      .padding({
-        top: $r('sys.float.padding_level8'),
-        bottom: $r('sys.float.padding_level8'),
-      })
+      .padding($r('sys.float.padding_level6'))
+      .margin($r('sys.float.padding_level2'))
       .alignItems(VerticalAlign.Center)
       .stateStyles({
         normal: {
@@ -70,6 +62,7 @@ export struct Cell {
           .backgroundColor(this.clickable ? $r('sys.color.interactive_pressed') : Color.Transparent)
         },
       })
+      .borderRadius($r('sys.float.corner_radius_level8'))
       .onClick(() => {
         if (!this.clickable) {
           return
