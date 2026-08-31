@@ -6,7 +6,7 @@ import {
   HdsNavigationTitleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { GeneratorContent, PrimaryActionType } from '../generator/GeneratorComponents'
+import { GeneratorContent } from '../generator/GeneratorComponents'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
@@ -205,8 +205,7 @@ export struct CreateVaultPage {
     HdsNavigation() {
       GeneratorContent({
         viewModel: this.viewModel.generator,
-        clipboardSeconds: this.viewModel.clipboardSeconds,
-        primaryAction: PrimaryActionType.Fill,
+        fillEnabled: true,
         bottomOffset: this.bottomAvoidAreaHeight,
         onFillEditor: () => this.fillMasterPasswordFromGenerator(),
         onActivity: () => this.viewModel.recordActivity(),

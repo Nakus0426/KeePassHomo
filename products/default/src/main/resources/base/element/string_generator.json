@@ -85,16 +85,8 @@
       "value": "避开连续和相邻重复数字"
     },
     {
-      "name": "generator_strength",
-      "value": "估算强度：%s（约 %d 位熵）"
-    },
-    {
       "name": "no_candidate",
       "value": "当前规则无法生成密码"
-    },
-    {
-      "name": "regenerate",
-      "value": "重新生成"
     },
     {
       "name": "fill_current_entry",

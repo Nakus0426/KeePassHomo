@@ -9,7 +9,7 @@ import {
 import { VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { ROUTE_VAULT } from '../../constants/RouteConstants'
-import { GeneratorContent, PrimaryActionType } from '../generator/GeneratorComponents'
+import { GeneratorContent } from '../generator/GeneratorComponents'
 import { StatusText } from '../../components/PageChrome'
 import { PASSWORD_REVEAL_SECONDS } from '../../constants/SecurityConstants'
 import { appRouter } from '../../navigation/AppRouter'
@@ -108,8 +108,7 @@ export struct EntryEditPage {
       Column() {
         GeneratorContent({
           viewModel: this.viewModel.generator,
-          clipboardSeconds: this.viewModel.clipboardSeconds,
-          primaryAction: PrimaryActionType.Fill,
+          fillEnabled: true,
           bottomOffset: this.generatorBottomOffset,
           onFillEditor: () => this.fillPasswordFromGenerator(),
           onActivity: () => this.viewModel.recordActivity(),

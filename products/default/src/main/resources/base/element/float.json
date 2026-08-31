@@ -37,6 +37,14 @@
       "value": "68vp"
     },
     {
+      "name": "setting_row_height",
+      "value": "56vp"
+    },
+    {
+      "name": "setting_control_width",
+      "value": "220vp"
+    },
+    {
       "name": "marquee_fade_width",
       "value": "16vp"
     }

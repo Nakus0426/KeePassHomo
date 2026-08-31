@@ -1,14 +1,10 @@
 import {
-  AppErrorFactory,
-  AppErrorModel,
   MemorableCase,
   MemorablePasswordOptions,
   PasswordGenerator,
-  PasswordStrength,
   PinOptions,
   RandomPasswordOptions,
 } from '@ohos/common'
-import { LogUtil } from '@pura/harmony-utils'
 
 export enum GeneratorMode {
   Random,
@@ -135,19 +131,6 @@ export class GeneratorViewModel {
       this.status = appError.message
       LogUtil.error(`生成密码失败，错误分类=${appError.category}，错误码=${appError.logCode}`)
     }
-  }
-
-  strength(): PasswordStrength {
-    if (this.mode === GeneratorMode.Random) {
-      if (this.randomRuleError().length > 0) {
-        return { label: '规则无效', estimatedBits: 0 }
-      }
-      return this.generator.estimateRandom(this.randomOptions())
-    }
-    if (this.mode === GeneratorMode.Memorable) {
-      return this.generator.estimateMemorable(this.memorableOptions())
-    }
-    return this.generator.estimatePin(this.pinOptions())
   }
 
   clearSensitiveState(): void {

@@ -35,9 +35,7 @@ export struct GeneratorPage {
       Column() {
         GeneratorContent({
           viewModel: this.generator,
-          clipboardSeconds: appViewModel.clipboardSeconds,
           bottomOffset: this.bottomOffset,
-          onCopy: (value: string) => appViewModel.copyValue(value),
           onActivity: () => appViewModel.recordActivity(),
         })
       }
