@@ -1,4 +1,4 @@
-import { uiMaterial } from '@kit.ArkUI'
+import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
 import {
   hdsMaterial,
   HdsNavDestination,
@@ -6,7 +6,7 @@ import {
   HdsNavigationTitleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { GeneratorContent } from '../generator/GeneratorComponents'
+import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
@@ -27,6 +27,10 @@ export struct CreateVaultPage {
   @Local private generatorSheetVisible: boolean = false
   @Local private masterPasswordVisible: boolean = false
   @Local private confirmPasswordVisible: boolean = false
+  private readonly generatorController: GeneratorContentController = new GeneratorContentController()
+  private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+    .fontColor([$r('sys.color.confirm')])
+    .fontSize($r('sys.float.titlebar_icon_width'))
   private bounce: BounceAnimator = new BounceAnimator()
   private readonly scroller: Scroller = new Scroller()
 
@@ -71,11 +75,14 @@ export struct CreateVaultPage {
   }
 
   private fillMasterPasswordFromGenerator(): void {
-    this.form.setMasterPassword(this.viewModel.generator.value)
-    this.form.setConfirmPassword(this.viewModel.generator.value)
-    this.viewModel.generator.clearSensitiveState()
+    const password: string = this.generatorController.getCurrentPassword()
+    if (password.length === 0) {
+      return
+    }
+    this.form.setMasterPassword(password)
+    this.form.setConfirmPassword(password)
     this.viewModel.recordActivity()
-    this.generatorSheetVisible = false
+    this.closeGeneratorSheet()
   }
 
   @Computed
@@ -91,11 +98,18 @@ export struct CreateVaultPage {
     const buttonHeight =
       ResUtil.getNumber($r('app.float.control_height').id)
     const padding = ResUtil.getNumber($r('sys.float.padding_level8').id)
-    return this.getUIContext().px2vp(this.bottomAvoidAreaHeight + buttonHeight + padding * 2)
+    return this.getUIContext().px2vp(this.bottomSafeAreaHeight + buttonHeight + padding * 2)
   }
 
   @Computed
-  get bottomAvoidAreaHeight() {
+  get sheetTopAvoidAreaHeight() {
+    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
+    const paddingHeightPx = ResUtil.getNumber($r('sys.float.padding_level12').id)
+    return this.getUIContext().px2vp(titlebarHeightPx + paddingHeightPx)
+  }
+
+  @Computed
+  get bottomSafeAreaHeight() {
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
   }
 
@@ -205,9 +219,9 @@ export struct CreateVaultPage {
     HdsNavigation() {
       GeneratorContent({
         viewModel: this.viewModel.generator,
-        fillEnabled: true,
-        bottomOffset: this.bottomAvoidAreaHeight,
-        onFillEditor: () => this.fillMasterPasswordFromGenerator(),
+        controller: this.generatorController,
+        topOffset: this.sheetTopAvoidAreaHeight,
+        bottomOffset: this.bottomSafeAreaHeight,
         onActivity: () => this.viewModel.recordActivity(),
       })
     }
@@ -226,6 +240,21 @@ export struct CreateVaultPage {
       content: {
         title: {
           mainTitle: $r('app.string.password_generator'),
+        },
+        menu: {
+          value: [{
+            content: {
+              icon: $r('sys.symbol.doc_text_on_doc_text'),
+              label: $r('app.string.copy'),
+              action: () => this.generatorController.copyPassword(),
+            },
+          }, {
+            content: {
+              icon: this.fillIcon,
+              label: $r('app.string.fill_current_entry'),
+              action: () => this.fillMasterPasswordFromGenerator(),
+            },
+          }],
         },
       },
     })
@@ -379,7 +408,7 @@ export struct CreateVaultPage {
         .position({ bottom: 0 })
         .padding({
           right: $r('sys.float.padding_level8'),
-          bottom: this.bottomAvoidAreaHeight,
+          bottom: this.bottomSafeAreaHeight,
           left: $r('sys.float.padding_level8'),
           top: $r('sys.float.padding_level8'),
         })
@@ -392,10 +421,12 @@ export struct CreateVaultPage {
       .width('100%')
       .height('100%')
       .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
+        dragBar: true,
         backgroundColor: Color.Transparent,
         systemMaterial: new uiMaterial.ImmersiveMaterial({
           style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
         }),
+        showClose: false,
         onDisappear: () => this.closeGeneratorSheet(),
       })
     }

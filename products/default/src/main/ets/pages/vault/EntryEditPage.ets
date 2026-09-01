@@ -108,9 +108,7 @@ export struct EntryEditPage {
       Column() {
         GeneratorContent({
           viewModel: this.viewModel.generator,
-          fillEnabled: true,
           bottomOffset: this.generatorBottomOffset,
-          onFillEditor: () => this.fillPasswordFromGenerator(),
           onActivity: () => this.viewModel.recordActivity(),
         })
       }

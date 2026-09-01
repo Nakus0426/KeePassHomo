@@ -7,13 +7,13 @@ import {
   UIUtils,
 } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { AnimationTokens, ColorUtil, MemorableCase } from '@ohos/common'
-import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, MemorableCase } from '@ohos/common'
+import { LogUtil } from '@pura/harmony-utils'
 import { FormItem, LabelPlacement } from '../../components/FormItem'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
-import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 
 @ComponentV2
 struct SliderFormItem {
@@ -107,14 +107,64 @@ struct SegmentButtonFormItem {
   }
 }
 
+enum PasswordCharacterKind {
+  Letter,
+  Number,
+  Symbol,
+}
+
+interface GeneratorContentOperations {
+  copyPassword(): void
+
+  getCurrentPassword(): string
+}
+
+interface PasswordTextSegment {
+  text: string
+  kind: PasswordCharacterKind
+  start: number
+}
+
+export class GeneratorContentController {
+  private component: GeneratorContentOperations | undefined = undefined
+
+  bind(component: GeneratorContentOperations): void {
+    this.component = component
+  }
+
+  unbind(): void {
+    this.component = undefined
+  }
+
+  copyPassword(): void {
+    this.component!.copyPassword()
+  }
+
+  getCurrentPassword(): string {
+    return this.component!.getCurrentPassword()
+  }
+}
+
 @ComponentV2
 export struct GeneratorContent {
+  @Param viewModel: GeneratorViewModel = new GeneratorViewModel()
+  @Param controller: GeneratorContentController = new GeneratorContentController()
+  @Param topOffset: number = 0
+  @Param bottomOffset: number = 0
+  @Event onActivity: () => void = () => {
+  }
+  @Local private currentTabIndex: number = GeneratorMode.Random
+  @Local private tabsWidth: number = 0
+  @Local private tabOpacity: number[] = [1, 0, 0]
+  @Local private tabOffsetX: number[] = [0, 0, 0]
+  @Local private tabZIndex: number[] = [1, 0, 0]
   private static readonly TAB_MODES: GeneratorMode[] =
     [GeneratorMode.Random, GeneratorMode.Memorable, GeneratorMode.Pin]
   private static readonly TAB_TRANSITION_OFFSET_RATIO: number = 0.2
   private static readonly CASE_MODES: MemorableCase[] =
     [MemorableCase.Lower, MemorableCase.Capitalized, MemorableCase.Upper]
   private static readonly SEPARATORS: string[] = ['-', '.', '_', '']
+  private static readonly SYMBOL_PATTERN: RegExp = /[^\w]/
   private readonly tabItems: SegmentButtonV2Items = new SegmentButtonV2Items([
     { text: $r('app.string.random_password') },
     { text: $r('app.string.memorable_password') },
@@ -131,20 +181,7 @@ export struct GeneratorContent {
     { text: $r('app.string.capitalize') },
     { text: $r('app.string.uppercase') },
   ] as SegmentButtonV2ItemOptions[])
-  @Local private colorMode: ColorModeState = colorModeState
-  @Param viewModel: GeneratorViewModel = new GeneratorViewModel()
-  @Param bottomOffset: number = 0
-  @Param fillEnabled: boolean = false
-  @Event onFillEditor: () => void = () => {
-  }
-  @Event onActivity: () => void = () => {
-  }
   private readonly tabsController: TabsController = new TabsController()
-  @Local private currentTabIndex: number = GeneratorMode.Random
-  @Local private tabsWidth: number = 0
-  @Local private tabOpacity: number[] = [1, 0, 0]
-  @Local private tabOffsetX: number[] = [0, 0, 0]
-  @Local private tabZIndex: number[] = [1, 0, 0]
   private readonly optionPanelMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     {
       style: uiMaterial.ImmersiveStyle.REGULAR,
@@ -164,26 +201,18 @@ export struct GeneratorContent {
       materialColor: $r('sys.color.comp_background_tertiary'),
       applyShadow: false,
     })
-  private readonly copyButtonMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    {
-      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-      lightEffect: { color: Color.White },
-      interactive: true,
-    })
-  private readonly fillButtonMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    {
-      style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-      materialColor: $r('sys.color.brand'),
-      lightEffect: { color: $r('sys.color.brand') },
-      interactive: true,
-    })
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
   aboutToAppear(): void {
+    this.controller.bind(this)
     if (this.viewModel.mode !== GeneratorMode.Random) {
       this.viewModel.setMode(GeneratorMode.Random)
     }
+  }
+
+  aboutToDisappear(): void {
+    this.controller.unbind()
   }
 
   @Monitor('viewModel.status')
@@ -198,9 +227,33 @@ export struct GeneratorContent {
     return this.viewModel.value.length > 0
   }
 
-  private copyPassword(): void {
+  @Computed
+  get passwordSegments(): PasswordTextSegment[] {
+    const password: string = this.viewModel.value
+    const segments: PasswordTextSegment[] = []
+    let start: number = 0
+    while (start < password.length) {
+      const kind: PasswordCharacterKind = this.passwordCharacterKind(password[start])
+      let end: number = start + 1
+      while (end < password.length && this.passwordCharacterKind(password[end]) === kind) {
+        end++
+      }
+      segments.push({ text: password.substring(start, end), kind: kind, start: start })
+      start = end
+    }
+    return segments
+  }
+
+  copyPassword(): void {
+    if (this.viewModel.value.length === 0) {
+      return
+    }
     appViewModel.copyValue(this.viewModel.value)
     this.showToast($r('app.string.copy_success'))
+  }
+
+  getCurrentPassword(): string {
+    return this.viewModel.value
   }
 
   private showToast(message: ResourceStr): void {
@@ -216,37 +269,32 @@ export struct GeneratorContent {
   }
 
   @Computed
-  get topAvoidHeight() {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const paddingHeightPx = ResUtil.getNumber($r('sys.float.padding_level12').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + paddingHeightPx)
-  }
-
-  @Computed
-  get bottomAvoidHeight() {
-    const buttonHeightPx = ResUtil.getNumber($r('app.float.control_height').id)
-    const paddingHeightPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
-    return this.getUIContext().px2vp(buttonHeightPx + paddingHeightPx) + this.bottomOffset
-  }
-
-  @Computed
-  get bottomGradientColors(): Array<[ResourceColor, number]> {
-    // ColorUtil 会把资源色解析为固定色值，必须依赖 colorMode 才能在深浅色切换时重算。
-    this.colorMode.isDark
-    const backgroundColor: ResourceColor = $r('sys.color.background_secondary')
-    return [
-      [ColorUtil.withAlphaHex(backgroundColor, 0), 0.0],
-      [ColorUtil.withAlphaHex(backgroundColor, 1), 1.0],
-    ]
-  }
-
-  @Computed
   get separatorIndex(): number {
     return GeneratorContent.SEPARATORS.indexOf(this.viewModel.memorableSeparator)
   }
 
   private get tabTransitionOffset(): number {
     return this.tabsWidth * GeneratorContent.TAB_TRANSITION_OFFSET_RATIO
+  }
+
+  private passwordCharacterKind(character: string): PasswordCharacterKind {
+    if (character >= '0' && character <= '9') {
+      return PasswordCharacterKind.Number
+    }
+    if (GeneratorContent.SYMBOL_PATTERN.test(character)) {
+      return PasswordCharacterKind.Symbol
+    }
+    return PasswordCharacterKind.Letter
+  }
+
+  private passwordCharacterColor(kind: PasswordCharacterKind): ResourceColor {
+    if (kind === PasswordCharacterKind.Number) {
+      return $r('sys.color.brand')
+    }
+    if (kind === PasswordCharacterKind.Symbol) {
+      return $r('sys.color.alert')
+    }
+    return $r('sys.color.font_primary')
   }
 
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
@@ -446,14 +494,24 @@ export struct GeneratorContent {
   private passwordCard() {
     Button() {
       Column({ space: $r('sys.float.padding_level8') }) {
-        Text(this.hasValue ? this.viewModel.value : $r('app.string.no_candidate'))
+        Text() {
+          if (this.hasValue) {
+            ForEach(this.passwordSegments, (segment: PasswordTextSegment) => {
+              Span(segment.text)
+                .fontColor(this.passwordCharacterColor(segment.kind))
+            }, (segment: PasswordTextSegment) => `${segment.start}:${segment.kind}`)
+          } else {
+            Span($r('app.string.no_candidate'))
+              .fontColor($r('sys.color.font_secondary'))
+          }
+        }
           .width('100%')
           .minLines(2)
           .maxLines(2)
           .fontSize($r('app.float.text_heading'))
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.hasValue ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
+        .fontFamily(this.hasValue ? PASSWORD_FONT_FAMILY : 'HarmonyOS Sans')
           .textAlign(TextAlign.Center)
+        .fontFeature("\"liga\" 0")
 
         PasswordStrengthIndicator({ password: this.viewModel.value })
       }
@@ -535,62 +593,25 @@ export struct GeneratorContent {
     .clip(false)
   }
 
-  @LocalBuilder
-  private actionBar() {
-    Row({ space: $r('sys.float.padding_level6') }) {
-      Button($r('app.string.copy'))
-        .layoutWeight(1)
-        .height($r('app.float.control_height'))
-        .fontColor($r('sys.color.brand'))
-        .enabled(this.hasValue)
-        .systemMaterial(this.copyButtonMaterial)
-        .onClick(() => this.copyPassword())
-
-      if (this.fillEnabled) {
-        Button(
-          $r('app.string.fill_current_entry'))
-          .layoutWeight(1)
-          .height($r('app.float.control_height'))
-          .enabled(this.hasValue)
-          .systemMaterial(this.fillButtonMaterial)
-          .onClick(() => this.onFillEditor())
-      }
-    }
-    .width('100%')
-    .padding(
-      { left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8'), bottom: this.bottomOffset })
-    .linearGradient(
-      {
-        direction: GradientDirection.Bottom,
-        colors: this.bottomGradientColors,
-      })
-  }
-
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Scroll() {
-        Column({ space: $r('sys.float.padding_level6') }) {
-          this.passwordCard()
-          this.parameterTabs()
-        }
+    Scroll() {
+      Column({ space: $r('sys.float.padding_level6') }) {
+        this.passwordCard()
+        this.parameterTabs()
       }
-      .width('100%')
-      .height('100%')
-      .edgeEffect(EdgeEffect.Spring)
-      .scrollBar(BarState.Off)
-      .padding(
-        {
-          top: this.topAvoidHeight,
-          left: $r('sys.float.padding_level8'),
-          right: $r('sys.float.padding_level8'),
-          bottom: this.bottomAvoidHeight,
-        })
-      .align(Alignment.Top)
-
-      this.actionBar()
     }
     .width('100%')
     .height('100%')
+    .edgeEffect(EdgeEffect.Spring)
+    .scrollBar(BarState.Off)
+    .padding(
+      {
+        top: this.topOffset,
+        bottom: this.bottomOffset,
+        left: $r('sys.float.padding_level8'),
+        right: $r('sys.float.padding_level8'),
+      })
+    .align(Alignment.Top)
     .onTouch(() => this.onActivity())
   }
 }

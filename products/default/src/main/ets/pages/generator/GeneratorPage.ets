@@ -1,9 +1,7 @@
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { ResUtil } from '@pura/harmony-utils'
-import { ROUTE_GENERATOR } from '../../constants/RouteConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { GeneratorContent } from './GeneratorComponents'
-import { appRouter } from '../../navigation/AppRouter'
+import { GeneratorContent, GeneratorContentController } from './GeneratorComponents'
 import { GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 
@@ -11,8 +9,8 @@ import { appViewModel } from '../../viewmodel/AppViewModel'
 export struct GeneratorPage {
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   private readonly generator: GeneratorViewModel = appViewModel.generator
+  private readonly generatorController: GeneratorContentController = new GeneratorContentController()
 
-  // 内容顶部避让 = 底部安全区之上：顶部安全区 + 标题栏高度 + padding_level8（资源数值为 px，统一换算 vp）
   @Computed
   get topAvoidAreaHeight(): number {
     const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
@@ -21,33 +19,23 @@ export struct GeneratorPage {
       .px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarHeightPx + gapPx)
   }
 
-  // 底部操作区偏移 = 底部安全区 + 模块导航栏高度 + padding_level8（资源数值为 px，统一换算 vp）
   @Computed
   get bottomOffset(): number {
     const barHeightPx = ResUtil.getNumber($r('app.float.module_navigation_bar_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
     return this.getUIContext()
-      .px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + barHeightPx + gapPx)
+      .px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + barHeightPx)
   }
 
   build() {
     HdsNavDestination() {
-      Column() {
-        GeneratorContent({
-          viewModel: this.generator,
-          bottomOffset: this.bottomOffset,
-          onActivity: () => appViewModel.recordActivity(),
-        })
-      }
-      .width('100%')
-      .height('100%')
-      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-      .padding({
-        top: this.topAvoidAreaHeight,
-        right: $r('sys.float.padding_level12'),
-        left: $r('sys.float.padding_level12'),
+      GeneratorContent({
+        viewModel: this.generator,
+        controller: this.generatorController,
+        bottomOffset: this.bottomOffset,
+        onActivity: () => appViewModel.recordActivity(),
       })
     }
+    .hideBackButton(true)
     .titleBar({
       avoidLayoutSafeArea: true,
       style: {
@@ -64,14 +52,19 @@ export struct GeneratorPage {
         title: {
           mainTitle: $r('app.string.password_generator'),
         },
+        menu: {
+          value: [{
+            content: {
+              icon: $r('sys.symbol.doc_text_on_doc_text'),
+              label: $r('app.string.copy'),
+              action: () => this.generatorController.copyPassword(),
+            },
+          }],
+        },
       },
     })
     .backgroundColor($r('sys.color.background_secondary'))
     .onHidden(() => this.generator.clearSensitiveState())
-    .onBackPressed(() => {
-      appRouter.handleRootBack(ROUTE_GENERATOR)
-      return true
-    })
   }
 }
 

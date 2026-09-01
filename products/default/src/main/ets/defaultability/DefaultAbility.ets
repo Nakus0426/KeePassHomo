@@ -1,10 +1,12 @@
 import { Configuration, UIAbility } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
+import { text } from '@kit.ArkGraphics2D'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
 import { appSessionState } from '../state/AppSessionState'
 import { colorModeState } from '../state/ColorModeState'
 import { immersiveLayoutState } from '../state/ImmersiveLayoutState'
+import { PASSWORD_FONT_FAMILY } from '../constants/FontConstants'
 
 const LOG_DOMAIN: number = 0xD001
 const LOG_TAG: string = 'KeePassHomo'
@@ -39,6 +41,7 @@ export default class DefaultAbility extends UIAbility {
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     immersiveLayoutState.reset()
+    this.registerPasswordFont()
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         LogUtil.error(`页面加载失败，错误码：${err.code}`)
@@ -91,6 +94,18 @@ export default class DefaultAbility extends UIAbility {
     } catch (error) {
       const businessError: BusinessError = error as BusinessError
       LogUtil.error(`避让区初始化失败，错误码：${businessError.code}`)
+    }
+  }
+
+  private registerPasswordFont(): void {
+    try {
+      text.FontCollection.getGlobalInstance().loadFontSyncWithCheck(
+        PASSWORD_FONT_FAMILY,
+        $rawfile('font/maple_mono_nf_cn_medium.ttf'),
+      )
+    } catch (error) {
+      const businessError: BusinessError = error as BusinessError
+      LogUtil.error(`密码生成器字体注册失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
     }
   }
 }

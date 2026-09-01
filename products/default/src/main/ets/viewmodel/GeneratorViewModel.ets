@@ -1,10 +1,13 @@
 import {
+  AppErrorFactory,
+  AppErrorModel,
   MemorableCase,
   MemorablePasswordOptions,
   PasswordGenerator,
   PinOptions,
   RandomPasswordOptions,
 } from '@ohos/common'
+import { LogUtil } from '@pura/harmony-utils'
 
 export enum GeneratorMode {
   Random,

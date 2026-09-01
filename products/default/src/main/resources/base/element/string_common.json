@@ -127,6 +127,10 @@
     {
       "name": "credential",
       "value": "凭据"
+    },
+    {
+      "name": "close",
+      "value": "关闭"
     }
   ]
 }
