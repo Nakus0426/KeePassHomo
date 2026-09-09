@@ -182,19 +182,6 @@ export struct GeneratorContent {
     { text: $r('app.string.uppercase') },
   ] as SegmentButtonV2ItemOptions[])
   private readonly tabsController: TabsController = new TabsController()
-  private readonly optionPanelMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    {
-      style: uiMaterial.ImmersiveStyle.REGULAR,
-      materialColor: $r('sys.color.comp_background_primary'),
-      applyShadow: false,
-    })
-  private readonly passwordCardMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    {
-      style: uiMaterial.ImmersiveStyle.REGULAR,
-      materialColor: $r('sys.color.comp_background_primary'),
-      applyShadow: false,
-      interactive: true,
-    })
   private readonly tabBarMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     {
       style: uiMaterial.ImmersiveStyle.REGULAR,
@@ -419,7 +406,8 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[0] })
-    .systemMaterial(this.optionPanelMaterial)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -462,7 +450,8 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[1] })
-    .systemMaterial(this.optionPanelMaterial)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -487,7 +476,8 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[2] })
-    .systemMaterial(this.optionPanelMaterial)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -505,12 +495,12 @@ export struct GeneratorContent {
               .fontColor($r('sys.color.font_secondary'))
           }
         }
-          .width('100%')
-          .minLines(2)
-          .maxLines(2)
-          .fontSize($r('app.float.text_heading'))
+        .width('100%')
+        .minLines(2)
+        .maxLines(2)
+        .fontSize($r('app.float.text_heading'))
         .fontFamily(this.hasValue ? PASSWORD_FONT_FAMILY : 'HarmonyOS Sans')
-          .textAlign(TextAlign.Center)
+        .textAlign(TextAlign.Center)
         .fontFeature("\"liga\" 0")
 
         PasswordStrengthIndicator({ password: this.viewModel.value })
@@ -519,8 +509,9 @@ export struct GeneratorContent {
       .borderRadius($r('sys.float.corner_radius_level10'))
     }
     .enabled(this.hasValue)
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .onClick(() => this.viewModel.regenerate())
-    .systemMaterial(this.passwordCardMaterial)
   }
 
   @LocalBuilder

@@ -1,4 +1,3 @@
-import { uiMaterial } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
 import { appRouter } from '../../navigation/AppRouter'
@@ -46,15 +45,10 @@ export struct DataSourceCard {
     }
     .width('100%')
     .padding($r('sys.float.padding_level8'))
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .enabled(this.selectable)
     .borderRadius($r('sys.float.corner_radius_level10'))
-    .systemMaterial(new uiMaterial.ImmersiveMaterial({
-      interactive: true,
-      lightEffect: { color: undefined },
-      materialColor: $r('sys.color.comp_background_primary'),
-      style: uiMaterial.ImmersiveStyle.REGULAR,
-      applyShadow: false,
-    }))
     .onClick(() => this.onSelect())
   }
 }

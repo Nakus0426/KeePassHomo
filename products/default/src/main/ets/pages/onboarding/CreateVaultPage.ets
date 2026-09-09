@@ -397,12 +397,7 @@ export struct CreateVaultPage {
           .width('100%')
           .height($r('app.float.control_height'))
           .enabled(!this.viewModel.busy)
-          .systemMaterial(new uiMaterial.ImmersiveMaterial({
-            interactive: true,
-            style: uiMaterial.ImmersiveStyle.REGULAR,
-            applyShadow: false,
-            materialColor: $r('sys.color.brand'),
-          }))
+          .shadow(ShadowStyle.OUTER_DEFAULT_SM)
           .onClick(() => this.handleSubmit())
         }
         .position({ bottom: 0 })

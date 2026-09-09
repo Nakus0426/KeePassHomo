@@ -1,7 +1,6 @@
 import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { uiMaterial } from '@kit.ArkUI'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { Cell } from '../../components/Cell'
 import { Tag, TagType } from '../../components/Tag'
@@ -162,23 +161,12 @@ export struct FileSummaryPage {
         Row({ space: $r('sys.float.padding_level6') }) {
           Button($r('app.string.reselect_file'), { stateEffect: true })
             .layoutWeight(1)
-            .systemMaterial(new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.REGULAR,
-              lightEffect: { color: undefined },
-              colorInvert: true,
-              interactive: true,
-            }))
+            .height($r('app.float.control_height'))
             .fontColor($r('sys.color.font_secondary'))
             .onClick(() => this.viewModel.chooseLocalVault())
           Button($r('app.string.continue_action'), { stateEffect: true })
             .layoutWeight(1)
-            .systemMaterial(new uiMaterial.ImmersiveMaterial({
-              style: uiMaterial.ImmersiveStyle.REGULAR,
-              lightEffect: { color: $r('sys.color.brand') },
-              colorInvert: true,
-              interactive: true,
-            }))
-            .backgroundColor($r('sys.color.brand'))
+            .height($r('app.float.control_height'))
             .onClick(() => this.viewModel.openUnlock())
         }
         .width('100%')
