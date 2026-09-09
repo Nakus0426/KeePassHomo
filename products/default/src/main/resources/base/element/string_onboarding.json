@@ -101,10 +101,6 @@
       "value": "两次输入的主密码不一致"
     },
     {
-      "name": "key_file_warning",
-      "value": "遗失密钥文件将无法打开保险库"
-    },
-    {
       "name": "create_summary_with_key_file",
       "value": "主密码 + 密钥文件"
     },
@@ -127,6 +123,14 @@
     {
       "name": "unlock_vault",
       "value": "解锁保险库"
+    },
+    {
+      "name": "unlock_vault_desc",
+      "value": "输入主密码，解锁当前保险库"
+    },
+    {
+      "name": "unlock_password_required",
+      "value": "请输入密码后再进行解锁操作"
     },
     {
       "name": "local_file",

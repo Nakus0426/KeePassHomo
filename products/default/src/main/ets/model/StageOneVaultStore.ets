@@ -22,6 +22,7 @@ const PREFERENCES_NAME: string = 'vault_source'
 const SOURCE_URI: string = 'source_uri'
 const SOURCE_NAME: string = 'source_name'
 const SOURCE_READ_ONLY: string = 'source_read_only'
+const SOURCE_FORMAT: string = 'source_format'
 const KEY_FILE_URI: string = 'key_file_uri'
 const KEY_FILE_NAME: string = 'key_file_name'
 
@@ -54,6 +55,7 @@ export class StageOneVaultStore {
   private repository: FileVaultRepository | undefined
   private source: VaultSource | undefined
   private keyFileSource: VaultSource | undefined
+  private format: VaultFormat = VaultFormat.Unsupported
   private credential: VaultCredential | undefined
   private engine: KdbxVaultEngine = new KdbxVaultEngine()
   private readonly session: DefaultVaultSession = new DefaultVaultSession()
@@ -82,7 +84,7 @@ export class StageOneVaultStore {
   }
 
   get currentFormat(): VaultFormat {
-    return this.session.getDocument().format
+    return this.format
   }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
@@ -108,6 +110,7 @@ export class StageOneVaultStore {
           readOnly: true,
         }
       }
+      this.format = PreferencesUtil.getSync(SOURCE_FORMAT, VaultFormat.Unsupported) as VaultFormat
     } catch (error) {
       throw new Error((error as Error).message)
     }
@@ -148,6 +151,7 @@ export class StageOneVaultStore {
       readOnly,
     }
     this.source = selectedSource
+    this.format = format
     await this.persistRecentSource()
     try {
       const stat = FileUtil.statSync(source.uri)
@@ -183,6 +187,9 @@ export class StageOneVaultStore {
     options.maxSelectNumber = 1
     options.selectMode = picker.DocumentSelectMode.FILE
     const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).select(options)
+    if (uris === undefined || uris.length === 0) {
+      return
+    }
     await this.selectKeyFile({
       type: VaultSourceType.LocalFile,
       uri: uris[0],
@@ -233,6 +240,7 @@ export class StageOneVaultStore {
     })
     await repository.persistAccess(source)
     this.source = source
+    this.format = document.format
     this.credential = credential
     this.session.unlock(document)
     await this.persistRecentSource()
@@ -247,6 +255,7 @@ export class StageOneVaultStore {
     this.engine = new KdbxVaultEngine()
     const document: VaultDocument = await this.engine.unlock(data, credential)
     this.credential = credential
+    this.format = document.format
     this.session.unlock(document)
   }
 
@@ -366,6 +375,7 @@ export class StageOneVaultStore {
     this.engine = upgradeEngine
     this.session.unlock(upgradeDocument)
     this.source = writableSource
+    this.format = upgradeDocument.format
     await this.persistRecentSource()
     this.session.touch()
     return backupSource.displayName
@@ -422,6 +432,7 @@ export class StageOneVaultStore {
       PreferencesUtil.putSync(SOURCE_URI, this.source.uri, PREFERENCES_NAME)
       PreferencesUtil.putSync(SOURCE_NAME, this.source.displayName, PREFERENCES_NAME)
       PreferencesUtil.putSync(SOURCE_READ_ONLY, this.source.readOnly, PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_FORMAT, this.format, PREFERENCES_NAME)
       PreferencesUtil.putSync(KEY_FILE_URI, this.keyFileSource?.uri ?? '', PREFERENCES_NAME)
       PreferencesUtil.putSync(KEY_FILE_NAME, this.keyFileSource?.displayName ?? '', PREFERENCES_NAME)
     } catch (error) {

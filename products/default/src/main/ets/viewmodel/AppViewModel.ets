@@ -162,9 +162,13 @@ export class AppViewModel {
     }
   }
 
-  async unlockVault(password: string): Promise<void> {
+  /**
+   * 解锁保险库。成功返回 true（由解锁页播放离场动画后自行跳转首页），
+   * 失败返回 false 并通过 lastError 通知页面。
+   */
+  async unlockVault(password: string): Promise<boolean> {
     if (password.length === 0 || this.unlockBlocked) {
-      return
+      return false
     }
     this.busy = true
     try {
@@ -173,24 +177,25 @@ export class AppViewModel {
       this.refreshVault()
       this.session.markUnlocked()
       appSessionState.setCurrentModule(ROUTE_VAULT)
-      appRouter.resetTo(ROUTE_VAULT)
       this.setStatus('')
+      return true
     } catch (error) {
       LogUtil.error('保险库解锁失败')
       const repositoryError: VaultRepositoryError = error as VaultRepositoryError
       if (repositoryError.category === VaultRepositoryErrorCategory.NotFound ||
         repositoryError.category === VaultRepositoryErrorCategory.PermissionDenied) {
         this.reportBoundaryError('保险库解锁失败，请重试', error)
-        return
+        return false
       }
       const engineError: VaultEngineError = error as VaultEngineError
       if (engineError.category === VaultEngineErrorCategory.InvalidCredential) {
         this.unlockFailures++
         this.reportBoundaryError('保险库解锁失败，请重试', error)
         this.applyUnlockDelay()
-        return
+        return false
       }
       this.reportBoundaryError('保险库解锁失败，请重试', error)
+      return false
     } finally {
       this.busy = false
     }

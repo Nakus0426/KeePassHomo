@@ -162,6 +162,7 @@ export struct FileSummaryPage {
           Button($r('app.string.reselect_file'), { stateEffect: true })
             .layoutWeight(1)
             .height($r('app.float.control_height'))
+            .buttonStyle(ButtonStyleMode.NORMAL)
             .fontColor($r('sys.color.font_secondary'))
             .onClick(() => this.viewModel.chooseLocalVault())
           Button($r('app.string.continue_action'), { stateEffect: true })

@@ -1,10 +1,15 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
+import { uiMaterial } from '@kit.ArkUI'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { ROUTE_UNLOCK, ROUTE_VAULT } from '../../constants/RouteConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { ResUtil } from '@pura/harmony-utils'
+import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, AppErrorModel, BounceAnimator } from '@ohos/common'
+import { FormTextField } from '../../components/FormTextField'
+import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 
 const LUNCH_ICON_SIZE = 100
 
@@ -12,7 +17,20 @@ const LUNCH_ICON_SIZE = 100
 export struct UnlockPage {
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private colorMode: ColorModeState = colorModeState
-  private readonly viewModel: AppViewModel = appViewModel
+  @Local private viewModel: AppViewModel = appViewModel
+  @Local private password: string = ''
+  @Local private passwordVisible: boolean = false
+  @Local private passwordFocused: boolean = false
+  // 离场动画进度：0=正常显示，1=完全离场；作为 animateTo 的插值目标驱动全部离场变换
+  @Local private exitProgress: number = 0
+  // 动画启动前快照的位移量，避免动画期间 pageHeight 变化（收键盘改变避让区）干扰插值
+  @Local private topShift: number = 0
+  @Local private bottomShift: number = 0
+  @Local private pageHeight: number = 0
+  private exitAnimating: boolean = false
+  private readonly unlockBounce: BounceAnimator = new BounceAnimator()
+  private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
+    { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
   @Computed
   get bottomSafeAreaHeight() {
@@ -22,7 +40,189 @@ export struct UnlockPage {
   @Computed
   get formPaddingToHeight() {
     const padding = ResUtil.getNumber($r('sys.float.padding_level12').id)
-    return this.getUIContext().px2vp(padding + LUNCH_ICON_SIZE / 2)
+    return this.getUIContext().px2vp(padding) + LUNCH_ICON_SIZE / 2
+  }
+
+  @Computed
+  get suffixButtonSize(): number {
+    const buttonHeight: number = ResUtil.getNumber($r('app.float.control_height').id)
+    const padding: number = ResUtil.getNumber($r('sys.float.padding_level4').id)
+    return this.getUIContext().px2vp(buttonHeight - padding * 2)
+  }
+
+  // 分割线与解锁按钮的显示条件：输入框有焦点，或已输入非空密码
+  @Computed
+  get showUnlockSuffix(): boolean {
+    return this.passwordFocused || this.password.length > 0
+  }
+
+  @Monitor('viewModel.lastError')
+  onLastErrorChanged(): void {
+    const error: AppErrorModel | undefined = this.viewModel.lastError
+    if (error !== undefined) {
+      this.showToast(error.message)
+    }
+  }
+
+  private async handleSubmit(): Promise<void> {
+    if (this.exitAnimating || this.exitProgress > 0) {
+      return
+    }
+    if (this.password.length === 0) {
+      this.showToast($r('app.string.unlock_password_required'))
+      return
+    }
+    const unlocked: boolean = await this.viewModel.unlockVault(this.password)
+    LogUtil.info(`解锁结果=${unlocked}`)
+    if (unlocked) {
+      this.playExitAnimation()
+    }
+  }
+
+  /**
+   * 解锁成功离场动画：上下背景分离、图标顺时针旋转随上半背景上移、整页淡出，
+   * 动画结束后经系统 FADE 转场进入首页。
+   * 延迟一帧启动：解锁流程遗留的待渲染变更（busy 复位、收键盘的布局变化）与
+   * animateTo 同帧会互相干扰导致跳变，先让渲染落地再开动画。
+   */
+  private playExitAnimation(): void {
+    this.exitAnimating = true
+    LogUtil.info(`开始离场动画，pageHeight=${this.pageHeight}`)
+    this.getUIContext().getFocusController().clearFocus()
+    setTimeout(() => {
+      this.topShift = this.pageHeight * 0.2
+      this.bottomShift = this.pageHeight * 0.8
+      this.getUIContext().animateTo({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: Curve.EaseIn,
+        onFinish: () => {
+          LogUtil.info('离场动画完成，跳转首页')
+          appRouter.resetTo(ROUTE_VAULT, undefined, true)
+        },
+      }, () => {
+        this.exitProgress = 1
+        LogUtil.info(`animateTo 闭包执行，exitProgress=${this.exitProgress}，` +
+          `topShift=${this.topShift}，bottomShift=${this.bottomShift}`)
+      })
+    }, 50)
+  }
+
+  private showToast(message: ResourceStr): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({
+        message,
+        systemMaterial: this.toastMaterial,
+      })
+    } catch (error) {
+      const businessError: BusinessError = error as BusinessError
+      LogUtil.error(`显示解锁提示失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
+    }
+  }
+
+  @LocalBuilder
+  private vaultSwitchBuilder() {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
+      Row({ space: $r('sys.float.padding_level8') }) {
+        Stack() {
+          SymbolGlyph($r('sys.symbol.folder'))
+            .fontSize($r('sys.float.Title_L'))
+            .fontColor([$r('sys.color.brand')])
+        }
+        .padding($r('sys.float.padding_level4'))
+        .borderRadius('50%')
+        .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+
+        Column({ space: $r('sys.float.padding_level2') }) {
+          Text(this.viewModel.currentSource().displayName)
+            .fontSize($r('sys.float.Subtitle_L'))
+            .fontColor($r('sys.color.font_primary'))
+            .fontWeight(FontWeight.Medium)
+          Text(this.viewModel.formatName(this.viewModel.currentFormat()))
+            .fontSize($r('sys.float.Body_M'))
+            .fontColor($r('sys.color.font_secondary'))
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        SymbolGlyph($r('sys.symbol.chevron_forward'))
+          .fontSize($r('sys.float.Title_S'))
+          .fontColor([$r('sys.color.font_secondary')])
+          .fontWeight(FontWeight.Medium)
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding({
+      top: $r('sys.float.padding_level6'),
+      bottom: $r('sys.float.padding_level6'),
+      left: $r('sys.float.padding_level8'),
+      right: $r('sys.float.padding_level8'),
+    })
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .borderRadius($r('sys.float.corner_radius_level10'))
+    .enabled(!this.viewModel.busy)
+    .onClick(() => this.viewModel.chooseLocalVault())
+  }
+
+  @LocalBuilder
+  private passwordSuffixBuilder() {
+    Row({ space: $r('sys.float.padding_level2') }) {
+      PasswordVisibilityToggle({
+        visible: this.passwordVisible,
+        onChange: (visible: boolean) => this.passwordVisible = visible,
+      })
+
+      if (this.showUnlockSuffix) {
+        Divider()
+          .vertical(true)
+          .margin({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level6') })
+          .color($r('sys.color.comp_divider'))
+
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.chevron_forward'))
+            .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
+            .fontColor([$r('sys.color.brand')])
+            .fontWeight(FontWeight.Normal)
+            .scale({ x: this.unlockBounce.scale, y: this.unlockBounce.scale })
+        }
+        .width(this.suffixButtonSize)
+        .height(this.suffixButtonSize)
+        .backgroundColor(Color.Transparent)
+        .stateStyles({
+          pressed: {
+            .backgroundColor($r('sys.color.interactive_pressed'))
+          },
+        })
+        .accessibilityText($r('app.string.unlock_vault'))
+        .enabled(!this.viewModel.busy)
+        .onClick(() => this.unlockBounce.play(this.getUIContext(), () => this.handleSubmit()))
+      }
+    }
+  }
+
+  @LocalBuilder
+  private keyFileBuilder() {
+    Button() {
+      Row({ space: $r('sys.float.padding_level2') }) {
+        Text(this.viewModel.currentKeyFileName().length > 0
+          ? this.viewModel.currentKeyFileName() : $r('app.string.key_file_label'))
+          .fontSize($r('sys.float.Body_M'))
+          .fontColor($r('sys.color.font_secondary'))
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .maxLines(1)
+        SymbolGlyph($r('sys.symbol.chevron_forward'))
+          .fontSize($r('sys.float.Body_M'))
+          .fontColor([$r('sys.color.font_secondary')])
+      }
+    }
+    .buttonStyle(ButtonStyleMode.TEXTUAL)
+    .padding({
+      top: $r('sys.float.padding_level2'),
+      bottom: $r('sys.float.padding_level2'),
+      left: $r('sys.float.padding_level4'),
+      right: $r('sys.float.padding_level4'),
+    })
+    .onClick(() => this.viewModel.chooseKeyFile())
   }
 
   build() {
@@ -33,6 +233,7 @@ export struct UnlockPage {
           .height('20%')
           .fill($r('sys.color.background_tertiary'))
           .position({ top: 0, left: 0 })
+          .translate({ y: -this.topShift * this.exitProgress })
           .border({
             width: {
               top: 0,
@@ -50,7 +251,11 @@ export struct UnlockPage {
         .width(LUNCH_ICON_SIZE)
         .height(LUNCH_ICON_SIZE)
         .position({ top: '20%', left: '50%' })
-        .translate({ x: "-50%", y: "-50%" })
+        .translate({
+          x: -LUNCH_ICON_SIZE / 2,
+          y: -LUNCH_ICON_SIZE / 2 - this.topShift * this.exitProgress,
+        })
+        .rotate({ angle: 90 * this.exitProgress })
         .zIndex(1)
         .borderRadius('50%')
         .clip(true)
@@ -62,21 +267,67 @@ export struct UnlockPage {
           .fill(this.colorMode.isDark
             ? $r('sys.color.background_fourth') : $r('sys.color.background_secondary'))
           .position({ bottom: 0, left: 0 })
+          .translate({ y: this.bottomShift * this.exitProgress })
 
         Column() {
+          Column({ space: $r('sys.float.padding_level12') }) {
+            Column({ space: $r('sys.float.padding_level6') }) {
+              Text($r('app.string.unlock_vault'))
+                .fontSize($r('sys.float.Title_L'))
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('sys.color.font_primary'))
 
+              Text($r('app.string.unlock_vault_desc'))
+                .fontSize($r('sys.float.Body_M'))
+                .fontColor($r('sys.color.font_secondary'))
+            }
+
+            this.vaultSwitchBuilder()
+
+            FormTextField({
+              placeholder: $r('app.string.text_input_placeholder'),
+              type: InputType.Password,
+              text: this.password,
+              showPassword: this.passwordVisible,
+              onChange: (value: string) => this.password = value,
+              onFocusChange: (focused: boolean) => this.passwordFocused = focused,
+              onSubmit: () => this.handleSubmit(),
+            }) {
+              this.passwordSuffixBuilder()
+            }
+          }
+
+          this.keyFileBuilder()
         }
         .width('100%')
         .height('80%')
+        .justifyContent(FlexAlign.SpaceBetween)
         .position({ bottom: 0, left: 0 })
-        .padding({ top: this.formPaddingToHeight, bottom: this.bottomSafeAreaHeight })
+        .translate({ y: this.bottomShift * this.exitProgress })
+        .padding(
+          {
+            top: this.formPaddingToHeight,
+            bottom: this.bottomSafeAreaHeight,
+            left: $r('sys.float.padding_level8'),
+            right: $r('sys.float.padding_level8'),
+          })
       }
       .height('100%')
       .width('100%')
+      .opacity(1 - this.exitProgress)
+      .onAreaChange((_old: Area, newArea: Area) => {
+        const height: number = newArea.height as number
+        if (Math.abs(height - this.pageHeight) > 1) {
+          LogUtil.info(`页面高度变化 ${this.pageHeight} -> ${height}`)
+          this.pageHeight = height
+        }
+      })
     }
     .hideTitleBar(true)
     .hideBackButton(true)
     .backgroundColor($r('sys.color.background_secondary'))
+    // 整栈重建移除本页时禁用默认横向离场转场，避免与首页 FADE 淡入叠加出残影
+    .systemTransition(NavigationSystemTransitionType.NONE)
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true

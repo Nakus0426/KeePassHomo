@@ -203,6 +203,7 @@ export struct VaultHomePage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('sys.color.background_secondary'))
+    .systemTransition(NavigationSystemTransitionType.FADE)
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_VAULT)
       return true

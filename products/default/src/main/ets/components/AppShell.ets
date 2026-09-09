@@ -1,12 +1,8 @@
 import { common } from '@kit.AbilityKit'
-import { UIObserver, uiMaterial } from '@kit.ArkUI'
+import { uiMaterial, UIObserver } from '@kit.ArkUI'
 import { HdsNavigation } from '@kit.UIDesignKit'
-import {
-  ROUTE_GENERATOR,
-  ROUTE_SECURITY,
-  ROUTE_SETTINGS,
-  ROUTE_VAULT,
-} from '../constants/RouteConstants'
+import { AnimationTokens } from '@ohos/common'
+import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { appViewModel, AppViewModel } from '../viewmodel/AppViewModel'
@@ -117,6 +113,7 @@ export struct AppShell {
 
       if (appRouter.isModuleRoute()) {
         ModuleNavigationBar()
+          .transition(TransitionEffect.OPACITY.animation({ duration: AnimationTokens.STATE_TRANSITION_DURATION }))
           .zIndex(1)
       }
       if (this.session.privacyCovered) {

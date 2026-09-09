@@ -25,3 +25,4 @@ oh_modules/
 *.kdbx
 .env
 .env.*
+/.codegraph/

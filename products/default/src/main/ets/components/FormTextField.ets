@@ -14,6 +14,12 @@ export struct FormTextField {
   /** 密码明文显示，仅 Password 类型生效，配合外部切换按钮使用 */
   @Param showPassword: boolean = false
   @Event onChange: (value: string) => void = () => { }
+  /** 焦点变化回调，供外部驱动尾部内容的条件渲染 */
+  @Event onFocusChange: (focused: boolean) => void = () => {
+  }
+  /** 键盘提交回调（回车/前往） */
+  @Event onSubmit: (value: string) => void = () => {
+  }
   /** 尾部附加内容插槽 */
   @BuilderParam suffixBuilder?: () => void
   @Local private focused: boolean = false
@@ -29,11 +35,14 @@ export struct FormTextField {
         .backgroundColor(Color.Transparent)
         .onFocus(() => {
           this.focused = true
+          this.onFocusChange(true)
         })
         .onBlur(() => {
           this.focused = false
+          this.onFocusChange(false)
         })
         .onChange((value: string) => this.onChange(value))
+        .onSubmit((enterKey: EnterKeyType, event: SubmitEvent) => this.onSubmit(event.text))
 
       if (this.suffixBuilder !== undefined) {
         this.suffixBuilder()
