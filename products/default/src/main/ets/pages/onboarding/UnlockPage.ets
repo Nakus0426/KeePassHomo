@@ -21,14 +21,27 @@ export struct UnlockPage {
   @Local private password: string = ''
   @Local private passwordVisible: boolean = false
   @Local private passwordFocused: boolean = false
-  // 离场动画进度：0=正常显示，1=完全离场；作为 animateTo 的插值目标驱动全部离场变换
   @Local private exitProgress: number = 0
-  // 动画启动前快照的位移量，避免动画期间 pageHeight 变化（收键盘改变避让区）干扰插值
   @Local private topShift: number = 0
   @Local private bottomShift: number = 0
-  @Local private pageHeight: number = 0
+  private pageHeight: number = 0
   private exitAnimating: boolean = false
   private readonly unlockBounce: BounceAnimator = new BounceAnimator()
+  /**
+   * 自定义转场代理：入场返回 undefined 走系统默认转场（与文件摘要页等一致）；
+   * 离场返回零时长空转场——整栈重建移除本页时不播横向离场动画，避免与首页 FADE 淡入叠加出残影。
+   */
+  private readonly navTransition: NavDestinationTransitionDelegate =
+    (_operation: NavigationOperation, isEnter: boolean): Array<NavDestinationTransition> | undefined => {
+      if (isEnter) {
+        return undefined
+      }
+      return [{
+        event: () => {
+        },
+        duration: 0,
+      }]
+    }
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
@@ -65,16 +78,14 @@ export struct UnlockPage {
   }
 
   private async handleSubmit(): Promise<void> {
-    if (this.exitAnimating || this.exitProgress > 0) {
+    if (this.exitAnimating) {
       return
     }
     if (this.password.length === 0) {
       this.showToast($r('app.string.unlock_password_required'))
       return
     }
-    const unlocked: boolean = await this.viewModel.unlockVault(this.password)
-    LogUtil.info(`解锁结果=${unlocked}`)
-    if (unlocked) {
+    if (await this.viewModel.unlockVault(this.password)) {
       this.playExitAnimation()
     }
   }
@@ -82,13 +93,11 @@ export struct UnlockPage {
   /**
    * 解锁成功离场动画：上下背景分离、图标顺时针旋转随上半背景上移、整页淡出，
    * 动画结束后经系统 FADE 转场进入首页。
-   * 延迟一帧启动：解锁流程遗留的待渲染变更（busy 复位、收键盘的布局变化）与
-   * animateTo 同帧会互相干扰导致跳变，先让渲染落地再开动画。
    */
   private playExitAnimation(): void {
     this.exitAnimating = true
-    LogUtil.info(`开始离场动画，pageHeight=${this.pageHeight}`)
     this.getUIContext().getFocusController().clearFocus()
+    // 延迟启动，避开收键盘布局变化与动画首帧同帧的干扰
     setTimeout(() => {
       this.topShift = this.pageHeight * 0.2
       this.bottomShift = this.pageHeight * 0.8
@@ -96,13 +105,10 @@ export struct UnlockPage {
         duration: AnimationTokens.STATE_TRANSITION_DURATION,
         curve: Curve.EaseIn,
         onFinish: () => {
-          LogUtil.info('离场动画完成，跳转首页')
           appRouter.resetTo(ROUTE_VAULT, undefined, true)
         },
       }, () => {
         this.exitProgress = 1
-        LogUtil.info(`animateTo 闭包执行，exitProgress=${this.exitProgress}，` +
-          `topShift=${this.topShift}，bottomShift=${this.bottomShift}`)
       })
     }, 50)
   }
@@ -316,18 +322,13 @@ export struct UnlockPage {
       .width('100%')
       .opacity(1 - this.exitProgress)
       .onAreaChange((_old: Area, newArea: Area) => {
-        const height: number = newArea.height as number
-        if (Math.abs(height - this.pageHeight) > 1) {
-          LogUtil.info(`页面高度变化 ${this.pageHeight} -> ${height}`)
-          this.pageHeight = height
-        }
+        this.pageHeight = newArea.height as number
       })
     }
     .hideTitleBar(true)
     .hideBackButton(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    // 整栈重建移除本页时禁用默认横向离场转场，避免与首页 FADE 淡入叠加出残影
-    .systemTransition(NavigationSystemTransitionType.NONE)
+    .customTransition(this.navTransition)
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true
