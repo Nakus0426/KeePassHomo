@@ -8,7 +8,6 @@ import {
 } from '@kit.UIDesignKit'
 import { VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
-import { ROUTE_VAULT } from '../../constants/RouteConstants'
 import { GeneratorContent } from '../generator/GeneratorComponents'
 import { StatusText } from '../../components/PageChrome'
 import { PASSWORD_REVEAL_SECONDS } from '../../constants/SecurityConstants'
@@ -65,7 +64,7 @@ export struct EntryEditPage {
   private exitEditor(): void {
     this.unsavedDialogVisible = false
     if (this.editor.entryUuid.length === 0) {
-      appRouter.resetTo(ROUTE_VAULT)
+      appRouter.clearToHome()
     } else {
       appRouter.pop()
     }

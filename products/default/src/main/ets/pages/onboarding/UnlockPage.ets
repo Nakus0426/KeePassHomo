@@ -1,7 +1,7 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { uiMaterial } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { ROUTE_UNLOCK, ROUTE_VAULT } from '../../constants/RouteConstants'
+import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { appRouter } from '../../navigation/AppRouter'
@@ -27,21 +27,6 @@ export struct UnlockPage {
   private pageHeight: number = 0
   private exitAnimating: boolean = false
   private readonly unlockBounce: BounceAnimator = new BounceAnimator()
-  /**
-   * 自定义转场代理：入场返回 undefined 走系统默认转场（与文件摘要页等一致）；
-   * 离场返回零时长空转场——整栈重建移除本页时不播横向离场动画，避免与首页 FADE 淡入叠加出残影。
-   */
-  private readonly navTransition: NavDestinationTransitionDelegate =
-    (_operation: NavigationOperation, isEnter: boolean): Array<NavDestinationTransition> | undefined => {
-      if (isEnter) {
-        return undefined
-      }
-      return [{
-        event: () => {
-        },
-        duration: 0,
-      }]
-    }
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
@@ -105,7 +90,7 @@ export struct UnlockPage {
         duration: AnimationTokens.STATE_TRANSITION_DURATION,
         curve: Curve.EaseIn,
         onFinish: () => {
-          appRouter.resetTo(ROUTE_VAULT, undefined, true)
+          appRouter.clearToHome()
         },
       }, () => {
         this.exitProgress = 1
@@ -328,7 +313,6 @@ export struct UnlockPage {
     .hideTitleBar(true)
     .hideBackButton(true)
     .backgroundColor($r('sys.color.background_secondary'))
-    .customTransition(this.navTransition)
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true

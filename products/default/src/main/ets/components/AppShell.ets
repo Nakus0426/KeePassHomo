@@ -1,69 +1,46 @@
 import { common } from '@kit.AbilityKit'
-import { uiMaterial, UIObserver } from '@kit.ArkUI'
-import { HdsNavigation } from '@kit.UIDesignKit'
-import { AnimationTokens } from '@ohos/common'
+import { SymbolGlyphModifier, UIObserver } from '@kit.ArkUI'
+import {
+  CustomTransitionDelegate,
+  hdsMaterial,
+  HdsNavigation,
+  HdsNavigationMenuItemOptions,
+  HdsNavigationTitleBarOptions,
+  HdsTabs,
+  HdsTabsController,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
-import { appViewModel, AppViewModel } from '../viewmodel/AppViewModel'
+import { appViewModel } from '../viewmodel/AppViewModel'
 import { SplashContent } from '../pages/onboarding/SplashContent'
+import { VaultHomePage } from '../pages/vault/VaultHomePage'
+import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
+import { GeneratorPage } from '../pages/generator/GeneratorPage'
+import { GeneratorContentController } from '../pages/generator/GeneratorComponents'
 
-@ComponentV2
-struct ModuleNavigationBar {
-  @Param session: AppSessionState = appSessionState
-  private readonly material: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.THIN,
-    applyShadow: true,
-  })
-
-  @Builder
-  private navigationItem(label: Resource, symbol: Resource, route: string) {
-    Button({ type: ButtonType.Normal, stateEffect: false }) {
-      Column({ space: 2 }) {
-        SymbolGlyph(symbol)
-          .fontSize(22)
-          .fontColor([this.session.currentModule === route
-            ? $r('sys.color.brand') : $r('sys.color.font_secondary')])
-        Text(label)
-          .fontSize(11)
-          .fontWeight(this.session.currentModule === route ? FontWeight.Medium : FontWeight.Normal)
-          .fontColor(this.session.currentModule === route
-            ? $r('sys.color.brand') : $r('sys.color.font_secondary'))
-          .maxLines(1)
-      }
-      .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
-      .backgroundColor(this.session.currentModule === route
-        ? $r('sys.color.comp_emphasize_secondary') : Color.Transparent)
-      .borderRadius(28)
-    }
-    .layoutWeight(1)
-    .height(56)
-    .backgroundColor(Color.Transparent)
-    .onClick(() => appViewModel.switchModule(route))
-  }
-
-  build() {
-    Row({ space: 4 }) {
-      this.navigationItem($r('app.string.vault_home'), $r('sys.symbol.folder_fill'), ROUTE_VAULT)
-      this.navigationItem($r('app.string.security_center'), $r('sys.symbol.shield_checkered'), ROUTE_SECURITY)
-      this.navigationItem($r('app.string.password_generator'), $r('sys.symbol.wand_and_stars_fill'), ROUTE_GENERATOR)
-      this.navigationItem($r('app.string.settings'), $r('sys.symbol.gearshape_fill'), ROUTE_SETTINGS)
-    }
-    .width('calc(100% - 32vp)')
-    .height($r('app.float.module_navigation_bar_height'))
-    .padding(6)
-    .margin({ left: 16, right: 16, bottom: 12 })
-    .borderRadius(34)
-    .systemMaterial(this.material)
-  }
+/**
+ * 底部页签描述：路由名与页签图标、文案的映射，顺序即 HdsTabs 页签顺序。
+ */
+interface ModuleTabDescriptor {
+  route: string
+  label: Resource
+  symbol: Resource
 }
+
+const MODULES: readonly ModuleTabDescriptor[] = [
+  { route: ROUTE_VAULT, label: $r('app.string.vault_home'), symbol: $r('sys.symbol.folder_fill') },
+  { route: ROUTE_SECURITY, label: $r('app.string.security_center'), symbol: $r('sys.symbol.shield_checkered') },
+  { route: ROUTE_GENERATOR, label: $r('app.string.password_generator'), symbol: $r('sys.symbol.wand_and_stars_fill') },
+  { route: ROUTE_SETTINGS, label: $r('app.string.settings'), symbol: $r('sys.symbol.gearshape_fill') },
+]
 
 @ComponentV2
 export struct AppShell {
-  @Local private viewModel: AppViewModel = appViewModel
   @Local private session: AppSessionState = appSessionState
+  private readonly tabsController: HdsTabsController = new HdsTabsController()
+  private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
@@ -99,27 +76,132 @@ export struct AppShell {
     return this.getUIContext().getHostContext() as common.UIAbilityContext
   }
 
+  /**
+   * Navigation 级转场代理：clearToHome 的清栈回首页零时长，
+   * 消除首页露出的系统默认横向滑入残影；其余转场返回 undefined 走系统默认。
+   */
+  private readonly navTransition: CustomTransitionDelegate =
+    (_from: NavContentInfo, _to: NavContentInfo, _operation: NavigationOperation):
+    NavigationAnimatedTransition | undefined => {
+      if (appRouter.consumeHomeTransition()) {
+        return {
+          timeout: 0,
+          transition: (proxy: NavigationTransitionProxy) => {
+            proxy.finishTransition()
+          },
+        }
+      }
+      return undefined
+    }
+
+  @Computed
+  get moduleIndex(): number {
+    const index: number = MODULES.findIndex((module: ModuleTabDescriptor) =>
+    module.route === this.session.currentModule)
+    return index < 0 ? 0 : index
+  }
+
+  @Computed
+  get currentTab(): ModuleTabDescriptor {
+    return MODULES[this.moduleIndex]
+  }
+
+  private tabBar(module: ModuleTabDescriptor): BottomTabBarStyle {
+    return new BottomTabBarStyle({
+      normal: new SymbolGlyphModifier(module.symbol)
+        .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
+        .fontColor([$r('sys.color.ohos_id_color_bottom_tab_icon_off')]),
+      selected: new SymbolGlyphModifier(module.symbol)
+        .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
+        .fontColor([$r('sys.color.ohos_id_color_activated')]),
+    }, module.label)
+  }
+
+  @Computed
+  get titleBarOptions(): HdsNavigationTitleBarOptions {
+    const menuItems: HdsNavigationMenuItemOptions[] = [{
+      content: {
+        icon: $r('sys.symbol.lock_fill'),
+        label: $r('app.string.lock'),
+        action: () => appViewModel.lockVault(),
+      },
+    }]
+    if (this.currentTab.route === ROUTE_GENERATOR) {
+      menuItems.push({
+        content: {
+          icon: $r('sys.symbol.doc_text_on_doc_text'),
+          label: $r('app.string.copy'),
+          action: () => this.generatorController.copyPassword(),
+        },
+      })
+    }
+    return {
+      avoidLayoutSafeArea: true,
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.IMMERSIVE,
+        },
+      },
+      content: {
+        title: {
+          mainTitle: this.currentTab.label,
+        },
+        menu: { value: menuItems },
+      },
+    }
+  }
+
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Stack() {
       HdsNavigation(appRouter.stack) {
-        SplashContent({ viewModel: appViewModel })
+        HdsTabs({ controller: this.tabsController, index: this.moduleIndex }) {
+          TabContent() {
+            VaultHomePage()
+          }
+          .tabBar(this.tabBar(MODULES[0]))
+
+          TabContent() {
+            ModulePendingContent()
+          }
+          .tabBar(this.tabBar(MODULES[1]))
+
+          TabContent() {
+            GeneratorPage({ controller: this.generatorController })
+          }
+          .tabBar(this.tabBar(MODULES[2]))
+
+          TabContent() {
+            ModulePendingContent()
+          }
+          .tabBar(this.tabBar(MODULES[3]))
+        }
+        .barPosition(BarPosition.End)
+        .barOverlap(true)
+        .barFloatingStyle({
+          barBottomMargin: 28,
+          systemMaterialEffect: {
+            materialType: hdsMaterial.MaterialType.IMMERSIVE,
+          },
+        })
+        .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
+        .width('100%')
+        .height('100%')
       }
       .width('100%')
       .height('100%')
-      .hideTitleBar(true)
+      .hideBackButton(true)
+      .titleBar(this.titleBarOptions)
+      .customNavContentTransition(this.navTransition)
       .mode(NavigationMode.Stack)
       .backgroundColor($r('sys.color.background_secondary'))
-      .zIndex(0)
 
-      if (appRouter.isModuleRoute()) {
-        ModuleNavigationBar()
-          .transition(TransitionEffect.OPACITY.animation({ duration: AnimationTokens.STATE_TRANSITION_DURATION }))
-          .zIndex(1)
-      }
       if (this.session.privacyCovered) {
         SplashContent({ viewModel: appViewModel })
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-          .zIndex(2)
       }
     }
     .width('100%')

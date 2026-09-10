@@ -1,28 +1,11 @@
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { promptAction, UIObserver, uiMaterial, uiObserver } from '@kit.ArkUI'
+import { promptAction, uiMaterial, UIObserver, uiObserver } from '@kit.ArkUI'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
-import {
-  ROUTE_CREATE_VAULT,
-  ROUTE_FILE_SUMMARY,
-  ROUTE_GENERATOR,
-  ROUTE_SECURITY,
-  ROUTE_SETTINGS,
-  ROUTE_UNLOCK,
-  ROUTE_VAULT,
-  ROUTE_WELCOME,
-} from '../constants/RouteConstants'
+import { ROUTE_HOME } from '../constants/RouteConstants'
 
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
 const ROOT_BACK_TOAST_DURATION_MS: number = 2000
-
-/**
- * setStack 使用的路由目标描述。
- */
-export interface RouteTarget {
-  name: string
-  param?: Object
-}
 
 /**
  * 应用级路由器：唯一持有 NavPathStack，集中提供路由操作；
@@ -40,6 +23,7 @@ export class AppRouter {
     }
   private lastBackPressedAt: number = 0
   private lastBackRoute: string = ''
+  private homeTransitionPending: boolean = false
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
@@ -60,7 +44,7 @@ export class AppRouter {
   }
 
   /**
-   * 清空路由栈并压入新的根页面，用于模块切换、登录态切换等整栈重建场景。
+   * 清空路由栈并压入新的根页面，用于登录态切换等整栈重建场景。
    */
   resetTo(route: string, param?: Object, animated: boolean = false): void {
     this.stack.clear()
@@ -68,13 +52,32 @@ export class AppRouter {
   }
 
   /**
-   * 清空路由栈并按序重建多层页面，同帧完成避免中间转场闪烁。
+   * 清空路由栈回到 Navigation 首页（HdsTabs 所在内容区）；
+   * 首页非 NavDestination，需手动标记 currentRoute。
    */
-  setStack(targets: RouteTarget[]): void {
+  clearToHome(): void {
     this.stack.clear()
-    for (const target of targets) {
-      this.stack.pushPathByName(target.name, target.param)
+    this.currentRoute = ROUTE_HOME
+    this.homeTransitionPending = true
+  }
+
+  /**
+   * 供 Navigation 转场代理消费：clearToHome 触发的回首页转场需零时长，
+   * 否则首页会播系统默认的横向滑入残影；其余转场保持系统默认。
+   */
+  consumeHomeTransition(): boolean {
+    if (this.homeTransitionPending) {
+      this.homeTransitionPending = false
+      return true
     }
+    return false
+  }
+
+  /**
+   * 是否处于 Navigation 首页；以栈深判定，避免 pop 回首页时 currentRoute 滞留旧值。
+   */
+  isHomePage(): boolean {
+    return this.stack.size() === 0
   }
 
   /**
@@ -98,11 +101,6 @@ export class AppRouter {
       return undefined
     }
     return this.stack.getParamByIndex(size - 1) as Object | undefined
-  }
-
-  isModuleRoute(): boolean {
-    return this.currentRoute === ROUTE_VAULT || this.currentRoute === ROUTE_SECURITY ||
-      this.currentRoute === ROUTE_GENERATOR || this.currentRoute === ROUTE_SETTINGS
   }
 
   /**

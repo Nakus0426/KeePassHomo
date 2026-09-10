@@ -76,14 +76,13 @@ export class AppViewModel {
   }
 
   switchModule(route: string): void {
-    if (appRouter.currentRoute === route && appRouter.stack.size() > 0) {
+    if (appSessionState.currentModule === route && appRouter.isHomePage()) {
       return
     }
-    if (appRouter.currentRoute === ROUTE_GENERATOR) {
+    if (appSessionState.currentModule === ROUTE_GENERATOR) {
       this.generator.clearSensitiveState()
     }
     appSessionState.setCurrentModule(route)
-    appRouter.resetTo(route)
     if (route === ROUTE_GENERATOR) {
       this.generator.regenerate()
     }
@@ -149,7 +148,7 @@ export class AppViewModel {
       this.refreshVault()
       this.session.markUnlocked()
       appSessionState.setCurrentModule(ROUTE_VAULT)
-      appRouter.resetTo(ROUTE_VAULT)
+      appRouter.clearToHome()
       this.setStatus('')
     } catch (error) {
       if (error instanceof UserCancelledError) {
@@ -271,10 +270,8 @@ export class AppViewModel {
       editor.markSaved()
       this.refreshVault()
       const detailParam: EntryDetailParam = { entryUuid: saved.uuid }
-      appRouter.setStack([
-        { name: ROUTE_VAULT },
-        { name: ROUTE_ENTRY_DETAIL, param: detailParam },
-      ])
+      appSessionState.setCurrentModule(ROUTE_VAULT)
+      appRouter.resetTo(ROUTE_ENTRY_DETAIL, detailParam, true)
       this.setStatus('')
       this.recordActivity()
     } catch (error) {
@@ -306,7 +303,8 @@ export class AppViewModel {
       await stageOneVaultStore.setArchived(entry.uuid, !entry.archived)
       this.refreshVault()
       this.setStatus('')
-      appRouter.resetTo(ROUTE_VAULT)
+      appSessionState.setCurrentModule(ROUTE_VAULT)
+      appRouter.clearToHome()
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('更新归档状态失败', error)
@@ -430,6 +428,9 @@ export class AppViewModel {
   }
 
   private isUnlockedRoute(): boolean {
+    if (appRouter.isHomePage()) {
+      return true
+    }
     return appRouter.currentRoute !== '' && appRouter.currentRoute !== ROUTE_WELCOME &&
       appRouter.currentRoute !== ROUTE_CREATE_VAULT && appRouter.currentRoute !== ROUTE_FILE_SUMMARY &&
       appRouter.currentRoute !== ROUTE_UNLOCK

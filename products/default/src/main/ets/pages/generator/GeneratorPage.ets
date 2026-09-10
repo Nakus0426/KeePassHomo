@@ -1,15 +1,12 @@
-import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { ResUtil } from '@pura/harmony-utils'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { GeneratorContent, GeneratorContentController } from './GeneratorComponents'
-import { GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct GeneratorPage {
+  @Param controller: GeneratorContentController = new GeneratorContentController()
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  private readonly generator: GeneratorViewModel = appViewModel.generator
-  private readonly generatorController: GeneratorContentController = new GeneratorContentController()
 
   @Computed
   get topAvoidAreaHeight(): number {
@@ -27,48 +24,12 @@ export struct GeneratorPage {
   }
 
   build() {
-    HdsNavDestination() {
-      GeneratorContent({
-        viewModel: this.generator,
-        controller: this.generatorController,
-        bottomOffset: this.bottomOffset,
-        onActivity: () => appViewModel.recordActivity(),
-      })
-    }
-    .hideBackButton(true)
-    .titleBar({
-      avoidLayoutSafeArea: true,
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        title: {
-          mainTitle: $r('app.string.password_generator'),
-        },
-        menu: {
-          value: [{
-            content: {
-              icon: $r('sys.symbol.doc_text_on_doc_text'),
-              label: $r('app.string.copy'),
-              action: () => this.generatorController.copyPassword(),
-            },
-          }],
-        },
-      },
+    GeneratorContent({
+      viewModel: appViewModel.generator,
+      controller: this.controller,
+      topOffset: this.topAvoidAreaHeight,
+      bottomOffset: this.bottomOffset,
+      onActivity: () => appViewModel.recordActivity(),
     })
-    .backgroundColor($r('sys.color.background_secondary'))
-    .onHidden(() => this.generator.clearSensitiveState())
   }
-}
-
-@Builder
-export function generatorPageBuilder() {
-  GeneratorPage()
 }

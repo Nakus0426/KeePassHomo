@@ -1,5 +1,8 @@
 export const INDEX_ROUTE: string = 'pages/Index'
 
+/** 首页哨兵：HdsTabs 所在的 Navigation 首页，不进 route_map，仅作 currentRoute 标记。 */
+export const ROUTE_HOME: string = 'home'
+
 export const ROUTE_WELCOME: string = 'welcome'
 
 export const ROUTE_CREATE_VAULT: string = 'createVault'
