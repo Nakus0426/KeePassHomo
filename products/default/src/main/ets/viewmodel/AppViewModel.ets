@@ -342,7 +342,7 @@ export class AppViewModel {
       vaultHomeViewModel.clear()
       this.generator.clearSensitiveState()
       this.session.onVaultLocked()
-      appRouter.resetTo(ROUTE_UNLOCK)
+      appRouter.lockToUnlock()
     }
   }
 
@@ -354,7 +354,7 @@ export class AppViewModel {
     const locked: boolean = this.session.onForeground()
     this.refreshVault()
     if (locked && this.isUnlockedRoute()) {
-      appRouter.resetTo(ROUTE_UNLOCK)
+      appRouter.lockToUnlock()
     }
     appSessionState.privacyCovered = false
   }

@@ -21,11 +21,12 @@ export struct UnlockPage {
   @Local private password: string = ''
   @Local private passwordVisible: boolean = false
   @Local private passwordFocused: boolean = false
-  @Local private exitProgress: number = 0
+  @Local private splitProgress: number = 0
   @Local private topShift: number = 0
   @Local private bottomShift: number = 0
   private pageHeight: number = 0
   private exitAnimating: boolean = false
+  private enterPending: boolean = false
   private readonly unlockBounce: BounceAnimator = new BounceAnimator()
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
@@ -62,6 +63,14 @@ export struct UnlockPage {
     }
   }
 
+  aboutToAppear(): void {
+    if (appRouter.consumeLockEnter()) {
+      // 首帧即隐藏（整页透明），待首次布局完成后再从屏幕外滑入
+      this.splitProgress = 1
+      this.enterPending = true
+    }
+  }
+
   private async handleSubmit(): Promise<void> {
     if (this.exitAnimating) {
       return
@@ -76,8 +85,8 @@ export struct UnlockPage {
   }
 
   /**
-   * 解锁成功离场动画：上下背景分离、图标顺时针旋转随上半背景上移、整页淡出，
-   * 动画结束后经系统 FADE 转场进入首页。
+   * 解锁成功离场动画：上下背景分离、图标随上半背景上移、整页淡出，
+   * 动画结束后清栈回到首页。
    */
   private playExitAnimation(): void {
     this.exitAnimating = true
@@ -93,7 +102,24 @@ export struct UnlockPage {
           appRouter.clearToHome()
         },
       }, () => {
-        this.exitProgress = 1
+        this.splitProgress = 1
+      })
+    }, 50)
+  }
+
+  /**
+   * 锁定后入场动画：与解锁离场相反，上下背景从屏幕外滑入并整页淡入。
+   */
+  private playEnterAnimation(): void {
+    this.topShift = this.pageHeight * 0.2
+    this.bottomShift = this.pageHeight * 0.8
+    // 延迟启动，避开首次布局与动画首帧同帧的干扰（与离场动画同因）
+    setTimeout(() => {
+      this.getUIContext().animateTo({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: Curve.EaseOut,
+      }, () => {
+        this.splitProgress = 0
       })
     }, 50)
   }
@@ -224,7 +250,7 @@ export struct UnlockPage {
           .height('20%')
           .fill($r('sys.color.background_tertiary'))
           .position({ top: 0, left: 0 })
-          .translate({ y: -this.topShift * this.exitProgress })
+          .translate({ y: -this.topShift * this.splitProgress })
           .border({
             width: {
               top: 0,
@@ -244,9 +270,8 @@ export struct UnlockPage {
         .position({ top: '20%', left: '50%' })
         .translate({
           x: -LUNCH_ICON_SIZE / 2,
-          y: -LUNCH_ICON_SIZE / 2 - this.topShift * this.exitProgress,
+          y: -LUNCH_ICON_SIZE / 2 - this.topShift * this.splitProgress,
         })
-        .rotate({ angle: 90 * this.exitProgress })
         .zIndex(1)
         .borderRadius('50%')
         .clip(true)
@@ -258,7 +283,7 @@ export struct UnlockPage {
           .fill(this.colorMode.isDark
             ? $r('sys.color.background_fourth') : $r('sys.color.background_secondary'))
           .position({ bottom: 0, left: 0 })
-          .translate({ y: this.bottomShift * this.exitProgress })
+          .translate({ y: this.bottomShift * this.splitProgress })
 
         Column() {
           Column({ space: $r('sys.float.padding_level12') }) {
@@ -294,7 +319,7 @@ export struct UnlockPage {
         .height('80%')
         .justifyContent(FlexAlign.SpaceBetween)
         .position({ bottom: 0, left: 0 })
-        .translate({ y: this.bottomShift * this.exitProgress })
+        .translate({ y: this.bottomShift * this.splitProgress })
         .padding(
           {
             top: this.formPaddingToHeight,
@@ -305,9 +330,13 @@ export struct UnlockPage {
       }
       .height('100%')
       .width('100%')
-      .opacity(1 - this.exitProgress)
+      .opacity(1 - this.splitProgress)
       .onAreaChange((_old: Area, newArea: Area) => {
         this.pageHeight = newArea.height as number
+        if (this.enterPending) {
+          this.enterPending = false
+          this.playEnterAnimation()
+        }
       })
     }
     .hideTitleBar(true)

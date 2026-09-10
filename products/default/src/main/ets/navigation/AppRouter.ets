@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { promptAction, uiMaterial, UIObserver, uiObserver } from '@kit.ArkUI'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
-import { ROUTE_HOME } from '../constants/RouteConstants'
+import { ROUTE_HOME, ROUTE_UNLOCK } from '../constants/RouteConstants'
 
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
 const ROOT_BACK_TOAST_DURATION_MS: number = 2000
@@ -24,6 +24,7 @@ export class AppRouter {
   private lastBackPressedAt: number = 0
   private lastBackRoute: string = ''
   private homeTransitionPending: boolean = false
+  private lockEnterPending: boolean = false
   private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
     { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
@@ -68,6 +69,25 @@ export class AppRouter {
   consumeHomeTransition(): boolean {
     if (this.homeTransitionPending) {
       this.homeTransitionPending = false
+      return true
+    }
+    return false
+  }
+
+  /**
+   * 锁定保险库后跳转解锁页：标记解锁页播放上下滑入的反向入场动画。
+   */
+  lockToUnlock(): void {
+    this.lockEnterPending = true
+    this.resetTo(ROUTE_UNLOCK)
+  }
+
+  /**
+   * 供解锁页消费：锁定跳转进入时播放入场动画。
+   */
+  consumeLockEnter(): boolean {
+    if (this.lockEnterPending) {
+      this.lockEnterPending = false
       return true
     }
     return false

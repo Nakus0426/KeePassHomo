@@ -6,6 +6,7 @@ import {
   HdsNavigation,
   HdsNavigationMenuItemOptions,
   HdsNavigationTitleBarOptions,
+  HdsNavigationTitleMode,
   HdsTabs,
   HdsTabsController,
   ScrollEffectType,
@@ -121,7 +122,7 @@ export struct AppShell {
   get titleBarOptions(): HdsNavigationTitleBarOptions {
     const menuItems: HdsNavigationMenuItemOptions[] = [{
       content: {
-        icon: $r('sys.symbol.lock_fill'),
+        icon: $r('sys.symbol.lock'),
         label: $r('app.string.lock'),
         action: () => appViewModel.lockVault(),
       },
@@ -195,6 +196,7 @@ export struct AppShell {
       .height('100%')
       .hideBackButton(true)
       .titleBar(this.titleBarOptions)
+      .titleMode(HdsNavigationTitleMode.MINI)
       .customNavContentTransition(this.navTransition)
       .mode(NavigationMode.Stack)
       .backgroundColor($r('sys.color.background_secondary'))
