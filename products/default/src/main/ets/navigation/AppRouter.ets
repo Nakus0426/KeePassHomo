@@ -101,18 +101,6 @@ export class AppRouter {
   }
 
   /**
-   * 路由栈存在下层目的地时返回上一页；根级页面据此区分
-   * 「返回上一页」与「双击返回桌面」两种行为。
-   */
-  backToPreviousRoute(): boolean {
-    if (this.stack.size() > 1) {
-      this.stack.pop()
-      return true
-    }
-    return false
-  }
-
-  /**
    * 栈顶路由的入参，供新压入的页面在 aboutToAppear 中读取。
    */
   topParam(): Object | undefined {

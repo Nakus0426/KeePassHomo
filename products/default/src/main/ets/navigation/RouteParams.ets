@@ -9,3 +9,7 @@ export interface EntryDetailParam {
 export interface EntryEditParam {
   entryUuid?: string
 }
+
+export interface WelcomeParam {
+  showBack: boolean
+}

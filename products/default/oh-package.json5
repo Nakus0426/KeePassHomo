@@ -8,5 +8,7 @@
   "dependencies": {
     "@ohos/common": "file:../../common",
     "@pura/harmony-utils": "^1.4.2"
-  }
+  },
+  "devDependencies": {},
+  "dynamicDependencies": {}
 }

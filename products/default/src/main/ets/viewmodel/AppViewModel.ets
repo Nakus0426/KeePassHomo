@@ -26,7 +26,7 @@ import {
 import { stageOneVaultStore, UserCancelledError, VaultFileSummary } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
-import { EntryDetailParam } from '../navigation/RouteParams'
+import { EntryDetailParam, WelcomeParam } from '../navigation/RouteParams'
 import { EntryEditorViewModel } from './EntryEditorViewModel'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 import { GeneratorViewModel } from './GeneratorViewModel'
@@ -126,6 +126,10 @@ export class AppViewModel {
   }
 
   openUnlock(): void {
+    if (appRouter.stack.getParamByName(ROUTE_UNLOCK).length > 0) {
+      appRouter.stack.popToName(ROUTE_UNLOCK)
+      return
+    }
     appRouter.push(ROUTE_UNLOCK)
     this.setStatus('')
   }
@@ -135,9 +139,8 @@ export class AppViewModel {
   }
 
   chooseAnotherVault(): void {
-    stageOneVaultStore.clearKeyFile()
-    this.refreshVault()
-    appRouter.push(ROUTE_WELCOME)
+    const param: WelcomeParam = { showBack: true }
+    appRouter.push(ROUTE_WELCOME, param)
     this.setStatus('')
   }
 
@@ -404,6 +407,11 @@ export class AppViewModel {
   groups(): VaultGroup[] {
     this.revision
     return stageOneVaultStore.groups()
+  }
+
+  topLevelGroups(): VaultGroup[] {
+    this.revision
+    return stageOneVaultStore.topLevelGroups()
   }
 
   entry(entryUuid: string): VaultEntry {

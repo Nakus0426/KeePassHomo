@@ -1,6 +1,7 @@
-import { HdsNavDestination } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
 import { appRouter } from '../../navigation/AppRouter'
+import { WelcomeParam } from '../../navigation/RouteParams'
 import { appViewModel, AppViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
@@ -57,6 +58,12 @@ export struct DataSourceCard {
 @ComponentV2
 export struct WelcomePage {
   private readonly viewModel: AppViewModel = appViewModel
+  @Local private showBack: boolean = false
+
+  aboutToAppear(): void {
+    const param: WelcomeParam | undefined = appRouter.topParam() as WelcomeParam | undefined
+    this.showBack = param?.showBack ?? false
+  }
 
   build() {
     HdsNavDestination() {
@@ -162,10 +169,27 @@ export struct WelcomePage {
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
     }
-    .hideTitleBar(true)
+    .hideTitleBar(!this.showBack)
+    .titleBar({
+      avoidLayoutSafeArea: true,
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: false,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+        },
+      },
+      content: {
+        backIcon: {},
+      },
+    })
     .backgroundColor($r('sys.color.background_secondary'))
     .onBackPressed(() => {
-      if (appRouter.backToPreviousRoute()) {
+      if (this.showBack) {
+        appRouter.pop()
         return true
       }
       appRouter.handleRootBack(ROUTE_WELCOME)

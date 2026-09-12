@@ -178,7 +178,7 @@ export struct UnlockPage {
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .enabled(!this.viewModel.busy)
-    .onClick(() => this.viewModel.chooseLocalVault())
+    .onClick(() => this.viewModel.chooseAnotherVault())
   }
 
   @LocalBuilder

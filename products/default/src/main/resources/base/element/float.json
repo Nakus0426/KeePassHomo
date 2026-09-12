@@ -47,6 +47,10 @@
     {
       "name": "marquee_fade_width",
       "value": "16vp"
+    },
+    {
+      "name": "vault_group_chip_max_width",
+      "value": "140vp"
     }
   ]
 }

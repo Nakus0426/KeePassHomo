@@ -2,7 +2,7 @@ import { VaultEntry } from '@ohos/common'
 import { stageOneVaultStore, VaultBrowseMode } from '../model/StageOneVaultStore'
 
 /**
- * 保险库浏览域 ViewModel（模块级单例）：搜索词、筛选模式与选中分组
+ * 保险库浏览域 ViewModel（模块级单例）：搜索词、筛选模式与选中分组集合
  * 跨导航保留（开发计划 3.3 节：主模块切换保留必要非敏感界面状态），
  * 锁定时由 AppViewModel 调用 clear() 全部清除。
  */
@@ -11,7 +11,7 @@ export class VaultHomeViewModel {
   @Trace revision: number = 0
   @Trace searchQuery: string = ''
   @Trace browseMode: VaultBrowseMode = VaultBrowseMode.All
-  @Trace selectedGroupUuid: string = ''
+  @Trace selectedGroupUuids: string[] = []
 
   setSearchQuery(value: string): void {
     this.searchQuery = value
@@ -21,8 +21,9 @@ export class VaultHomeViewModel {
     this.browseMode = mode
   }
 
-  selectBrowseGroup(groupUuid: string): void {
-    this.selectedGroupUuid = groupUuid
+  /** 覆盖选中分组集合；空集合表示不按分组过滤。 */
+  selectBrowseGroups(groupUuids: string[]): void {
+    this.selectedGroupUuids = groupUuids
   }
 
   /**
@@ -37,7 +38,7 @@ export class VaultHomeViewModel {
    */
   clear(): void {
     this.searchQuery = ''
-    this.selectedGroupUuid = ''
+    this.selectedGroupUuids = []
   }
 
   entries(): VaultEntry[] {
@@ -47,7 +48,7 @@ export class VaultHomeViewModel {
 
   visibleEntries(): VaultEntry[] {
     this.revision
-    return stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuid)
+    return stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuids)
   }
 }
 

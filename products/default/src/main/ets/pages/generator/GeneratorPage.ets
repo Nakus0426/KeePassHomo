@@ -1,11 +1,10 @@
 import { ResUtil } from '@pura/harmony-utils'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { GeneratorContent, GeneratorContentController } from './GeneratorComponents'
+import { GeneratorContent, generatorContentController } from './GeneratorComponents'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
 export struct GeneratorPage {
-  @Param controller: GeneratorContentController = new GeneratorContentController()
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
 
   @Computed
@@ -26,7 +25,7 @@ export struct GeneratorPage {
   build() {
     GeneratorContent({
       viewModel: appViewModel.generator,
-      controller: this.controller,
+      controller: generatorContentController,
       topOffset: this.topAvoidAreaHeight,
       bottomOffset: this.bottomOffset,
       onActivity: () => appViewModel.recordActivity(),

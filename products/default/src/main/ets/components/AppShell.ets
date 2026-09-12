@@ -14,26 +14,40 @@ import {
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
+import { fadeNavTransition } from '../navigation/NavFadeTransition'
 import { appViewModel } from '../viewmodel/AppViewModel'
 import { SplashContent } from '../pages/onboarding/SplashContent'
 import { VaultHomePage } from '../pages/vault/VaultHomePage'
+import { vaultTabChrome } from '../pages/vault/VaultTabChrome'
+import { ModuleTabChrome } from './ModuleTabChrome'
 import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
-import { GeneratorContentController } from '../pages/generator/GeneratorComponents'
+import { generatorTabChrome } from '../pages/generator/GeneratorTabChrome'
 
 /**
- * 底部页签描述：路由名与页签图标、文案的映射，顺序即 HdsTabs 页签顺序。
+ * 底部页签描述：路由名与页签图标、文案、标题栏供给的映射，顺序即 HdsTabs 页签顺序。
  */
 interface ModuleTabDescriptor {
   route: string
   label: Resource
   symbol: Resource
+  chrome?: ModuleTabChrome
 }
 
 const MODULES: readonly ModuleTabDescriptor[] = [
-  { route: ROUTE_VAULT, label: $r('app.string.vault_home'), symbol: $r('sys.symbol.folder_fill') },
+  {
+    route: ROUTE_VAULT,
+    label: $r('app.string.vault_home'),
+    symbol: $r('sys.symbol.folder_fill'),
+    chrome: vaultTabChrome,
+  },
   { route: ROUTE_SECURITY, label: $r('app.string.security_center'), symbol: $r('sys.symbol.shield_checkered') },
-  { route: ROUTE_GENERATOR, label: $r('app.string.password_generator'), symbol: $r('sys.symbol.wand_and_stars_fill') },
+  {
+    route: ROUTE_GENERATOR,
+    label: $r('app.string.password_generator'),
+    symbol: $r('sys.symbol.wand_and_stars_fill'),
+    chrome: generatorTabChrome,
+  },
   { route: ROUTE_SETTINGS, label: $r('app.string.settings'), symbol: $r('sys.symbol.gearshape_fill') },
 ]
 
@@ -41,7 +55,6 @@ const MODULES: readonly ModuleTabDescriptor[] = [
 export struct AppShell {
   @Local private session: AppSessionState = appSessionState
   private readonly tabsController: HdsTabsController = new HdsTabsController()
-  private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
@@ -79,10 +92,12 @@ export struct AppShell {
 
   /**
    * Navigation 级转场代理：clearToHome 的清栈回首页零时长，
-   * 消除首页露出的系统默认横向滑入残影；其余转场返回 undefined 走系统默认。
+   * 消除首页露出的系统默认横向滑入残影；其余转场委托 fadeNavTransition
+   * 解析（页面经 registerFadeDestination 注册即得淡入淡出，未注册走系统默认）。
+   * 注意：本委托存在时页面级 systemTransition 不生效，须统一在此分发。
    */
   private readonly navTransition: CustomTransitionDelegate =
-    (_from: NavContentInfo, _to: NavContentInfo, _operation: NavigationOperation):
+    (from: NavContentInfo, to: NavContentInfo, _operation: NavigationOperation):
     NavigationAnimatedTransition | undefined => {
       if (appRouter.consumeHomeTransition()) {
         return {
@@ -92,7 +107,7 @@ export struct AppShell {
           },
         }
       }
-      return undefined
+      return fadeNavTransition(this.getUIContext(), from, to)
     }
 
   @Computed
@@ -118,24 +133,41 @@ export struct AppShell {
     }, module.label)
   }
 
+  /**
+   * 模块标题行代理：在组件上下文内调用契约供给的 WrappedBuilder，
+   * 使模块自绘标题行拿到正确的渲染上下文（直接传全局 @Builder 引用会丢失）。
+   * 仅在模块提供了 titleRowBuilder 时才作为 stackBuilder 被调用。
+   */
+  @Builder
+  private moduleTitleRow() {
+    this.currentTab.chrome!.titleRowBuilder!.builder()
+  }
+
+  /**
+   * 模块标题栏底部行代理：与 moduleTitleRow 同理，在组件上下文内调用契约供给的
+   * WrappedBuilder；仅在模块提供了 bottomRowBuilder 且保险库已解锁时被调用。
+   */
+  @Builder
+  private moduleBottomRow() {
+    this.currentTab.chrome!.bottomRowBuilder!.builder()
+  }
+
   @Computed
   get titleBarOptions(): HdsNavigationTitleBarOptions {
-    const menuItems: HdsNavigationMenuItemOptions[] = [{
+    const chrome: ModuleTabChrome | undefined = this.currentTab.chrome
+    const menuItems: HdsNavigationMenuItemOptions[] = []
+    const moduleMenuItems: HdsNavigationMenuItemOptions[] = chrome?.menuItems?.() ?? []
+    for (const item of moduleMenuItems) {
+      menuItems.push(item)
+    }
+    menuItems.push({
       content: {
         icon: $r('sys.symbol.lock'),
         label: $r('app.string.lock'),
         action: () => appViewModel.lockVault(),
       },
-    }]
-    if (this.currentTab.route === ROUTE_GENERATOR) {
-      menuItems.push({
-        content: {
-          icon: $r('sys.symbol.doc_text_on_doc_text'),
-          label: $r('app.string.copy'),
-          action: () => this.generatorController.copyPassword(),
-        },
-      })
-    }
+    })
+
     return {
       avoidLayoutSafeArea: true,
       style: {
@@ -148,9 +180,16 @@ export struct AppShell {
         },
       },
       content: {
-        title: {
-          mainTitle: this.currentTab.label,
-        },
+        title: chrome?.titleRowBuilder !== undefined
+          ? { mainTitle: '' }
+          : {
+            mainTitle: this.currentTab.label,
+            subTitle: chrome?.subtitle?.(),
+          },
+        stackBuilder: chrome?.titleRowBuilder !== undefined ? (): void => this.moduleTitleRow() : undefined,
+        bottomBuilder: chrome?.bottomRowBuilder !== undefined && !this.session.vaultLocked
+          ? { builder: (): void => this.moduleBottomRow() }
+          : undefined,
         menu: { value: menuItems },
       },
     }
@@ -171,7 +210,7 @@ export struct AppShell {
           .tabBar(this.tabBar(MODULES[1]))
 
           TabContent() {
-            GeneratorPage({ controller: this.generatorController })
+            GeneratorPage()
           }
           .tabBar(this.tabBar(MODULES[2]))
 

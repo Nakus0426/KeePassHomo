@@ -172,8 +172,8 @@ export class StageOneVaultStore {
     options.maxSelectNumber = 1
     options.selectMode = picker.DocumentSelectMode.FILE
     options.fileSuffixFilters = ['KeePass 数据库|.kdbx']
-    this.clearKeyFile()
     const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).select(options)
+    this.clearKeyFile()
     return this.inspect({
       type: VaultSourceType.LocalFile,
       uri: uris[0],
@@ -265,7 +265,15 @@ export class StageOneVaultStore {
     return entries
   }
 
-  browse(query: string, mode: VaultBrowseMode, groupUuid: string = ''): VaultEntry[] {
+  /**
+   * 按分组筛选：传入组为子树的根，命中该组及其全部后代组内的条目
+   * （KDBX 组即文件夹，选父组须含子组）。
+   */
+  browse(query: string, mode: VaultBrowseMode, groupUuids: string[] = []): VaultEntry[] {
+    const acceptedGroupUuids: string[] = []
+    if (groupUuids.length > 0) {
+      this.collectSubtreeUuids(this.session.getDocument().groups, groupUuids, acceptedGroupUuids, false)
+    }
     const normalizedQuery: string = query.trim().toLocaleLowerCase()
     return this.entries().filter((entry: VaultEntry) => {
       if (mode === VaultBrowseMode.Archived ? !entry.archived : entry.archived) {
@@ -274,7 +282,7 @@ export class StageOneVaultStore {
       if (mode === VaultBrowseMode.Favorites && !entry.favorite) {
         return false
       }
-      if (groupUuid.length > 0 && entry.groupUuid !== groupUuid) {
+      if (acceptedGroupUuids.length > 0 && !acceptedGroupUuids.includes(entry.groupUuid)) {
         return false
       }
       return normalizedQuery.length === 0 || this.searchableText(entry).includes(normalizedQuery)
@@ -285,6 +293,18 @@ export class StageOneVaultStore {
     const groups: VaultGroup[] = []
     this.collectGroups(this.session.getDocument().groups, groups)
     return groups
+  }
+
+  /**
+   * 顶层分组：根组的直接子组。根组是容器、非用户归类用的文件夹，
+   * 故不参与筛选行展示。
+   */
+  topLevelGroups(): VaultGroup[] {
+    const document: VaultDocument = this.session.getDocument()
+    if (document.groups.length === 0) {
+      return []
+    }
+    return document.groups[0].groups
   }
 
   defaultGroupUuid(): string {
@@ -477,6 +497,20 @@ export class StageOneVaultStore {
     for (const group of groups) {
       target.push(group)
       this.collectGroups(group.groups, target)
+    }
+  }
+
+  /**
+   * 收集选中组及其全部后代组的 uuid；inherited 表示当前分支已命中选中组。
+   */
+  private collectSubtreeUuids(groups: VaultGroup[], selected: string[], target: string[],
+    inherited: boolean): void {
+    for (const group of groups) {
+      const matched: boolean = inherited || selected.includes(group.uuid)
+      if (matched) {
+        target.push(group.uuid)
+      }
+      this.collectSubtreeUuids(group.groups, selected, target, matched)
     }
   }
 

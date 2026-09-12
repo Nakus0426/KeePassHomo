@@ -34,6 +34,11 @@
       "name": "entryDetail",
       "pageSourceFile": "src/main/ets/pages/vault/EntryDetailPage.ets",
       "buildFunction": "entryDetailPageBuilder"
+    },
+    {
+      "name": "search",
+      "pageSourceFile": "src/main/ets/pages/vault/SearchPage.ets",
+      "buildFunction": "searchPageBuilder"
     }
   ]
 }
