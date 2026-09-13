@@ -95,10 +95,31 @@ export interface AuditFinding {
   evidence: string;
 }
 
+/** KDBX 保留字段名：条目标识与凭据走强类型属性，不进入自定义字段列表。 */
+export const RESERVED_FIELD_NAMES: string[] = ['Title', 'UserName', 'Password', 'URL', 'Notes']
+
+/** 应用私有元数据（条目 customData）的键前缀，其他客户端会忽略。 */
+export const META_KEY_PREFIX: string = 'KeePassHomo.'
+
+/**
+ * 字段类型：KDBX 本身没有类型系统，类型由应用存于条目 customData，
+ * 仅驱动输入控件与点击动作，落盘的值一律是字符串。
+ */
+export enum VaultFieldType {
+  Text = 'text',
+  Url = 'url',
+  Email = 'email',
+  Phone = 'phone',
+  Address = 'address',
+  Date = 'date',
+  Password = 'password'
+}
+
 export interface VaultField {
   name: string;
   protected: boolean;
   value: string;
+  type: VaultFieldType;
 }
 
 export interface VaultEntry {
@@ -116,6 +137,13 @@ export interface VaultEntry {
   lastModifiedAt: number;
 }
 
+export interface VaultFieldInput {
+  name: string;
+  value: string;
+  type: VaultFieldType;
+  protected: boolean;
+}
+
 export interface VaultEntryInput {
   groupUuid: string;
   title: string;
@@ -123,6 +151,8 @@ export interface VaultEntryInput {
   password: string;
   url: string;
   notes: string;
+  /** 自定义字段：不含 5 个保留字段；未列出的既有自定义字段会被删除。 */
+  fields: VaultFieldInput[];
   tags: string[];
 }
 
@@ -138,6 +168,8 @@ export interface VaultDocument {
   format: VaultFormat;
   name: string;
   groups: VaultGroup[];
+  /** KDBX 回收站分组 uuid（meta.recycleBinUuid）；无回收站时为空串。 */
+  recycleBinUuid: string;
 }
 
 export interface VaultEngine {

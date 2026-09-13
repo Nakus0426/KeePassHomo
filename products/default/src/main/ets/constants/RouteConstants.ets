@@ -19,10 +19,6 @@ export const ROUTE_GENERATOR: string = 'generator'
 
 export const ROUTE_SETTINGS: string = 'settings'
 
-export const ROUTE_TEMPLATE: string = 'template'
-
-export const ROUTE_ENTRY_EDIT: string = 'entryEdit'
-
 export const ROUTE_ENTRY_DETAIL: string = 'entryDetail'
 
 export const ROUTE_SEARCH: string = 'search'

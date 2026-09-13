@@ -131,6 +131,10 @@
     {
       "name": "close",
       "value": "关闭"
+    },
+    {
+      "name": "all",
+      "value": "全部"
     }
   ]
 }

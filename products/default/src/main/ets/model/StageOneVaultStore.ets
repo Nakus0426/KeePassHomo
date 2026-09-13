@@ -259,9 +259,11 @@ export class StageOneVaultStore {
     this.session.unlock(document)
   }
 
+  /** 全部条目：不含回收站子树，已删除条目不作为可浏览数据。 */
   entries(): VaultEntry[] {
+    const document: VaultDocument = this.session.getDocument()
     const entries: VaultEntry[] = []
-    this.collectEntries(this.session.getDocument().groups, entries)
+    this.collectEntries(document.groups, entries, document.recycleBinUuid)
     return entries
   }
 
@@ -289,15 +291,17 @@ export class StageOneVaultStore {
     }).sort((left: VaultEntry, right: VaultEntry) => left.title.localeCompare(right.title))
   }
 
+  /** 全量分组（含根组）：不含回收站子树，回收站不作为可归类目标。 */
   groups(): VaultGroup[] {
+    const document: VaultDocument = this.session.getDocument()
     const groups: VaultGroup[] = []
-    this.collectGroups(this.session.getDocument().groups, groups)
+    this.collectGroups(document.groups, groups, document.recycleBinUuid)
     return groups
   }
 
   /**
    * 顶层分组：根组的直接子组。根组是容器、非用户归类用的文件夹，
-   * 故不参与筛选行展示。
+   * 故不参与筛选行展示；回收站同属 KDBX 内部结构，同样不展示。
    */
   topLevelGroups(): VaultGroup[] {
     const document: VaultDocument = this.session.getDocument()
@@ -305,6 +309,7 @@ export class StageOneVaultStore {
       return []
     }
     return document.groups[0].groups
+      .filter((group: VaultGroup): boolean => !this.isRecycleBin(group, document.recycleBinUuid))
   }
 
   defaultGroupUuid(): string {
@@ -486,17 +491,28 @@ export class StageOneVaultStore {
     return this.credential
   }
 
-  private collectEntries(groups: VaultGroup[], target: VaultEntry[]): void {
+  /** KDBX 回收站由 meta.recycleBinUuid 指向，是普通分组，需按 uuid 而非名字识别。 */
+  private isRecycleBin(group: VaultGroup, recycleBinUuid: string): boolean {
+    return group.uuid === recycleBinUuid
+  }
+
+  private collectEntries(groups: VaultGroup[], target: VaultEntry[], recycleBinUuid: string): void {
     for (const group of groups) {
+      if (this.isRecycleBin(group, recycleBinUuid)) {
+        continue
+      }
       target.push(...group.entries)
-      this.collectEntries(group.groups, target)
+      this.collectEntries(group.groups, target, recycleBinUuid)
     }
   }
 
-  private collectGroups(groups: VaultGroup[], target: VaultGroup[]): void {
+  private collectGroups(groups: VaultGroup[], target: VaultGroup[], recycleBinUuid: string): void {
     for (const group of groups) {
+      if (this.isRecycleBin(group, recycleBinUuid)) {
+        continue
+      }
       target.push(group)
-      this.collectGroups(group.groups, target)
+      this.collectGroups(group.groups, target, recycleBinUuid)
     }
   }
 

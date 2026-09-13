@@ -1,10 +1,6 @@
 {
   "string": [
     {
-      "name": "all_entries",
-      "value": "全部条目"
-    },
-    {
       "name": "search",
       "value": "搜索"
     },
@@ -14,7 +10,7 @@
     },
     {
       "name": "no_entries_description",
-      "value": "创建第一个登录条目，密码会保存在当前 KDBX 文件中"
+      "value": "创建第一个条目"
     },
     {
       "name": "new_entry",
@@ -73,6 +69,10 @@
       "value": "网址"
     },
     {
+      "name": "url_format_warning",
+      "value": "网址格式异常，但不会阻止保存"
+    },
+    {
       "name": "notes",
       "value": "备注"
     },
@@ -83,6 +83,70 @@
     {
       "name": "group",
       "value": "分组"
+    },
+    {
+      "name": "fields",
+      "value": "自定义字段"
+    },
+    {
+      "name": "add_field",
+      "value": "添加字段"
+    },
+    {
+      "name": "field_name",
+      "value": "字段名"
+    },
+    {
+      "name": "field_sensitive",
+      "value": "敏感"
+    },
+    {
+      "name": "delete_field",
+      "value": "删除字段"
+    },
+    {
+      "name": "field_type_text",
+      "value": "文本"
+    },
+    {
+      "name": "field_type_email",
+      "value": "邮箱"
+    },
+    {
+      "name": "field_type_phone",
+      "value": "电话"
+    },
+    {
+      "name": "field_type_address",
+      "value": "地址"
+    },
+    {
+      "name": "field_type_date",
+      "value": "日期"
+    },
+    {
+      "name": "field_type_custom",
+      "value": "自定义"
+    },
+    {
+      "name": "field_pick_date",
+      "value": "选择日期"
+    },
+    {
+      "name": "open_link",
+      "value": "打开"
+    },
+    {
+      "name": "dial_phone",
+      "value": "拨号"
+    },
+    {
+      "name": "send_email",
+      "value": "发送邮件"
+    },
+    {
+      "name": "open_map",
+      "value": "打开地图"
     },
     {
       "name": "default_group",

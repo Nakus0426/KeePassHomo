@@ -126,10 +126,10 @@ export struct AppShell {
     return new BottomTabBarStyle({
       normal: new SymbolGlyphModifier(module.symbol)
         .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
-        .fontColor([$r('sys.color.ohos_id_color_bottom_tab_icon_off')]),
+        .fontColor([$r('sys.color.icon_tertiary'), $r('sys.color.icon_secondary')]),
       selected: new SymbolGlyphModifier(module.symbol)
         .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
-        .fontColor([$r('sys.color.ohos_id_color_activated')]),
+        .fontColor([$r('sys.color.icon_emphasize'), $r('sys.color.icon_sub_emphasize')]),
     }, module.label)
   }
 

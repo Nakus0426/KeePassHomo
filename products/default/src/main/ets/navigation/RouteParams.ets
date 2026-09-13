@@ -6,10 +6,6 @@ export interface EntryDetailParam {
   entryUuid: string
 }
 
-export interface EntryEditParam {
-  entryUuid?: string
-}
-
 export interface WelcomeParam {
   showBack: boolean
 }

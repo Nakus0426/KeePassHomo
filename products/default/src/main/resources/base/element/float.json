@@ -45,12 +45,12 @@
       "value": "220vp"
     },
     {
-      "name": "marquee_fade_width",
-      "value": "16vp"
+      "name": "vault_empty_icon_size",
+      "value": "150vp"
     },
     {
-      "name": "vault_group_chip_max_width",
-      "value": "140vp"
+      "name": "entry_avatar_size",
+      "value": "100vp"
     }
   ]
 }

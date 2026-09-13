@@ -1,6 +1,7 @@
 import {
   Kdbx, KdbxCredentials, KdbxCustomDataMap, KdbxEntry, KdbxGroup, KdbxError, ProtectedValue,
 } from 'kdbxweb'
+import { LogUtil } from '@pura/harmony-utils'
 import {
   VaultCredential,
   VaultDocument,
@@ -8,14 +9,20 @@ import {
   VaultEntry,
   VaultEntryInput,
   VaultField,
+  VaultFieldInput,
+  VaultFieldType,
   VaultFormat,
   VaultGroup,
+  META_KEY_PREFIX,
+  RESERVED_FIELD_NAMES,
 } from './VaultContracts'
 
 const KDBX_SIGNATURE_1: number = 0x9AA2D903
 const KDBX_SIGNATURE_2: number = 0xB54BFB67
-const FAVORITE_KEY: string = 'KeePassHomo.Favorite'
-const ARCHIVED_KEY: string = 'KeePassHomo.Archived'
+const FAVORITE_KEY: string = `${META_KEY_PREFIX}Favorite`
+const ARCHIVED_KEY: string = `${META_KEY_PREFIX}Archived`
+/** 字段类型表：{ 字段名: VaultFieldType }，仅存非 Text 项。 */
+const FIELD_TYPES_KEY: string = `${META_KEY_PREFIX}FieldTypes`
 
 export enum VaultEngineErrorCategory {
   InvalidFile = 'invalidFile',
@@ -66,9 +73,47 @@ function toFormat(data: ArrayBuffer): VaultFormat {
 
 function fieldValue(field: string | ProtectedValue): VaultField {
   if (field instanceof ProtectedValue) {
-    return { name: '', protected: true, value: field.getText() }
+    return { name: '', protected: true, value: field.getText(), type: VaultFieldType.Text }
   }
-  return { name: '', protected: false, value: field }
+  return { name: '', protected: false, value: field, type: VaultFieldType.Text }
+}
+
+/** 类型字符串无法识别时回落到 Text（应用私有元数据，不做透传）。 */
+function toFieldType(value: string | undefined): VaultFieldType {
+  switch (value) {
+    case VaultFieldType.Url:
+      return VaultFieldType.Url
+    case VaultFieldType.Email:
+      return VaultFieldType.Email
+    case VaultFieldType.Phone:
+      return VaultFieldType.Phone
+    case VaultFieldType.Address:
+      return VaultFieldType.Address
+    case VaultFieldType.Date:
+      return VaultFieldType.Date
+    case VaultFieldType.Password:
+      return VaultFieldType.Password
+    default:
+      return VaultFieldType.Text
+  }
+}
+
+/** 读取字段类型表；缺失或损坏时按空表处理（值不受影响，仅类型回落到 Text）。 */
+function readFieldTypes(entry: KdbxEntry): Map<string, VaultFieldType> {
+  const types: Map<string, VaultFieldType> = new Map()
+  const raw: string | undefined = entry.customData?.get(FIELD_TYPES_KEY)?.value
+  if (raw === undefined || raw.length === 0) {
+    return types
+  }
+  try {
+    const parsed: Record<string, string> = JSON.parse(raw) as Record<string, string>
+    for (const name of Object.keys(parsed)) {
+      types.set(name, toFieldType(parsed[name]))
+    }
+  } catch (error) {
+    LogUtil.error(`条目字段类型表解析失败，uuid=${entry.uuid.id}，错误信息=${(error as Error).message}`)
+  }
+  return types
 }
 
 function readVisibleField(entry: KdbxEntry, name: string): string {
@@ -90,10 +135,12 @@ function groupPath(group: KdbxGroup | undefined): string {
 }
 
 function mapEntry(entry: KdbxEntry): VaultEntry {
+  const types: Map<string, VaultFieldType> = readFieldTypes(entry)
   const fields: VaultField[] = []
   entry.fields.forEach((field: string | ProtectedValue, name: string) => {
     const mapped: VaultField = fieldValue(field)
     mapped.name = name
+    mapped.type = types.get(name) ?? VaultFieldType.Text
     fields.push(mapped)
   })
   return {
@@ -135,6 +182,7 @@ function mapDocument(kdbx: Kdbx): VaultDocument {
     format: kdbx.versionMajor === 3 ? VaultFormat.Kdbx31 : VaultFormat.Kdbx4,
     name: kdbx.meta.name === undefined ? '' : kdbx.meta.name,
     groups,
+    recycleBinUuid: kdbx.meta.recycleBinUuid?.id ?? '',
   }
 }
 
@@ -185,7 +233,7 @@ export class KdbxVaultEngine implements VaultEngine {
       throw new Error('保险库分组不存在')
     }
     const entry: KdbxEntry = kdbx.createEntry(group)
-    this.writeLoginFields(entry, input)
+    this.writeFields(entry, input)
     const mapped: VaultEntry = mapEntry(entry)
     const mappedGroup: VaultGroup | undefined = this.findMappedGroup(document.groups, group.uuid.id)
     if (mappedGroup === undefined) {
@@ -209,7 +257,7 @@ export class KdbxVaultEngine implements VaultEngine {
     if (entry.parentGroup?.uuid.id !== targetGroup.uuid.id) {
       this.getKdbx(document).move(entry, targetGroup)
     }
-    this.writeLoginFields(entry, input)
+    this.writeFields(entry, input)
     const mapped: VaultEntry = mapEntry(entry)
     if (!this.replaceMappedEntry(document.groups, mapped)) {
       throw new Error('保险库条目映射不存在')
@@ -409,13 +457,56 @@ export class KdbxVaultEngine implements VaultEngine {
     return undefined
   }
 
-  private writeLoginFields(entry: KdbxEntry, input: VaultEntryInput): void {
+  /**
+   * 写入条目的全部字段：5 个保留字段 + 自定义字段，
+   * 未出现在 input.fields 里的既有自定义字段会被删除（用户删除或改名的旧键）。
+   */
+  private writeFields(entry: KdbxEntry, input: VaultEntryInput): void {
     entry.setField('Title', input.title)
     entry.setField('UserName', input.username)
     entry.setField('Password', input.password, true)
     entry.setField('URL', input.url)
     entry.setField('Notes', input.notes)
     entry.tags = input.tags
+
+    const incoming: Set<string> = new Set()
+    for (const field of input.fields) {
+      if (field.name.trim().length === 0) {
+        throw new Error('自定义字段名不能为空')
+      }
+      entry.setField(field.name, field.value, field.protected)
+      incoming.add(field.name)
+    }
+
+    const obsolete: string[] = []
+    entry.fields.forEach((_field: string | ProtectedValue, name: string) => {
+      if (RESERVED_FIELD_NAMES.includes(name) || incoming.has(name)) {
+        return
+      }
+      obsolete.push(name)
+    })
+    for (const name of obsolete) {
+      entry.fields.delete(name)
+    }
+
+    this.writeFieldTypes(entry, input.fields)
+  }
+
+  private writeFieldTypes(entry: KdbxEntry, fields: VaultFieldInput[]): void {
+    const types: Record<string, string> = {}
+    for (const field of fields) {
+      if (field.type !== VaultFieldType.Text) {
+        types[field.name] = field.type
+      }
+    }
+    if (Object.keys(types).length === 0) {
+      entry.customData?.delete(FIELD_TYPES_KEY)
+      return
+    }
+    if (entry.customData === undefined) {
+      entry.customData = new Map() as KdbxCustomDataMap
+    }
+    entry.customData.set(FIELD_TYPES_KEY, { value: JSON.stringify(types), lastModified: new Date() })
   }
 
   private setEntryFlag(document: VaultDocument, entryUuid: string, key: string, enabled: boolean): VaultEntry {

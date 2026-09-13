@@ -21,16 +21,6 @@
       "buildFunction": "unlockPageBuilder"
     },
     {
-      "name": "template",
-      "pageSourceFile": "src/main/ets/pages/vault/TemplatePage.ets",
-      "buildFunction": "templatePageBuilder"
-    },
-    {
-      "name": "entryEdit",
-      "pageSourceFile": "src/main/ets/pages/vault/EntryEditPage.ets",
-      "buildFunction": "entryEditPageBuilder"
-    },
-    {
       "name": "entryDetail",
       "pageSourceFile": "src/main/ets/pages/vault/EntryDetailPage.ets",
       "buildFunction": "entryDetailPageBuilder"

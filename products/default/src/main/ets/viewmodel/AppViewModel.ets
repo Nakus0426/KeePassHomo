@@ -1,11 +1,16 @@
-import { common } from '@kit.AbilityKit'
+import { common, Want } from '@kit.AbilityKit'
+import { BusinessError } from '@kit.BasicServicesKit'
 import {
   AppErrorFactory,
   AppErrorModel,
+  RESERVED_FIELD_NAMES,
   VaultEngineError,
   VaultEngineErrorCategory,
   VaultEntry,
   VaultEntryInput,
+  VaultField,
+  VaultFieldInput,
+  VaultFieldType,
   VaultFormat,
   VaultGroup,
   VaultRepositoryError,
@@ -13,10 +18,9 @@ import {
   VaultSource,
 } from '@ohos/common'
 import { formatISO9075 } from '@wolfx/date-fns'
-import { FileUtil, LogUtil } from '@pura/harmony-utils'
+import { AppUtil, FileUtil, LogUtil } from '@pura/harmony-utils'
 import {
   ROUTE_CREATE_VAULT,
-  ROUTE_ENTRY_DETAIL,
   ROUTE_FILE_SUMMARY,
   ROUTE_GENERATOR,
   ROUTE_UNLOCK,
@@ -26,11 +30,15 @@ import {
 import { stageOneVaultStore, UserCancelledError, VaultFileSummary } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
-import { EntryDetailParam, WelcomeParam } from '../navigation/RouteParams'
-import { EntryEditorViewModel } from './EntryEditorViewModel'
+import { WelcomeParam } from '../navigation/RouteParams'
+import { EntryEditorViewModel, EntryFieldEditor } from './EntryEditorViewModel'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 import { GeneratorViewModel } from './GeneratorViewModel'
 import { VaultSessionViewModel } from './VaultSessionViewModel'
+
+const ACTION_VIEW_DATA: string = 'ohos.want.action.viewData'
+const ACTION_DIAL: string = 'ohos.want.action.dial'
+const ACTION_SEND_TO_DATA: string = 'ohos.want.action.sendToData'
 
 /**
  * 应用级会话 ViewModel：持有应用生命周期、锁定流程、解锁封禁策略、
@@ -248,14 +256,34 @@ export class AppViewModel {
     editor.url = stageOneVaultStore.field(entry, 'URL')
     editor.notes = stageOneVaultStore.field(entry, 'Notes')
     editor.tags = entry.tags.join(', ')
+    editor.fields = entry.fields
+      .filter((field: VaultField) => !RESERVED_FIELD_NAMES.includes(field.name))
+      .map((field: VaultField): EntryFieldEditor => {
+        const edited: EntryFieldEditor = new EntryFieldEditor()
+        edited.name = field.name
+        edited.value = field.value
+        edited.type = field.type
+        edited.protected = field.protected
+        return edited
+      })
     editor.initialValue = editor.currentValue()
     this.recordActivity()
   }
 
-  async saveEntry(editor: EntryEditorViewModel): Promise<void> {
+  /**
+   * 保存条目。是否成功由调用方决定后续（关闭编辑器或留在当前页面），
+   * 本方法只落盘并刷新派生数据。
+   */
+  async saveEntry(editor: EntryEditorViewModel): Promise<boolean> {
     if (editor.title.trim().length === 0 || editor.password.length === 0) {
       this.setStatus('请填写标题和密码')
-      return
+      return false
+    }
+    const fields: VaultFieldInput[] = editor.fieldInputs()
+    const invalidFieldMessage: string = this.validateCustomFields(fields)
+    if (invalidFieldMessage.length > 0) {
+      this.setStatus(invalidFieldMessage)
+      return false
     }
     this.busy = true
     const input: VaultEntryInput = {
@@ -265,23 +293,74 @@ export class AppViewModel {
       password: editor.password,
       url: editor.url.trim(),
       notes: editor.notes,
+      fields,
       tags: editor.tags.split(',').map((tag: string) => tag.trim())
         .filter((tag: string) => tag.length > 0),
     }
     try {
-      const saved: VaultEntry = await stageOneVaultStore.saveEntry(editor.entryUuid, input)
+      await stageOneVaultStore.saveEntry(editor.entryUuid, input)
       editor.markSaved()
       this.refreshVault()
-      const detailParam: EntryDetailParam = { entryUuid: saved.uuid }
-      appSessionState.setCurrentModule(ROUTE_VAULT)
-      appRouter.resetTo(ROUTE_ENTRY_DETAIL, detailParam, true)
       this.setStatus('')
       this.recordActivity()
+      return true
     } catch (error) {
       this.reportBoundaryError('保存条目失败', error)
+      return false
     } finally {
       this.busy = false
     }
+  }
+
+  /**
+   * 自定义字段名不能为空，也不能与保留字段名冲突（否则会覆盖固定字段）。
+   */
+  private validateCustomFields(fields: VaultFieldInput[]): string {
+    for (const field of fields) {
+      const name: string = field.name.trim()
+      if (name.length === 0) {
+        return '自定义字段名不能为空'
+      }
+      if (RESERVED_FIELD_NAMES.includes(name)) {
+        return `自定义字段名不能使用固定字段名：${name}`
+      }
+    }
+    return ''
+  }
+
+  /**
+   * 按字段类型交给系统应用处理：网址走浏览器、电话走拨号、邮箱走邮件、地址走地图；
+   * 其余类型没有外部动作。值缺少协议前缀时补齐，否则系统无法解析目标。
+   */
+  openFieldAction(value: string, type: VaultFieldType): void {
+    const trimmed: string = value.trim()
+    if (trimmed.length === 0) {
+      return
+    }
+    let action: string = ''
+    let uri: string = ''
+    if (type === VaultFieldType.Url) {
+      action = ACTION_VIEW_DATA
+      uri = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`
+    } else if (type === VaultFieldType.Address) {
+      action = ACTION_VIEW_DATA
+      uri = `geo:0,0?q=${encodeURIComponent(trimmed)}`
+    } else if (type === VaultFieldType.Phone) {
+      action = ACTION_DIAL
+      uri = `tel:${trimmed}`
+    } else if (type === VaultFieldType.Email) {
+      action = ACTION_SEND_TO_DATA
+      uri = `mailto:${trimmed}`
+    } else {
+      return
+    }
+    const context: common.UIAbilityContext = AppUtil.getContext() as common.UIAbilityContext
+    const want: Want = { action, uri }
+    context.startAbility(want).catch((error: BusinessError) => {
+      this.setStatus('未找到可处理该内容的应用')
+      LogUtil.error(`外部动作打开失败，类型=${type}，错误码=${error.code}`)
+    })
+    this.recordActivity()
   }
 
   async toggleFavorite(entryUuid: string): Promise<void> {
