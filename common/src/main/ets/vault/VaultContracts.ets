@@ -134,6 +134,9 @@ export interface VaultEntry {
   tags: string[];
   favorite: boolean;
   archived: boolean;
+
+  /** 条目绑定了 KDBX 自定义图标（头像）。图标字节按需通过 loadEntryAvatar 读取。 */
+  hasAvatar: boolean;
   lastModifiedAt: number;
 }
 
@@ -154,6 +157,12 @@ export interface VaultEntryInput {
   /** 自定义字段：不含 5 个保留字段；未列出的既有自定义字段会被删除。 */
   fields: VaultFieldInput[];
   tags: string[];
+
+  /**
+   * 头像三态：undefined 表示保持原有头像不变，null 表示删除头像，
+   * ArrayBuffer 表示写入该图片字节（复用图标池中内容相同的项，否则新建）。
+   */
+  avatar?: ArrayBuffer | null;
 }
 
 export interface VaultGroup {
@@ -182,6 +191,8 @@ export interface VaultEngine {
   createEntry(document: VaultDocument, input: VaultEntryInput): VaultEntry;
 
   updateEntry(document: VaultDocument, entryUuid: string, input: VaultEntryInput): VaultEntry;
+
+  loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined;
 
   setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry;
 

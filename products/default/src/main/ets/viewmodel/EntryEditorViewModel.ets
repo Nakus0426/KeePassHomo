@@ -3,6 +3,16 @@ import { VaultFieldInput, VaultFieldType } from '@ohos/common'
 let nextFieldId: number = 1
 
 /**
+ * 头像的待写入意图：Keep 不动原头像，Set 写入 avatarData，Clear 删除原头像。
+ * 与 avatarData 分开，因为"当前显示的头像"和"保存时要写的动作"是两件事。
+ */
+export enum EntryAvatarAction {
+  Keep = 'keep',
+  Set = 'set',
+  Clear = 'clear'
+}
+
+/**
  * 编辑器内的自定义字段：逐项 @Trace，改字段名/类型/敏感都直接驱动对应输入控件。
  * id 只用于列表渲染的稳定标识，删除中间项时不让控件身份错位。
  */
@@ -30,6 +40,8 @@ export class EntryEditorViewModel {
   @Trace tags: string = ''
   @Trace groupUuid: string = ''
   @Trace fields: EntryFieldEditor[] = []
+  @Trace avatarData: ArrayBuffer | undefined = undefined
+  @Trace avatarAction: EntryAvatarAction = EntryAvatarAction.Keep
   @Trace initialValue: string = ''
 
   setTitle(value: string): void {
@@ -58,6 +70,27 @@ export class EntryEditorViewModel {
 
   setGroup(groupUuid: string): void {
     this.groupUuid = groupUuid
+  }
+
+  setAvatar(data: ArrayBuffer): void {
+    this.avatarData = data
+    this.avatarAction = EntryAvatarAction.Set
+  }
+
+  clearAvatar(): void {
+    this.avatarData = undefined
+    this.avatarAction = EntryAvatarAction.Clear
+  }
+
+  /** 保存入参的头像三态：undefined 不动、null 删除、ArrayBuffer 写入。 */
+  avatarInput(): ArrayBuffer | null | undefined {
+    if (this.avatarAction === EntryAvatarAction.Set) {
+      return this.avatarData
+    }
+    if (this.avatarAction === EntryAvatarAction.Clear) {
+      return null
+    }
+    return undefined
   }
 
   /** 追加自定义字段：字段名重名时自动加序号后缀，保证 KDBX 字段名唯一。 */
@@ -113,13 +146,14 @@ export class EntryEditorViewModel {
 
   /**
    * 编辑器当前内容快照，用于与 initialValue 对比判断是否有未保存修改。
+   * 头像只记动作标记，不拼图片字节。
    */
   currentValue(): string {
     const fields: string = this.fields.map((field: EntryFieldEditor): string => {
       return `${field.name}\u0001${field.value}\u0001${field.type}\u0001${field.protected}`
     }).join('\u0002')
     return [this.title, this.username, this.password, this.url,
-      this.notes, this.tags, this.groupUuid, fields].join('\n')
+      this.notes, this.tags, this.groupUuid, fields, this.avatarAction].join('\n')
   }
 
   changed(): boolean {
@@ -127,9 +161,11 @@ export class EntryEditorViewModel {
   }
 
   /**
-   * 保存成功后同步初始值快照。
+   * 保存成功后同步初始值快照。头像动作先归位 Keep，
+   * 否则再次保存会重复写入同一张图。
    */
   markSaved(): void {
+    this.avatarAction = EntryAvatarAction.Keep
     this.initialValue = this.currentValue()
   }
 
@@ -143,6 +179,8 @@ export class EntryEditorViewModel {
     this.tags = ''
     this.groupUuid = ''
     this.fields = []
+    this.avatarData = undefined
+    this.avatarAction = EntryAvatarAction.Keep
     this.initialValue = ''
   }
 }

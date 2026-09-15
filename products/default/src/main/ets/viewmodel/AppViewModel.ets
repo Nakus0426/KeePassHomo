@@ -266,6 +266,7 @@ export class AppViewModel {
         edited.protected = field.protected
         return edited
       })
+    editor.avatarData = stageOneVaultStore.loadEntryAvatar(entryUuid)
     editor.initialValue = editor.currentValue()
     this.recordActivity()
   }
@@ -296,6 +297,7 @@ export class AppViewModel {
       fields,
       tags: editor.tags.split(',').map((tag: string) => tag.trim())
         .filter((tag: string) => tag.length > 0),
+      avatar: editor.avatarInput(),
     }
     try {
       await stageOneVaultStore.saveEntry(editor.entryUuid, input)

@@ -5,6 +5,7 @@ import {
   ChipGroupV2ItemStyle,
   ChipGroupV2Padding,
   ChipGroupV2Space,
+  SymbolGlyphModifier,
   TextModifier,
   uiMaterial,
 } from '@kit.ArkUI'
@@ -39,12 +40,12 @@ class GroupChipLabelModifier extends TextModifier {
 
 function browseModeLabel(mode: VaultBrowseMode): ResourceStr {
   if (mode === VaultBrowseMode.Favorites) {
-    return $r('app.string.favorites')
+    return $r('app.string.favorited')
   }
   if (mode === VaultBrowseMode.Archived) {
     return $r('app.string.archived')
   }
-  return $r('app.string.all')
+  return $r('app.string.all_entry')
 }
 
 function browseModeIndex(mode: VaultBrowseMode): number {
@@ -136,12 +137,42 @@ struct VaultFilter {
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private session: AppSessionState = appSessionState
 
+  private generateModeOptionIcon(mode: VaultBrowseMode, activated: boolean): SymbolGlyphModifier {
+    const modeIconMap = new Map([
+      [VaultBrowseMode.All, $r('sys.symbol.square_grid_2x2')],
+      [VaultBrowseMode.Favorites, $r('sys.symbol.star')],
+      [VaultBrowseMode.Archived, $r('sys.symbol.archivebox')],
+    ])
+    const modeIconActivedMap = new Map([
+      [VaultBrowseMode.All, $r('sys.symbol.square_fill_grid_2x2')],
+      [VaultBrowseMode.Favorites, $r('sys.symbol.star_fill')],
+      [VaultBrowseMode.Archived, $r('sys.symbol.archivebox_fill')],
+    ])
+    const icon = activated ? modeIconActivedMap.get(mode) : modeIconMap.get(mode)
+
+    return new SymbolGlyphModifier(icon)
+      .fontSize($r('sys.float.Subtitle_L'))
+      .fontColor([activated
+        ? $r('sys.color.ohos_id_color_text_primary_activated')
+        : $r('sys.color.ohos_id_color_text_primary')])
+  }
+
   @Computed
   private get modeOptions(): SelectOption[] {
+    const mode: VaultBrowseMode = this.home.browseMode
     const options: SelectOption[] = [
-      { value: $r('app.string.all') },
-      { value: $r('app.string.favorites') },
-      { value: $r('app.string.archived') },
+      {
+        value: $r('app.string.all_entry'),
+        symbolIcon: this.generateModeOptionIcon(VaultBrowseMode.All, mode === VaultBrowseMode.All),
+      },
+      {
+        value: $r('app.string.favorited'),
+        symbolIcon: this.generateModeOptionIcon(VaultBrowseMode.Favorites, mode === VaultBrowseMode.Favorites),
+      },
+      {
+        value: $r('app.string.archived'),
+        symbolIcon: this.generateModeOptionIcon(VaultBrowseMode.Archived, mode === VaultBrowseMode.Archived),
+      },
     ]
     return options
   }
@@ -211,14 +242,15 @@ struct VaultFilter {
       .selected(browseModeIndex(this.home.browseMode))
       .value(browseModeLabel(this.home.browseMode))
       .font({ size: $r('sys.float.Body_M'), weight: FontWeight.Regular })
+      .optionFont({ size: $r('sys.float.Body_M') })
       .fontColor($r('sys.color.font_primary'))
       .controlSize(ControlSize.SMALL)
       .systemMaterial(new uiMaterial.ImmersiveMaterial({
         style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-        materialColor: Color.Transparent,
         interactive: true,
         applyShadow: false,
       }))
+      .menuSystemMaterial(new uiMaterial.ImmersiveMaterial({ style: uiMaterial.ImmersiveStyle.THICK }))
       .onSelect((index: number) => this.home.setBrowseMode(browseModeAtIndex(index)))
   }
 

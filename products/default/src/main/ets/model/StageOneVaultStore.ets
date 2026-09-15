@@ -332,6 +332,10 @@ export class StageOneVaultStore {
     return entry.fields.find((field: VaultField) => field.name === name)?.value ?? ''
   }
 
+  loadEntryAvatar(entryUuid: string): ArrayBuffer | undefined {
+    return this.engine.loadEntryAvatar(this.session.getDocument(), entryUuid)
+  }
+
   async saveEntry(entryUuid: string, input: VaultEntryInput): Promise<VaultEntry> {
     if (this.currentSource.readOnly) {
       throw new Error('只读保险库不能保存条目')

@@ -213,12 +213,12 @@
       "value": "搜索条目"
     },
     {
-      "name": "favorites",
-      "value": "收藏"
+      "name": "favorited",
+      "value": "已收藏"
     },
     {
       "name": "archived",
-      "value": "归档"
+      "value": "已归档"
     },
     {
       "name": "groups",
@@ -243,6 +243,22 @@
     {
       "name": "restore_entry",
       "value": "恢复条目"
+    },
+    {
+      "name": "all_entry",
+      "value": "全部条目"
+    },
+    {
+      "name": "avatar_pick",
+      "value": "从相册选择"
+    },
+    {
+      "name": "avatar_reset",
+      "value": "重置为默认头像"
+    },
+    {
+      "name": "avatar_failed",
+      "value": "头像处理失败"
     }
   ]
 }

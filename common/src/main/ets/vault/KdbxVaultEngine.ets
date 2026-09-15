@@ -1,8 +1,18 @@
 import {
-  Kdbx, KdbxCredentials, KdbxCustomDataMap, KdbxEntry, KdbxGroup, KdbxError, ProtectedValue,
+  Kdbx,
+  KdbxCredentials,
+  KdbxCustomDataMap,
+  KdbxCustomIcon,
+  KdbxEntry,
+  KdbxError,
+  KdbxGroup,
+  KdbxUuid,
+  ProtectedValue,
 } from 'kdbxweb'
 import { LogUtil } from '@pura/harmony-utils'
 import {
+  META_KEY_PREFIX,
+  RESERVED_FIELD_NAMES,
   VaultCredential,
   VaultDocument,
   VaultEngine,
@@ -13,8 +23,6 @@ import {
   VaultFieldType,
   VaultFormat,
   VaultGroup,
-  META_KEY_PREFIX,
-  RESERVED_FIELD_NAMES,
 } from './VaultContracts'
 
 const KDBX_SIGNATURE_1: number = 0x9AA2D903
@@ -23,6 +31,11 @@ const FAVORITE_KEY: string = `${META_KEY_PREFIX}Favorite`
 const ARCHIVED_KEY: string = `${META_KEY_PREFIX}Archived`
 /** 字段类型表：{ 字段名: VaultFieldType }，仅存非 Text 项。 */
 const FIELD_TYPES_KEY: string = `${META_KEY_PREFIX}FieldTypes`
+/**
+ * 条目使用自定义图标时的 IconID。KDBX 约定 IconID >= 69 才表示"图标来自自定义图标池"，
+ * 只设 entry.customIcon 而不设该值，写出的 IconID=0 会被 KeePass 忽略。
+ */
+const CUSTOM_ICON_ID: number = 69
 
 export enum VaultEngineErrorCategory {
   InvalidFile = 'invalidFile',
@@ -134,7 +147,22 @@ function groupPath(group: KdbxGroup | undefined): string {
   return names.filter((name: string) => name.length > 0).join(' / ')
 }
 
-function mapEntry(entry: KdbxEntry): VaultEntry {
+/** 逐字节比较图标池中的图片内容，用于复用同一张头像。 */
+function sameBytes(left: ArrayBuffer, right: ArrayBuffer): boolean {
+  if (left.byteLength !== right.byteLength) {
+    return false
+  }
+  const leftBytes: Uint8Array = new Uint8Array(left)
+  const rightBytes: Uint8Array = new Uint8Array(right)
+  for (let index: number = 0; index < leftBytes.length; index++) {
+    if (leftBytes[index] !== rightBytes[index]) {
+      return false
+    }
+  }
+  return true
+}
+
+function mapEntry(entry: KdbxEntry, customIcons: Map<string, KdbxCustomIcon>): VaultEntry {
   const types: Map<string, VaultFieldType> = readFieldTypes(entry)
   const fields: VaultField[] = []
   entry.fields.forEach((field: string | ProtectedValue, name: string) => {
@@ -155,17 +183,19 @@ function mapEntry(entry: KdbxEntry): VaultEntry {
     tags: entry.tags,
     favorite: entry.customData?.get(FAVORITE_KEY)?.value === 'true',
     archived: entry.customData?.get(ARCHIVED_KEY)?.value === 'true',
+    hasAvatar: entry.customIcon !== undefined && customIcons.has(entry.customIcon.id),
     lastModifiedAt: entry.lastModTime,
   }
 }
 
-function mapGroup(group: KdbxGroup, parentPath: string = ''): VaultGroup {
+function mapGroup(group: KdbxGroup, customIcons: Map<string, KdbxCustomIcon>,
+  parentPath: string = ''): VaultGroup {
   const name: string = group.name === undefined ? '' : group.name
   const path: string = parentPath.length === 0 ? name : `${parentPath} / ${name}`
   const groups: VaultGroup[] = []
-  group.groups.forEach((child: KdbxGroup) => groups.push(mapGroup(child, path)))
+  group.groups.forEach((child: KdbxGroup) => groups.push(mapGroup(child, customIcons, path)))
   const entries: VaultEntry[] = []
-  group.entries.forEach((entry: KdbxEntry) => entries.push(mapEntry(entry)))
+  group.entries.forEach((entry: KdbxEntry) => entries.push(mapEntry(entry, customIcons)))
   return {
     uuid: group.uuid.id,
     name,
@@ -177,7 +207,7 @@ function mapGroup(group: KdbxGroup, parentPath: string = ''): VaultGroup {
 
 function mapDocument(kdbx: Kdbx): VaultDocument {
   const groups: VaultGroup[] = []
-  kdbx.groups.forEach((group: KdbxGroup) => groups.push(mapGroup(group)))
+  kdbx.groups.forEach((group: KdbxGroup) => groups.push(mapGroup(group, kdbx.meta.customIcons)))
   return {
     format: kdbx.versionMajor === 3 ? VaultFormat.Kdbx31 : VaultFormat.Kdbx4,
     name: kdbx.meta.name === undefined ? '' : kdbx.meta.name,
@@ -234,7 +264,8 @@ export class KdbxVaultEngine implements VaultEngine {
     }
     const entry: KdbxEntry = kdbx.createEntry(group)
     this.writeFields(entry, input)
-    const mapped: VaultEntry = mapEntry(entry)
+    this.writeAvatar(entry, kdbx, input.avatar)
+    const mapped: VaultEntry = mapEntry(entry, kdbx.meta.customIcons)
     const mappedGroup: VaultGroup | undefined = this.findMappedGroup(document.groups, group.uuid.id)
     if (mappedGroup === undefined) {
       throw new Error('保险库分组映射不存在')
@@ -245,24 +276,38 @@ export class KdbxVaultEngine implements VaultEngine {
 
   updateEntry(document: VaultDocument, entryUuid: string, input: VaultEntryInput): VaultEntry {
     this.requireWritable(document)
-    const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
     if (entry === undefined) {
       throw new Error('保险库条目不存在')
     }
-    const targetGroup: KdbxGroup | undefined = this.getKdbx(document).getGroup(input.groupUuid)
+    const targetGroup: KdbxGroup | undefined = kdbx.getGroup(input.groupUuid)
     if (targetGroup === undefined) {
       throw new Error('保险库分组不存在')
     }
     entry.pushHistory()
     if (entry.parentGroup?.uuid.id !== targetGroup.uuid.id) {
-      this.getKdbx(document).move(entry, targetGroup)
+      kdbx.move(entry, targetGroup)
     }
     this.writeFields(entry, input)
-    const mapped: VaultEntry = mapEntry(entry)
+    this.writeAvatar(entry, kdbx, input.avatar)
+    const mapped: VaultEntry = mapEntry(entry, kdbx.meta.customIcons)
     if (!this.replaceMappedEntry(document.groups, mapped)) {
       throw new Error('保险库条目映射不存在')
     }
     return mapped
+  }
+
+  loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined {
+    const kdbx: Kdbx = this.getKdbx(document)
+    const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    if (entry.customIcon === undefined) {
+      return undefined
+    }
+    return kdbx.meta.customIcons.get(entry.customIcon.id)?.data
   }
 
   setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry {
@@ -509,6 +554,39 @@ export class KdbxVaultEngine implements VaultEngine {
     entry.customData.set(FIELD_TYPES_KEY, { value: JSON.stringify(types), lastModified: new Date() })
   }
 
+  /**
+   * 写入条目头像：KDBX 用 meta 级共享的图标池承载自定义图标，
+   * 条目只通过 entry.customIcon 指向池中的一项。
+   */
+  private writeAvatar(entry: KdbxEntry, kdbx: Kdbx, avatar: ArrayBuffer | null | undefined): void {
+    if (avatar === undefined) {
+      return
+    }
+    if (avatar === null) {
+      entry.customIcon = undefined
+      entry.icon = 0
+      return
+    }
+    entry.customIcon = this.customIconUuid(kdbx.meta.customIcons, avatar)
+    entry.icon = CUSTOM_ICON_ID
+  }
+
+  /** 图标池里已有内容相同的图片时复用其 uuid，否则新建一项。 */
+  private customIconUuid(customIcons: Map<string, KdbxCustomIcon>, data: ArrayBuffer): KdbxUuid {
+    let existingId: string = ''
+    customIcons.forEach((icon: KdbxCustomIcon, id: string) => {
+      if (existingId.length === 0 && sameBytes(icon.data, data)) {
+        existingId = id
+      }
+    })
+    if (existingId.length > 0) {
+      return new KdbxUuid(existingId)
+    }
+    const uuid: KdbxUuid = KdbxUuid.random()
+    customIcons.set(uuid.id, { data })
+    return uuid
+  }
+
   private setEntryFlag(document: VaultDocument, entryUuid: string, key: string, enabled: boolean): VaultEntry {
     this.requireWritable(document)
     const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
@@ -521,7 +599,7 @@ export class KdbxVaultEngine implements VaultEngine {
     }
     entry.customData.set(key, { value: enabled ? 'true' : 'false', lastModified: new Date() })
     entry.times.update()
-    const mapped: VaultEntry = mapEntry(entry)
+    const mapped: VaultEntry = mapEntry(entry, this.getKdbx(document).meta.customIcons)
     if (!this.replaceMappedEntry(document.groups, mapped)) {
       throw new Error('保险库条目映射不存在')
     }
