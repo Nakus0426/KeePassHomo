@@ -1,0 +1,15 @@
+{
+  "name": "kdbx-test-data",
+  "version": "1.0.0",
+  "private": true,
+  "description": "向现有 KDBX 保险库批量追加测试条目，并查看保险库结构与头部参数（开发期工具，不参与 HAP 构建）",
+  "type": "commonjs",
+  "scripts": {
+    "generate": "node gen-entries.js",
+    "inspect": "node inspect.js"
+  },
+  "dependencies": {
+    "hash-wasm": "^4.12.0",
+    "kdbxweb": "^2.1.1"
+  }
+}

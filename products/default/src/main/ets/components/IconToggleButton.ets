@@ -11,6 +11,8 @@ export struct IconToggleButton {
   @Param symbolColor: ResourceColor = $r('sys.color.font_secondary')
   @Require @Param accessibilityLabel: Resource
   @Param clickable: boolean = true
+  /** 独占本次交互：用于按钮被更大的可点区域包住时，避免两层都响应点击。 */
+  @Param exclusive: boolean = false
   @Event onToggle: () => void = () => {
   }
   private bounce: BounceAnimator = new BounceAnimator()
@@ -50,6 +52,7 @@ export struct IconToggleButton {
       },
     })
     .accessibilityText(this.accessibilityLabel)
+    .monopolizeEvents(this.exclusive)
     .onClick(() => this.handleClick())
   }
 }

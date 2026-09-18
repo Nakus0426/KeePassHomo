@@ -503,6 +503,11 @@ export class AppViewModel {
     return stageOneVaultStore.field(entry, key)
   }
 
+  loadEntryAvatar(entryUuid: string): ArrayBuffer | undefined {
+    this.revision
+    return stageOneVaultStore.loadEntryAvatar(entryUuid)
+  }
+
   private setStatus(message: string): void {
     this.status = message
     this.lastError = undefined

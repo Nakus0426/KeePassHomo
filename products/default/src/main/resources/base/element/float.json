@@ -53,6 +53,10 @@
       "value": "100vp"
     },
     {
+      "name": "entry_card_avatar_size",
+      "value": "40vp"
+    },
+    {
       "name": "text_area_min_height",
       "value": "96vp"
     },

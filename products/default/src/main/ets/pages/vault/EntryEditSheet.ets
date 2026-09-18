@@ -127,7 +127,6 @@ export struct EntryEditSheet {
           this.closeSheet()
           return
         }
-        // 失败原因由 ViewModel 写入 status（只读来源、字段名非法、写盘失败等），必须让用户看见。
         this.toastStatus()
       })
       return
@@ -139,7 +138,6 @@ export struct EntryEditSheet {
     this.scrollToField(invalidFieldKey)
   }
 
-  /** 保存失败时半模态不会关闭，默认模式的 Toast 层级低于它，必须用高于弹窗类组件的模式。 */
   private toastStatus(): void {
     if (this.viewModel.status.length === 0) {
       return
@@ -147,10 +145,6 @@ export struct EntryEditSheet {
     AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
   }
 
-  /**
-   * 保存成功的提示在半模态收完后再弹：默认模式的 Toast 在主窗内、层级低于弹窗类组件，
-   * 半模态还在场时会把它盖住。
-   */
   private notifySaved(): void {
     if (!this.justSaved) {
       return
@@ -195,10 +189,6 @@ export struct EntryEditSheet {
     this.closeGeneratorSheet()
   }
 
-  /**
-   * 拖拽或返回键关闭半模态时先拦下：有未保存修改就先确认，确认丢失内容才真正关闭。
-   * 保存中不弹确认（保存成功会自动关闭），直接拦下本次关闭。
-   */
   private onSheetWillDismiss(action: DismissSheetAction): void {
     if (this.viewModel.busy) {
       return
