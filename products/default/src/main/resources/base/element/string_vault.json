@@ -193,6 +193,10 @@
       "value": "正在保存"
     },
     {
+      "name": "saved",
+      "value": "已保存"
+    },
+    {
       "name": "cancel",
       "value": "取消"
     },
@@ -202,7 +206,7 @@
     },
     {
       "name": "unsaved_message",
-      "value": "保存修改、放弃修改，或继续编辑"
+      "value": "关闭后将丢失未保存的修改"
     },
     {
       "name": "discard",

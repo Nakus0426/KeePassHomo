@@ -28,11 +28,12 @@ export struct EntryEditSheet {
   @Local private session: AppSessionState = appSessionState
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
-  @Local private unsavedDialogVisible: boolean = false
   @Local private generatorSheetVisible: boolean = false
   @Local private passwordVisible: boolean = false
   /** 保存时字段名为空的卡片 id，-1 表示无。 */
   @Local private invalidFieldId: number = -1
+  /** 本次关闭是否由保存成功触发，关闭动画结束后据此给出成功提示。 */
+  private justSaved: boolean = false
   private readonly viewModel: AppViewModel = appViewModel
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
@@ -76,7 +77,6 @@ export struct EntryEditSheet {
   }
 
   private releaseEditor(): void {
-    this.unsavedDialogVisible = false
     this.invalidFieldId = -1
     this.passwordVisible = false
     this.editor.reset()
@@ -84,6 +84,24 @@ export struct EntryEditSheet {
 
   private closeSheet(): void {
     this.state.visible = false
+  }
+
+  private confirmDiscard(onDiscard: () => void): void {
+    const options: AlertDialogParamWithButtons = {
+      title: $r('app.string.unsaved_title'),
+      message: $r('app.string.unsaved_message'),
+      primaryButton: {
+        value: $r('app.string.continue_editing'),
+        action: () => {
+        },
+      },
+      secondaryButton: {
+        value: $r('app.string.discard'),
+        fontColor: $r('sys.color.warning'),
+        action: () => onDiscard(),
+      },
+    }
+    this.getUIContext().showAlertDialog(options)
   }
 
   private requestExit(): void {
@@ -94,7 +112,7 @@ export struct EntryEditSheet {
       this.closeSheet()
       return
     }
-    this.unsavedDialogVisible = true
+    this.confirmDiscard(() => this.closeSheet())
   }
 
   private saveEntry(): void {
@@ -105,16 +123,40 @@ export struct EntryEditSheet {
     if (invalidFieldKey === undefined) {
       this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
         if (saved) {
+          this.justSaved = true
           this.closeSheet()
+          return
         }
+        // 失败原因由 ViewModel 写入 status（只读来源、字段名非法、写盘失败等），必须让用户看见。
+        this.toastStatus()
       })
       return
     }
     if (invalidFieldKey !== 'title') {
       this.invalidFieldId = Number(invalidFieldKey)
-      AppToast.show(this.getUIContext(), $r('app.string.field_name_required'))
+      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.field_name_required'))
     }
     this.scrollToField(invalidFieldKey)
+  }
+
+  /** 保存失败时半模态不会关闭，默认模式的 Toast 层级低于它，必须用高于弹窗类组件的模式。 */
+  private toastStatus(): void {
+    if (this.viewModel.status.length === 0) {
+      return
+    }
+    AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
+  }
+
+  /**
+   * 保存成功的提示在半模态收完后再弹：默认模式的 Toast 在主窗内、层级低于弹窗类组件，
+   * 半模态还在场时会把它盖住。
+   */
+  private notifySaved(): void {
+    if (!this.justSaved) {
+      return
+    }
+    this.justSaved = false
+    AppToast.show(this.getUIContext(), $r('app.string.saved'))
   }
 
   private scrollToField(fieldKey: string): void {
@@ -153,12 +195,19 @@ export struct EntryEditSheet {
     this.closeGeneratorSheet()
   }
 
+  /**
+   * 拖拽或返回键关闭半模态时先拦下：有未保存修改就先确认，确认丢失内容才真正关闭。
+   * 保存中不弹确认（保存成功会自动关闭），直接拦下本次关闭。
+   */
   private onSheetWillDismiss(action: DismissSheetAction): void {
-    if (this.viewModel.busy || this.editor.changed()) {
-      this.unsavedDialogVisible = true
+    if (this.viewModel.busy) {
       return
     }
-    action.dismiss()
+    if (!this.editor.changed()) {
+      action.dismiss()
+      return
+    }
+    this.confirmDiscard(() => this.closeSheet())
   }
 
   private get readOnly(): boolean {
@@ -499,6 +548,7 @@ export struct EntryEditSheet {
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
         onDisappear: () => {
           this.state.visible = false
+          this.notifySaved()
         },
       })
   }

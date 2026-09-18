@@ -73,7 +73,8 @@ export struct EntryTagEditor {
       return
     }
     this.warning = true
-    AppToast.show(this.getUIContext(), result === TagAddResult.Duplicate
+    // 标签编辑在条目编辑半模态内，默认模式提示会被半模态压住。
+    AppToast.showAboveSheets(this.getUIContext(), result === TagAddResult.Duplicate
       ? $r('app.string.tag_duplicate') : $r('app.string.tag_separator_forbidden'))
   }
 

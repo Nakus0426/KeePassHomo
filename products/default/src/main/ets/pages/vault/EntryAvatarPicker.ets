@@ -138,7 +138,8 @@ export struct EntryAvatarPicker {
   private reportAvatarError(error: Object): void {
     const businessError: BusinessError = error as BusinessError
     LogUtil.error(`头像处理失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
-    AppToast.show(this.getUIContext(), $r('app.string.avatar_failed'))
+    // 头像选择发生在条目编辑半模态内，默认模式提示会被半模态压住。
+    AppToast.showAboveSheets(this.getUIContext(), $r('app.string.avatar_failed'))
   }
 
   @Builder

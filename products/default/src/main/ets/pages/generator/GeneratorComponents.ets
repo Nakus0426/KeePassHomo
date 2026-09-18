@@ -205,7 +205,8 @@ export struct GeneratorContent {
   @Monitor('viewModel.status')
   onStatusChanged(): void {
     if (this.viewModel.status.length > 0) {
-      AppToast.show(this.getUIContext(), this.viewModel.status)
+      // 生成器内容在生成器半模态内，默认模式提示会被半模态压住。
+      AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
     }
   }
 
@@ -236,7 +237,7 @@ export struct GeneratorContent {
       return
     }
     appViewModel.copyValue(this.viewModel.value)
-    AppToast.show(this.getUIContext(), $r('app.string.copy_success'))
+    AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_success'))
   }
 
   getCurrentPassword(): string {

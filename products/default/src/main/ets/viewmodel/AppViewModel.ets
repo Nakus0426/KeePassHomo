@@ -296,7 +296,9 @@ export class AppViewModel {
       avatar: editor.avatarInput(),
     }
     try {
-      await stageOneVaultStore.saveEntry(editor.entryUuid, input)
+      const saved: VaultEntry = await stageOneVaultStore.saveEntry(editor.entryUuid, input)
+      // 采纳落盘后的条目标识：同一次编辑会话内再次保存走更新，不会重复创建条目。
+      editor.entryUuid = saved.uuid
       editor.markSaved()
       this.refreshVault()
       this.setStatus('')
