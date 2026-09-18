@@ -51,6 +51,14 @@
     {
       "name": "entry_avatar_size",
       "value": "100vp"
+    },
+    {
+      "name": "text_area_min_height",
+      "value": "96vp"
+    },
+    {
+      "name": "text_area_max_height",
+      "value": "160vp"
     }
   ]
 }

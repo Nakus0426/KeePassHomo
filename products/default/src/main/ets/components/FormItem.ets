@@ -35,6 +35,13 @@ export class FormItemController {
     this.message = this.result.errors.length > 0 ? this.result.errors[0].message : ''
     return this.result.valid
   }
+
+  /** 清空校验状态，供复用的表单 ViewModel 在重置内容时一并复位反馈 UI。 */
+  reset(): void {
+    this.status = Status.Idle
+    this.result = { valid: true, errors: [] }
+    this.message = ''
+  }
 }
 
 @ComponentV2
@@ -83,16 +90,12 @@ export struct FormItem {
   private feedbackRow() {
 
     Row() {
-      Text() {
-        SymbolSpan($r('sys.symbol.exclamationmark_circle_fill'))
-        Span(' ')
-        Span(this.controller.message)
-      }
-      .width('100%')
-      .fontColor($r('sys.color.alert'))
-      .fontSize($r('sys.float.Body_S'))
-      .maxLines(1)
-      .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(this.controller.message)
+        .width('100%')
+        .fontColor($r('sys.color.warning'))
+        .fontSize($r('sys.float.Body_S'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
     .height($r('sys.float.Body_L'))

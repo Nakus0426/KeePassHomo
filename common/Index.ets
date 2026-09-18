@@ -2,6 +2,8 @@ export { BreakpointSystem, BreakPointType } from './src/main/ets/utils/Breakpoin
 
 export { ColorUtil } from './src/main/ets/utils/ColorUtil'
 
+export { AppToast } from './src/main/ets/utils/AppToast'
+
 export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
 
 export { AnimationTokens } from './src/main/ets/animation/AnimationTokens'

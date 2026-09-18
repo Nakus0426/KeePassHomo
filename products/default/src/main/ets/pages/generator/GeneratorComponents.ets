@@ -7,7 +7,7 @@ import {
   UIUtils,
 } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { AnimationTokens, MemorableCase } from '@ohos/common'
+import { AnimationTokens, AppToast, MemorableCase } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 import { FormItem, LabelPlacement } from '../../components/FormItem'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
@@ -191,9 +191,6 @@ export struct GeneratorContent {
       materialColor: $r('sys.color.comp_background_tertiary'),
       applyShadow: false,
     })
-  private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
-
   aboutToAppear(): void {
     this.controller.bind(this)
     if (this.viewModel.mode !== GeneratorMode.Random) {
@@ -208,7 +205,7 @@ export struct GeneratorContent {
   @Monitor('viewModel.status')
   onStatusChanged(): void {
     if (this.viewModel.status.length > 0) {
-      this.showToast(this.viewModel.status)
+      AppToast.show(this.getUIContext(), this.viewModel.status)
     }
   }
 
@@ -239,23 +236,11 @@ export struct GeneratorContent {
       return
     }
     appViewModel.copyValue(this.viewModel.value)
-    this.showToast($r('app.string.copy_success'))
+    AppToast.show(this.getUIContext(), $r('app.string.copy_success'))
   }
 
   getCurrentPassword(): string {
     return this.viewModel.value
-  }
-
-  private showToast(message: ResourceStr): void {
-    try {
-      this.getUIContext().getPromptAction().showToast({
-        message,
-        systemMaterial: this.toastMaterial,
-      })
-    } catch (error) {
-      const businessError: BusinessError = error as BusinessError
-      LogUtil.error(`显示生成器提示失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
-    }
   }
 
   @Computed

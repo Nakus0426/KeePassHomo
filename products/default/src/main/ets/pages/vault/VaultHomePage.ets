@@ -33,22 +33,18 @@ export struct VaultHomePage {
       Button() {
         Row({ space: $r('sys.float.padding_level4') }) {
           SymbolGlyph($r('sys.symbol.plus'))
-            .fontSize($r('sys.float.Body_M'))
+            .fontSize($r('sys.float.chip_normal_font_size'))
             .fontColor([$r('sys.color.font_emphasize')])
 
           Text($r('app.string.new_entry'))
-            .fontSize($r('sys.float.Body_M'))
+            .fontSize($r('sys.float.chip_normal_font_size'))
             .fontColor($r('sys.color.font_emphasize'))
         }
       }
+      .height($r('sys.float.chip_normal_height'))
       .buttonStyle(ButtonStyleMode.NORMAL)
       .type(ButtonType.Capsule)
-      .padding({
-        top: $r('sys.float.padding_level4'),
-        bottom: $r('sys.float.padding_level4'),
-        left: $r('sys.float.padding_level6'),
-        right: $r('sys.float.padding_level6'),
-      })
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
       .onClick(() => this.openNewEntry())
     }
     .alignItems(HorizontalAlign.Center)

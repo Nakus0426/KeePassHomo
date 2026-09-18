@@ -77,6 +77,10 @@
       "value": "••••••••••••"
     },
     {
+      "name": "password_mask_char",
+      "value": "•"
+    },
+    {
       "name": "vault_home",
       "value": "保险库"
     },
@@ -131,6 +135,10 @@
     {
       "name": "close",
       "value": "关闭"
+    },
+    {
+      "name": "add",
+      "value": "添加"
     },
     {
       "name": "all",

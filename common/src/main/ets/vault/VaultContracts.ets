@@ -104,6 +104,7 @@ export const META_KEY_PREFIX: string = 'KeePassHomo.'
 /**
  * 字段类型：KDBX 本身没有类型系统，类型由应用存于条目 customData，
  * 仅驱动输入控件与点击动作，落盘的值一律是字符串。
+ * Custom 不预置字段名，也不改变输入控件，仅用于把用户自建的字段与内置「文本」类型区分开。
  */
 export enum VaultFieldType {
   Text = 'text',
@@ -112,7 +113,8 @@ export enum VaultFieldType {
   Phone = 'phone',
   Address = 'address',
   Date = 'date',
-  Password = 'password'
+  Password = 'password',
+  Custom = 'custom'
 }
 
 export interface VaultField {

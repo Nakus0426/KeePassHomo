@@ -106,6 +106,8 @@ function toFieldType(value: string | undefined): VaultFieldType {
       return VaultFieldType.Date
     case VaultFieldType.Password:
       return VaultFieldType.Password
+    case VaultFieldType.Custom:
+      return VaultFieldType.Custom
     default:
       return VaultFieldType.Text
   }

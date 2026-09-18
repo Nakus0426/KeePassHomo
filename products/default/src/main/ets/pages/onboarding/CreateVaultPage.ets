@@ -13,8 +13,8 @@ import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { CreateVaultViewModel } from '../../viewmodel/CreateVaultViewModel'
 import { AnimationTokens, BounceAnimator, ColorUtil } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
-import { FormItem } from '../../components/FormItem'
-import { FormTextField } from '../../components/FormTextField'
+import { FormItem, Status } from '../../components/FormItem'
+import { FormTextField, FormTextFieldStatus } from '../../components/FormTextField'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 
@@ -144,6 +144,8 @@ export struct CreateVaultPage {
     FormTextField({
       placeholder: $r('app.string.text_input_placeholder'),
       text: this.form.vaultName,
+      status: this.form.vaultNameController.status === Status.Invalid
+        ? FormTextFieldStatus.Warning : undefined,
       onChange: (value: string) => this.form.setVaultName(value),
     })
   }
@@ -155,12 +157,19 @@ export struct CreateVaultPage {
       text: this.form.masterPassword,
       type: InputType.Password,
       showPassword: this.masterPasswordVisible,
+      status: this.form.masterPasswordController.status === Status.Invalid
+        ? FormTextFieldStatus.Warning : undefined,
       onChange: (value: string) => this.form.setMasterPassword(value),
     }) {
       PasswordVisibilityToggle({
         visible: this.masterPasswordVisible,
         onChange: (visible: boolean) => this.masterPasswordVisible = visible,
       })
+
+      Divider()
+        .vertical(true)
+        .margin({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level6') })
+        .color($r('sys.color.comp_divider'))
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph($r('sys.symbol.wand_and_stars'))
@@ -182,6 +191,8 @@ export struct CreateVaultPage {
       text: this.form.confirmPassword,
       type: InputType.Password,
       showPassword: this.confirmPasswordVisible,
+      status: this.form.confirmPasswordController.status === Status.Invalid
+        ? FormTextFieldStatus.Warning : undefined,
       onChange: (value: string) => this.form.setConfirmPassword(value),
     }) {
       PasswordVisibilityToggle({

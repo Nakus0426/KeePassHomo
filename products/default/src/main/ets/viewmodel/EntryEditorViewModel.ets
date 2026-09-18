@@ -1,4 +1,5 @@
-import { VaultFieldInput, VaultFieldType } from '@ohos/common'
+import { required, stringSchema, ValidationSchema, VaultFieldInput, VaultFieldType } from '@ohos/common'
+import { FormItemController } from '../components/FormItem'
 
 let nextFieldId: number = 1
 
@@ -11,6 +12,19 @@ export enum EntryAvatarAction {
   Set = 'set',
   Clear = 'clear'
 }
+
+/** 标签写入结果，调用方据此决定是否保留输入态并给出反馈。 */
+export enum TagAddResult {
+  Added = 'added',
+  Duplicate = 'duplicate',
+  Separator = 'separator'
+}
+
+/**
+ * 禁止写入标签的分隔符：半角分号是 KDBX 本体的标签分隔符，半角逗号是旧版编辑器的分隔符；
+ * 全角逗号与分号不会被 KDBX 切分，但用户输入它们的意思是分隔，写盘后会与其他客户端显示不一致。
+ */
+const TAG_SEPARATORS: string[] = [',', ';', '，', '；']
 
 /**
  * 编辑器内的自定义字段：逐项 @Trace，改字段名/类型/敏感都直接驱动对应输入控件。
@@ -37,12 +51,30 @@ export class EntryEditorViewModel {
   @Trace password: string = ''
   @Trace url: string = ''
   @Trace notes: string = ''
-  @Trace tags: string = ''
+  @Trace tags: string[] = []
   @Trace groupUuid: string = ''
   @Trace fields: EntryFieldEditor[] = []
   @Trace avatarData: ArrayBuffer | undefined = undefined
   @Trace avatarAction: EntryAvatarAction = EntryAvatarAction.Keep
   @Trace initialValue: string = ''
+  readonly titleController: FormItemController = new FormItemController()
+  readonly titleSchema: ValidationSchema = stringSchema([required($r('app.string.entry_title_required'))])
+
+  /**
+   * 按表单字段顺序执行保存校验，返回首个未通过字段的 key，全部通过时返回 undefined。
+   * 自定义字段的 key 为 EntryFieldEditor.id，UI 据此定位到对应卡片。
+   */
+  validate(): string | undefined {
+    if (!this.titleController.validate(this.title)) {
+      return 'title'
+    }
+    const invalidField: EntryFieldEditor | undefined =
+      this.fields.find((field: EntryFieldEditor) => field.name.trim().length === 0)
+    if (invalidField !== undefined) {
+      return `${invalidField.id}`
+    }
+    return undefined
+  }
 
   setTitle(value: string): void {
     this.title = value
@@ -64,8 +96,20 @@ export class EntryEditorViewModel {
     this.notes = value
   }
 
-  setTags(value: string): void {
-    this.tags = value
+  /** 追加标签：含分隔符或与已有标签完全相同时拒绝，返回原因供 UI 提示。 */
+  addTag(value: string): TagAddResult {
+    if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
+      return TagAddResult.Separator
+    }
+    if (this.tags.includes(value)) {
+      return TagAddResult.Duplicate
+    }
+    this.tags.push(value)
+    return TagAddResult.Added
+  }
+
+  removeTag(value: string): void {
+    this.tags = this.tags.filter((tag: string) => tag !== value)
   }
 
   setGroup(groupUuid: string): void {
@@ -153,7 +197,7 @@ export class EntryEditorViewModel {
       return `${field.name}\u0001${field.value}\u0001${field.type}\u0001${field.protected}`
     }).join('\u0002')
     return [this.title, this.username, this.password, this.url,
-      this.notes, this.tags, this.groupUuid, fields, this.avatarAction].join('\n')
+      this.notes, this.tags.join('\n'), this.groupUuid, fields, this.avatarAction].join('\n')
   }
 
   changed(): boolean {
@@ -172,11 +216,12 @@ export class EntryEditorViewModel {
   reset(): void {
     this.entryUuid = ''
     this.title = ''
+    this.titleController.reset()
     this.username = ''
     this.password = ''
     this.url = ''
     this.notes = ''
-    this.tags = ''
+    this.tags = []
     this.groupUuid = ''
     this.fields = []
     this.avatarData = undefined

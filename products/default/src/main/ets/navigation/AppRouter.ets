@@ -1,7 +1,8 @@
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { promptAction, uiMaterial, UIObserver, uiObserver } from '@kit.ArkUI'
+import { UIContext, UIObserver, uiObserver } from '@kit.ArkUI'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
+import { AppToast } from '@ohos/common'
 import { ROUTE_HOME, ROUTE_UNLOCK } from '../constants/RouteConstants'
 
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
@@ -25,8 +26,6 @@ export class AppRouter {
   private lastBackRoute: string = ''
   private homeTransitionPending: boolean = false
   private lockEnterPending: boolean = false
-  private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
 
   attach(observer: UIObserver): void {
     observer.on('navDestinationUpdate', this.onNavDestinationUpdate)
@@ -119,16 +118,8 @@ export class AppRouter {
     if (route !== this.lastBackRoute || now - this.lastBackPressedAt > ROOT_BACK_CONFIRM_INTERVAL_MS) {
       this.lastBackPressedAt = now
       this.lastBackRoute = route
-      try {
-        promptAction.showToast({
-          message: $r('app.string.press_back_again_to_background'),
-          duration: ROOT_BACK_TOAST_DURATION_MS,
-          systemMaterial: this.toastMaterial,
-        })
-      } catch (error) {
-        const businessError: BusinessError = error as BusinessError
-        LogUtil.error(`返回桌面提示显示失败，错误码=${businessError.code}`)
-      }
+      AppToast.show(UIContext.resolveUIContext(), $r('app.string.press_back_again_to_background'),
+        ROOT_BACK_TOAST_DURATION_MS)
       return
     }
     this.lastBackPressedAt = 0

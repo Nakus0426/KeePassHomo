@@ -8,6 +8,7 @@ export struct Cell {
   }
   @BuilderParam labelBuilder?: () => void
   @BuilderParam valueBuilder?: () => void
+  @BuilderParam prefixBuilder?: () => void
 
   @Computed
   get arrowVisible() {
@@ -17,6 +18,9 @@ export struct Cell {
   build() {
     ListItem() {
       Row({ space: $r('sys.float.padding_level8') }) {
+        if (this.prefixBuilder !== undefined) {
+          this.prefixBuilder()
+        }
         Row() {
           if (this.label !== undefined) {
             Text(this.label)

@@ -255,7 +255,8 @@ export class AppViewModel {
     editor.password = stageOneVaultStore.field(entry, 'Password')
     editor.url = stageOneVaultStore.field(entry, 'URL')
     editor.notes = stageOneVaultStore.field(entry, 'Notes')
-    editor.tags = entry.tags.join(', ')
+    // 复制一份：entry.tags 是 KDBX 内存模型的数组，直接改会让取消编辑也生效。
+    editor.tags = entry.tags.slice()
     editor.fields = entry.fields
       .filter((field: VaultField) => !RESERVED_FIELD_NAMES.includes(field.name))
       .map((field: VaultField): EntryFieldEditor => {
@@ -276,10 +277,6 @@ export class AppViewModel {
    * 本方法只落盘并刷新派生数据。
    */
   async saveEntry(editor: EntryEditorViewModel): Promise<boolean> {
-    if (editor.title.trim().length === 0 || editor.password.length === 0) {
-      this.setStatus('请填写标题和密码')
-      return false
-    }
     const fields: VaultFieldInput[] = editor.fieldInputs()
     const invalidFieldMessage: string = this.validateCustomFields(fields)
     if (invalidFieldMessage.length > 0) {
@@ -295,8 +292,7 @@ export class AppViewModel {
       url: editor.url.trim(),
       notes: editor.notes,
       fields,
-      tags: editor.tags.split(',').map((tag: string) => tag.trim())
-        .filter((tag: string) => tag.length > 0),
+      tags: editor.tags,
       avatar: editor.avatarInput(),
     }
     try {

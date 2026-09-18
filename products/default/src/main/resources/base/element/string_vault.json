@@ -57,6 +57,10 @@
       "value": "标题"
     },
     {
+      "name": "entry_title_required",
+      "value": "请输入标题"
+    },
+    {
       "name": "username",
       "value": "用户名"
     },
@@ -78,7 +82,19 @@
     },
     {
       "name": "tags",
-      "value": "标签（逗号分隔）"
+      "value": "标签"
+    },
+    {
+      "name": "add_tag",
+      "value": "添加标签"
+    },
+    {
+      "name": "tag_separator_forbidden",
+      "value": "标签不能包含分隔符"
+    },
+    {
+      "name": "tag_duplicate",
+      "value": "标签已存在"
     },
     {
       "name": "group",
@@ -97,12 +113,24 @@
       "value": "字段名"
     },
     {
+      "name": "field_name_required",
+      "value": "字段名不能为空"
+    },
+    {
       "name": "field_sensitive",
       "value": "敏感"
     },
     {
       "name": "delete_field",
       "value": "删除字段"
+    },
+    {
+      "name": "field_other",
+      "value": "其他"
+    },
+    {
+      "name": "select_type",
+      "value": "选择类型"
     },
     {
       "name": "field_type_text",
@@ -183,10 +211,6 @@
     {
       "name": "continue_editing",
       "value": "继续编辑"
-    },
-    {
-      "name": "required_fields",
-      "value": "请填写标题和密码"
     },
     {
       "name": "upgrade_required",

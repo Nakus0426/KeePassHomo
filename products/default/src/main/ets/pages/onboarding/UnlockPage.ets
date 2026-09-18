@@ -1,13 +1,11 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { uiMaterial } from '@kit.ArkUI'
-import { BusinessError } from '@kit.BasicServicesKit'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { LogUtil, ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens, AppErrorModel, BounceAnimator } from '@ohos/common'
+import { ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, AppErrorModel, AppToast, BounceAnimator } from '@ohos/common'
 import { FormTextField } from '../../components/FormTextField'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 
@@ -28,9 +26,6 @@ export struct UnlockPage {
   private exitAnimating: boolean = false
   private enterPending: boolean = false
   private readonly unlockBounce: BounceAnimator = new BounceAnimator()
-  private readonly toastMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial(
-    { style: uiMaterial.ImmersiveStyle.ULTRA_THICK })
-
   @Computed
   get bottomSafeAreaHeight() {
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
@@ -59,7 +54,7 @@ export struct UnlockPage {
   onLastErrorChanged(): void {
     const error: AppErrorModel | undefined = this.viewModel.lastError
     if (error !== undefined) {
-      this.showToast(error.message)
+      AppToast.show(this.getUIContext(), error.message)
     }
   }
 
@@ -76,7 +71,7 @@ export struct UnlockPage {
       return
     }
     if (this.password.length === 0) {
-      this.showToast($r('app.string.unlock_password_required'))
+      AppToast.show(this.getUIContext(), $r('app.string.unlock_password_required'))
       return
     }
     if (await this.viewModel.unlockVault(this.password)) {
@@ -122,18 +117,6 @@ export struct UnlockPage {
         this.splitProgress = 0
       })
     }, 50)
-  }
-
-  private showToast(message: ResourceStr): void {
-    try {
-      this.getUIContext().getPromptAction().showToast({
-        message,
-        systemMaterial: this.toastMaterial,
-      })
-    } catch (error) {
-      const businessError: BusinessError = error as BusinessError
-      LogUtil.error(`显示解锁提示失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
-    }
   }
 
   @LocalBuilder
