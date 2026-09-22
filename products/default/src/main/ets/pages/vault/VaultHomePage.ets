@@ -1,12 +1,14 @@
-import { VaultEntry } from '@ohos/common'
+import { HdsListItem } from '@kit.UIDesignKit'
+import { AppToast, VaultEntry } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { EntryCard } from '../../components/EntryCard'
 import { ROUTE_ENTRY_DETAIL } from '../../constants/RouteConstants'
+import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
 import { appRouter } from '../../navigation/AppRouter'
 import { EntryDetailParam } from '../../navigation/RouteParams'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { appViewModel } from '../../viewmodel/AppViewModel'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { EntryEditSheet, EntryEditSheetState } from './EntryEditSheet'
 
@@ -57,7 +59,15 @@ export struct VaultHomePage {
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private session: AppSessionState = appSessionState
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
+  @Local private app: AppViewModel = appViewModel
   @Local private entrySheet: EntryEditSheetState = new EntryEditSheetState()
+
+  @Monitor('app.status')
+  onStatusChanged(): void {
+    if (this.app.status.length > 0) {
+      AppToast.show(this.getUIContext(), this.app.status)
+    }
+  }
 
   @Computed
   get topAvoidAreaHeight(): number {
@@ -66,6 +76,13 @@ export struct VaultHomePage {
     const systemOffsetVp = this.getUIContext()
       .px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarHeightPx + gapPx)
     return systemOffsetVp + TITLE_BAR_FILTER_ROW_HEIGHT_VP
+  }
+
+  @Computed
+  get bottomAvoidHeight(): number {
+    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapVp: number = this.getUIContext().px2vp(gapPx)
+    return TAB_BAR_FLOAT_TOP_INSET_VP + gapVp
   }
 
   private openNewEntry(): void {
@@ -77,6 +94,32 @@ export struct VaultHomePage {
     const param: EntryDetailParam = { entryUuid: entry.uuid }
     appRouter.push(ROUTE_ENTRY_DETAIL, param)
     appViewModel.recordActivity()
+  }
+
+  private confirmDeleteEntry(entry: VaultEntry): void {
+    const options: AlertDialogParamWithButtons = {
+      title: $r('app.string.delete_entry_title'),
+      message: $r('app.string.delete_entry_message'),
+      primaryButton: {
+        value: $r('app.string.cancel'),
+        action: () => {
+        },
+      },
+      secondaryButton: {
+        value: $r('app.string.delete_entry'),
+        fontColor: $r('sys.color.warning'),
+        action: () => this.deleteEntry(entry),
+      },
+    }
+    this.getUIContext().showAlertDialog(options)
+  }
+
+  private deleteEntry(entry: VaultEntry): void {
+    this.app.deleteEntry(entry.uuid).then((deleted: boolean) => {
+      if (deleted) {
+        AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+      }
+    })
   }
 
   @Builder
@@ -116,33 +159,55 @@ export struct VaultHomePage {
   }
 
   @Builder
+  private entryCardSlot(entry: VaultEntry) {
+    Row() {
+      EntryListRow({
+        entry: entry,
+        favoriteEnabled: !appViewModel.currentSource().readOnly,
+        onEntryClick: (entry: VaultEntry) => this.openEntry(entry),
+        onFavoriteToggle: (entry: VaultEntry) => appViewModel.toggleFavorite(entry.uuid),
+      })
+    }
+    .width('100%')
+    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+  }
+
+  @Builder
   private entryListBuilder() {
     List({ space: CARD_SPACING_VP }) {
+      ListItem() {
+        Column()
+          .width('100%')
+          .height(this.topAvoidAreaHeight - CARD_SPACING_VP)
+      }
+
       Repeat<VaultEntry>(this.home.entries)
         .each((item: RepeatItem<VaultEntry>) => {
-          ListItem() {
-            EntryListRow({
-              entry: item.item,
-              favoriteEnabled: !appViewModel.currentSource().readOnly,
-              onEntryClick: (entry: VaultEntry) => this.openEntry(entry),
-              onFavoriteToggle: (entry: VaultEntry) => appViewModel.toggleFavorite(entry.uuid),
-            })
-          }
-          .margin({
-            top: item.index === 0 ? this.topAvoidAreaHeight : 0,
-            bottom: item.index === this.home.entries.length - 1
-              ? $r('app.float.module_content_bottom_padding') : 0,
+          HdsListItem({
+            customItemBuilder: () => {
+              this.entryCardSlot(item.item)
+            },
+            swipeActionOptions: appViewModel.currentSource().readOnly ? undefined : {
+              deleteIconOptions: {
+                onAction: () => this.confirmDeleteEntry(item.item),
+              },
+            },
           })
         })
         .key((entry: VaultEntry) => entry.uuid)
         .virtualScroll({
           memoryOptimizationStrategy: RepeatMemOptStrategy.ENABLE_AUTO_CACHE_OPTIMIZATION,
         })
+
+      ListItem() {
+        Column()
+          .width('100%')
+          .height(this.bottomAvoidHeight - CARD_SPACING_VP)
+      }
     }
     .width('100%')
     .height('100%')
     .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     .cachedCount(CARD_CACHED_COUNT)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
@@ -170,7 +235,7 @@ export struct VaultHomePage {
       top: this.topAvoidAreaHeight,
       left: $r('sys.float.padding_level8'),
       right: $r('sys.float.padding_level8'),
-      bottom: $r('app.float.module_content_bottom_padding'),
+      bottom: this.bottomAvoidHeight,
     })
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
   }

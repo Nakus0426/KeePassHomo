@@ -287,6 +287,22 @@
     {
       "name": "avatar_failed",
       "value": "头像处理失败"
+    },
+    {
+      "name": "delete_entry_title",
+      "value": "删除条目"
+    },
+    {
+      "name": "delete_entry_message",
+      "value": "删除后可在回收站内找回"
+    },
+    {
+      "name": "delete_entry",
+      "value": "删除"
+    },
+    {
+      "name": "entry_moved_to_recycle_bin",
+      "value": "已放入回收站"
     }
   ]
 }

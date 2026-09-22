@@ -1,3 +1,5 @@
+import { ResUtil } from '@pura/harmony-utils'
+import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 
 /**
@@ -5,6 +7,13 @@ import { appViewModel } from '../../viewmodel/AppViewModel'
  */
 @ComponentV2
 export struct ModulePendingContent {
+  @Computed
+  get bottomInset(): number {
+    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapVp: number = this.getUIContext().px2vp(gapPx)
+    return TAB_BAR_FLOAT_TOP_INSET_VP + gapVp
+  }
+
   build() {
     Column({ space: 8 }) {
       Text($r('app.string.module_pending'))
@@ -18,7 +27,7 @@ export struct ModulePendingContent {
     .padding({
       top: $r('sys.float.padding_level12'),
       right: $r('sys.float.padding_level12'),
-      bottom: $r('app.float.module_content_bottom_padding'),
+      bottom: this.bottomInset,
       left: $r('sys.float.padding_level12'),
     })
     .onTouch(() => appViewModel.recordActivity())

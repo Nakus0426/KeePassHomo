@@ -12,6 +12,7 @@ import {
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
+import { TAB_BAR_FLOAT_BOTTOM_MARGIN_VP } from '../constants/TabBarMetrics'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { fadeNavTransition } from '../navigation/NavFadeTransition'
@@ -222,12 +223,13 @@ export struct AppShell {
         .barPosition(BarPosition.End)
         .barOverlap(true)
         .barFloatingStyle({
-          barBottomMargin: 28,
+          barBottomMargin: TAB_BAR_FLOAT_BOTTOM_MARGIN_VP,
           systemMaterialEffect: {
             materialType: hdsMaterial.MaterialType.IMMERSIVE,
           },
         })
         .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
+        .scrollable(false)
         .width('100%')
         .height('100%')
       }

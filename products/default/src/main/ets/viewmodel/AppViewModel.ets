@@ -378,6 +378,22 @@ export class AppViewModel {
     }
   }
 
+  async deleteEntry(entryUuid: string): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.deleteEntry(entryUuid)
+      this.refreshVault()
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('删除条目失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
   async toggleArchived(entryUuid: string): Promise<void> {
     this.busy = true
     try {

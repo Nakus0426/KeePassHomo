@@ -8,6 +8,7 @@ import {
 import { LogUtil } from '@pura/harmony-utils'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
+import { appSettings } from '../state/AppSettingsState'
 
 const AUTO_LOCK_MS: number = 5 * 60 * 1000
 const CLIPBOARD_SECONDS: number = 30
@@ -89,7 +90,9 @@ export class VaultSessionViewModel {
   }
 
   onForeground(): boolean {
-    stageOneVaultStore.onForeground()
+    if (appSettings.autoLockEnabled) {
+      stageOneVaultStore.onForeground()
+    }
     if (stageOneVaultStore.locked) {
       appSessionState.vaultLocked = true
       return true
@@ -125,6 +128,9 @@ export class VaultSessionViewModel {
 
   private scheduleAutoLock(): void {
     clearTimeout(this.autoLockTimer)
+    if (!appSettings.autoLockEnabled) {
+      return
+    }
     this.autoLockTimer = setTimeout(() => {
       this.lockVault().catch((error: Object) => this.logError('自动锁定时清除剪贴板失败', error))
     }, AUTO_LOCK_MS)

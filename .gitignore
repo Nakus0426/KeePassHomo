@@ -27,3 +27,4 @@ oh_modules/
 .env.*
 /.codegraph/
 /.trae/
+/.qoder/

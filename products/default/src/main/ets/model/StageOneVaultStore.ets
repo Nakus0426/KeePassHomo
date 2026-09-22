@@ -91,26 +91,26 @@ export class StageOneVaultStore {
     this.context = context
     this.repository = new FileVaultRepository(context.filesDir)
     try {
-      const uri: string = PreferencesUtil.getSync(SOURCE_URI, '') as string
+      const uri: string = PreferencesUtil.getSync(SOURCE_URI, '', PREFERENCES_NAME) as string
       if (uri.length === 0) {
         return
       }
       this.source = {
         type: VaultSourceType.LocalFile,
         uri,
-        displayName: PreferencesUtil.getSync(SOURCE_NAME, '') as string,
-        readOnly: PreferencesUtil.getSync(SOURCE_READ_ONLY, false) as boolean,
+        displayName: PreferencesUtil.getSync(SOURCE_NAME, '', PREFERENCES_NAME) as string,
+        readOnly: PreferencesUtil.getSync(SOURCE_READ_ONLY, false, PREFERENCES_NAME) as boolean,
       }
-      const keyFileUri: string = PreferencesUtil.getSync(KEY_FILE_URI, '') as string
+      const keyFileUri: string = PreferencesUtil.getSync(KEY_FILE_URI, '', PREFERENCES_NAME) as string
       if (keyFileUri.length > 0) {
         this.keyFileSource = {
           type: VaultSourceType.LocalFile,
           uri: keyFileUri,
-          displayName: PreferencesUtil.getSync(KEY_FILE_NAME, '') as string,
+          displayName: PreferencesUtil.getSync(KEY_FILE_NAME, '', PREFERENCES_NAME) as string,
           readOnly: true,
         }
       }
-      this.format = PreferencesUtil.getSync(SOURCE_FORMAT, VaultFormat.Unsupported) as VaultFormat
+      this.format = PreferencesUtil.getSync(SOURCE_FORMAT, VaultFormat.Unsupported, PREFERENCES_NAME) as VaultFormat
     } catch (error) {
       throw new Error((error as Error).message)
     }
@@ -346,6 +346,15 @@ export class StageOneVaultStore {
       : this.engine.updateEntry(document, entryUuid, input)
     await this.persistDocument(document)
     return saved
+  }
+
+  async deleteEntry(entryUuid: string): Promise<void> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能删除条目')
+    }
+    const document: VaultDocument = this.session.getDocument()
+    this.engine.removeEntry(document, entryUuid)
+    await this.persistDocument(document)
   }
 
   async setFavorite(entryUuid: string, favorite: boolean): Promise<VaultEntry> {

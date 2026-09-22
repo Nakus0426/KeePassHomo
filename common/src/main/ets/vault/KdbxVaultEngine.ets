@@ -300,6 +300,19 @@ export class KdbxVaultEngine implements VaultEngine {
     return mapped
   }
 
+  removeEntry(document: VaultDocument, entryUuid: string): void {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    kdbx.remove(entry)
+    if (!this.removeMappedEntry(document.groups, entryUuid)) {
+      throw new Error('保险库条目映射不存在')
+    }
+  }
+
   loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined {
     const kdbx: Kdbx = this.getKdbx(document)
     const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
@@ -606,6 +619,20 @@ export class KdbxVaultEngine implements VaultEngine {
       throw new Error('保险库条目映射不存在')
     }
     return mapped
+  }
+
+  private removeMappedEntry(groups: VaultGroup[], entryUuid: string): boolean {
+    for (const group of groups) {
+      const index: number = group.entries.findIndex((entry: VaultEntry) => entry.uuid === entryUuid)
+      if (index >= 0) {
+        group.entries.splice(index, 1)
+        return true
+      }
+      if (this.removeMappedEntry(group.groups, entryUuid)) {
+        return true
+      }
+    }
+    return false
   }
 
   private findMappedGroup(groups: VaultGroup[], groupUuid: string): VaultGroup | undefined {

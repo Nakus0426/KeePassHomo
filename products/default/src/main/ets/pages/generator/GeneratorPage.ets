@@ -1,4 +1,5 @@
 import { ResUtil } from '@pura/harmony-utils'
+import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { GeneratorContent, generatorContentController } from './GeneratorComponents'
 import { appViewModel } from '../../viewmodel/AppViewModel'
@@ -17,9 +18,9 @@ export struct GeneratorPage {
 
   @Computed
   get bottomOffset(): number {
-    const barHeightPx = ResUtil.getNumber($r('app.float.module_navigation_bar_height').id)
-    return this.getUIContext()
-      .px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + barHeightPx)
+    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapVp: number = this.getUIContext().px2vp(gapPx)
+    return TAB_BAR_FLOAT_TOP_INSET_VP + gapVp
   }
 
   build() {

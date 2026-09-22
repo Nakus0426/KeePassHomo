@@ -194,6 +194,8 @@ export interface VaultEngine {
 
   updateEntry(document: VaultDocument, entryUuid: string, input: VaultEntryInput): VaultEntry;
 
+  removeEntry(document: VaultDocument, entryUuid: string): void;
+
   loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined;
 
   setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry;
