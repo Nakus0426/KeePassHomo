@@ -34,6 +34,8 @@ export struct EntryEditSheet {
   @Local private invalidFieldId: number = -1
   /** 本次关闭是否由保存成功触发，关闭动画结束后据此给出成功提示。 */
   private justSaved: boolean = false
+  /** 保存成功但首页列表快照尚未重建：sheet 收起完成后在动画上下文里补刷。 */
+  private pendingHomeRefresh: boolean = false
   private readonly viewModel: AppViewModel = appViewModel
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
@@ -124,6 +126,7 @@ export struct EntryEditSheet {
       this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
         if (saved) {
           this.justSaved = true
+          this.pendingHomeRefresh = true
           this.closeSheet()
           return
         }
@@ -151,6 +154,21 @@ export struct EntryEditSheet {
     }
     this.justSaved = false
     AppToast.show(this.getUIContext(), $r('app.string.saved'))
+  }
+
+  /**
+   * 保存成功后的首页快照刷新推迟到 sheet 收起完成，并在动画上下文里执行：
+   * 首页列表的增删与重排在卡片可见时才播出转场动画（写入本身已在保存时完成）。
+   */
+  private refreshHomeSnapshot(): void {
+    if (!this.pendingHomeRefresh) {
+      return
+    }
+    this.pendingHomeRefresh = false
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+    }, () => this.viewModel.refreshHomeSnapshot())
   }
 
   private scrollToField(fieldKey: string): void {
@@ -539,6 +557,7 @@ export struct EntryEditSheet {
         onDisappear: () => {
           this.state.visible = false
           this.notifySaved()
+          this.refreshHomeSnapshot()
         },
       })
   }

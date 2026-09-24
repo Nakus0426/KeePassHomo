@@ -300,7 +300,8 @@ export class AppViewModel {
       // 采纳落盘后的条目标识：同一次编辑会话内再次保存走更新，不会重复创建条目。
       editor.entryUuid = saved.uuid
       editor.markSaved()
-      this.refreshVault()
+      // 首页快照由 EntryEditSheet 在 sheet 收起完成后重建：列表变更放在动画上下文里才可见。
+      this.revision++
       this.setStatus('')
       this.recordActivity()
       return true
@@ -382,7 +383,8 @@ export class AppViewModel {
     this.busy = true
     try {
       await stageOneVaultStore.deleteEntry(entryUuid)
-      this.refreshVault()
+      // 首页快照由调用方在动画上下文里重建：卡片出场与其余卡片上移才有转场动画。
+      this.revision++
       this.setStatus('')
       this.recordActivity()
       return true
@@ -546,6 +548,14 @@ export class AppViewModel {
 
   private refreshVault(): void {
     this.revision++
+    this.refreshHomeSnapshot()
+  }
+
+  /**
+   * 只重建首页列表快照，不推进 revision。条目增删保存后快照的刷新时机由调用方决定：
+   * 首页在动画上下文里调用，让列表增删、重排在可见时播出转场动画。
+   */
+  refreshHomeSnapshot(): void {
     vaultHomeViewModel.invalidate()
   }
 

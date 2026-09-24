@@ -7,4 +7,8 @@ export class AnimationTokens {
   static readonly STATE_TRANSITION_DURATION: number = 300
   /** 状态过渡曲线 */
   static readonly STATE_TRANSITION_CURVE: Curve = Curve.EaseInOut
+  /** 卡片入场转场缩放起点：由小放大淡入。 */
+  static readonly CARD_ENTER_SCALE: number = 0.9
+  /** 卡片出场转场缩放终点：比入场更小，形成「收起」感。 */
+  static readonly CARD_EXIT_SCALE: number = 0.8
 }

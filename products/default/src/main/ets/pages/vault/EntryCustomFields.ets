@@ -91,10 +91,6 @@ const TYPE_CIRCLE_OPACITY: number = 0.2
 /** 密码字段预览掩码的最大字符数：避免长密码把预览撑成多行，也不暴露完整长度。 */
 const PASSWORD_MASK_MAX: number = 12
 
-/** 卡片入场/出场转场的缩放起点：出场更小，形成"收起"感。 */
-const CARD_ENTER_SCALE: number = 0.9
-const CARD_EXIT_SCALE: number = 0.8
-
 @ComponentV2
 export struct EntryCustomFields {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
@@ -130,13 +126,19 @@ export struct EntryCustomFields {
           duration: AnimationTokens.STATE_TRANSITION_DURATION,
           curve: AnimationTokens.STATE_TRANSITION_CURVE,
         })
-        .combine(TransitionEffect.scale({ x: CARD_ENTER_SCALE, y: CARD_ENTER_SCALE })),
+        .combine(TransitionEffect.scale({
+          x: AnimationTokens.CARD_ENTER_SCALE,
+          y: AnimationTokens.CARD_ENTER_SCALE,
+        })),
       TransitionEffect.OPACITY
         .animation({
           duration: AnimationTokens.STATE_TRANSITION_DURATION,
           curve: AnimationTokens.STATE_TRANSITION_CURVE,
         })
-        .combine(TransitionEffect.scale({ x: CARD_EXIT_SCALE, y: CARD_EXIT_SCALE })),
+        .combine(TransitionEffect.scale({
+          x: AnimationTokens.CARD_EXIT_SCALE,
+          y: AnimationTokens.CARD_EXIT_SCALE,
+        })),
     ))
   private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
