@@ -300,7 +300,7 @@ export class AppViewModel {
       // 采纳落盘后的条目标识：同一次编辑会话内再次保存走更新，不会重复创建条目。
       editor.entryUuid = saved.uuid
       editor.markSaved()
-      // 首页快照由 EntryEditSheet 在 sheet 收起完成后重建：列表变更放在动画上下文里才可见。
+      // 首页快照由 EntrySheet 在半模态收起后重建：列表变更放在动画上下文里才可见。
       this.revision++
       this.setStatus('')
       this.recordActivity()
@@ -396,6 +396,11 @@ export class AppViewModel {
     }
   }
 
+  /**
+   * 归档与还原都改变条目归属的分类，列表快照必须重建：
+   * 归档后条目退出「全部条目」，还原后重回列表。
+   * 半模态的收起由调用方负责，本方法只管落盘与刷新。
+   */
   async toggleArchived(entryUuid: string): Promise<void> {
     this.busy = true
     try {
@@ -403,8 +408,6 @@ export class AppViewModel {
       await stageOneVaultStore.setArchived(entry.uuid, !entry.archived)
       this.refreshVault()
       this.setStatus('')
-      appSessionState.setCurrentModule(ROUTE_VAULT)
-      appRouter.clearToHome()
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('更新归档状态失败', error)

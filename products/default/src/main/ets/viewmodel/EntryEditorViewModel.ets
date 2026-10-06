@@ -40,8 +40,8 @@ export class EntryFieldEditor {
 }
 
 /**
- * 条目编辑器 ViewModel：与 EntryEditSheet 的开合生命周期绑定，
- * 关闭即重置，编辑内容与初始值快照不残留。
+ * 条目编辑器 ViewModel：由编辑态内容组件持有，一次编辑会话一份，
+ * 随半模态离开编辑态而 reset，编辑内容与初始值快照不残留。
  */
 @ObservedV2
 export class EntryEditorViewModel {

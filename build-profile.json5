@@ -3,6 +3,7 @@
     "products": [
       {
         "name": "default",
+        "signingConfig": "default",
         "targetSdkVersion": "26.0.0",
         "compatibleSdkVersion": "26.0.0",
         "runtimeOS": "HarmonyOS",
@@ -27,13 +28,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\Administrator\\.ohos\\config\\default_KeePassHomo_1bYpKe89xjWTH2vj6gc2EAUuhzV0O-9u1v2mAFaR12Q=.cer",
+          "certpath": "C:\\Users\\82077\\.ohos\\config\\default_KeePassHomo_jIZR3PxAftN2eGJ_BLAQy2-NNt_ZP88LO40WWSXoTQE=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B5B86C64319087A3C69C95D48CE57F132F537DA6F18BB9D61A797ACD264B2E9F9D7382D67E13B87",
-          "profile": "C:\\Users\\Administrator\\.ohos\\config\\default_KeePassHomo_1bYpKe89xjWTH2vj6gc2EAUuhzV0O-9u1v2mAFaR12Q=.p7b",
+          "keyPassword": "0000001AC090590EE2569E97AEC523A81D80E155AC0839D8B6CC3752E47EB799557A63D023428381BBB5",
+          "profile": "C:\\Users\\82077\\.ohos\\config\\default_KeePassHomo_jIZR3PxAftN2eGJ_BLAQy2-NNt_ZP88LO40WWSXoTQE=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\Administrator\\.ohos\\config\\default_KeePassHomo_1bYpKe89xjWTH2vj6gc2EAUuhzV0O-9u1v2mAFaR12Q=.p12",
-          "storePassword": "0000001B632D9F7CA2AB0665EE4B321EACC1EAF80C9DAB1761D96D4628752A43972DABA1AE76BC3326D4DE"
+          "storeFile": "C:\\Users\\82077\\.ohos\\config\\default_KeePassHomo_jIZR3PxAftN2eGJ_BLAQy2-NNt_ZP88LO40WWSXoTQE=.p12",
+          "storePassword": "0000001AFD9A56F747350B6A38ECFE802E6064D2EB3D6906D27C4DC25307AEC23F26009ECE76E5CE1A2B"
         }
       }
     ]

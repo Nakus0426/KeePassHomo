@@ -8,69 +8,73 @@ import { FormTextArea } from '../../components/FormTextArea'
 import { FormTextField, FormTextFieldStatus } from '../../components/FormTextField'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
-import { AppSessionState, appSessionState } from '../../state/AppSessionState'
-import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
+import { EntrySheetMode, EntrySheetState } from '../../viewmodel/EntrySheetState'
 import { EntryAvatarPicker } from './EntryAvatarPicker'
 import { EntryCustomFields } from './EntryCustomFields'
 import { EntryTagEditor } from './EntryTagEditor'
 
-@ObservedV2
-export class EntryEditSheetState {
-  @Trace visible: boolean = false
-  @Trace entryUuid: string = ''
-}
-
+/**
+ * 编辑态内容：半模态内的第二种形态，负责表单、校验与保存。
+ * 不持有 bindSheet —— 容器由 EntrySheet 宿主管理，本组件只做内容与草稿。
+ * 草稿归本组件所有，因此「有未保存改动」只有这里答得出来，宿主靠注册钩子取。
+ */
 @ComponentV2
-export struct EntryEditSheet {
-  @Param state: EntryEditSheetState = new EntryEditSheetState()
-  @Local private session: AppSessionState = appSessionState
-  @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
+export struct EntryEditorContent {
+  @Param state: EntrySheetState = new EntrySheetState()
+  /** 标题栏与内容区的避让尺寸，由宿主按半模态测量结果下发。 */
+  @Param topOffset: number = 0
+  @Param bottomOffset: number = 0
+  /** 把「请求放弃改动」的钩子交给宿主：宿主在拖拽收起前调用它弹确认。 */
+  @Event onWillDismissCheck: (handler: () => void) => void = () => {
+  }
+  @Event onCancel: () => void = () => {
+  }
+  @Event onSaved: () => void = () => {
+  }
   @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
-  @Local private generatorSheetVisible: boolean = false
   @Local private passwordVisible: boolean = false
+  @Local private generatorSheetVisible: boolean = false
   /** 保存时字段名为空的卡片 id，-1 表示无。 */
   @Local private invalidFieldId: number = -1
-  /** 本次关闭是否由保存成功触发，关闭动画结束后据此给出成功提示。 */
-  private justSaved: boolean = false
-  /** 保存成功但首页列表快照尚未重建：sheet 收起完成后在动画上下文里补刷。 */
-  private pendingHomeRefresh: boolean = false
   private readonly viewModel: AppViewModel = appViewModel
+  private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
     .fontColor([$r('sys.color.confirm')])
     .fontSize($r('sys.float.titlebar_icon_width'))
   private bounce: BounceAnimator = new BounceAnimator()
-  private readonly scroller: Scroller = new Scroller()
-  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
   private readonly saveIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
     .fontColor([$r('sys.color.confirm')])
     .fontSize($r('sys.float.titlebar_icon_width'))
   private readonly cancelIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
     .fontSize($r('sys.float.titlebar_icon_width'))
     .fontColor([$r('sys.color.icon_primary')])
+  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
+    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+  })
 
-  @Monitor('state.visible')
-  onVisibleChanged(): void {
-    if (this.state.visible) {
-      this.loadEditor()
+  aboutToAppear(): void {
+    this.passwordVisible = false
+    this.invalidFieldId = -1
+    this.loadEditor()
+    this.onWillDismissCheck(() => this.onExternalDismissRequest())
+  }
+
+  /**
+   * 半模态离开编辑态时丢弃草稿：取消、保存后回预览、拖拽收起都走这里。
+   * 不重置就无法区分「草稿」与「已保存内容」，下次进入会带着上一次的残留。
+   */
+  @Monitor('state.mode')
+  onModeChanged(): void {
+    if (this.state.mode === EntrySheetMode.Edit) {
       return
     }
     this.releaseEditor()
   }
 
-  @Monitor('session.vaultLocked')
-  onVaultLockChanged(): void {
-    if (this.session.vaultLocked) {
-      this.closeSheet()
-    }
-  }
-
   private loadEditor(): void {
-    this.passwordVisible = false
     if (this.state.entryUuid.length > 0) {
       this.viewModel.loadEntryForEdit(this.editor, this.state.entryUuid)
       return
@@ -84,11 +88,29 @@ export struct EntryEditSheet {
     this.editor.reset()
   }
 
-  private closeSheet(): void {
-    this.state.visible = false
+  private requestExit(): void {
+    if (this.viewModel.busy) {
+      return
+    }
+    if (!this.editor.changed()) {
+      this.onCancel()
+      return
+    }
+    this.confirmDiscard()
   }
 
-  private confirmDiscard(onDiscard: () => void): void {
+  /**
+   * 宿主在拖拽收起前调用：只有存在未保存改动才需要确认。
+   * 无改动时保持静默，由宿主自己收起半模态。
+   */
+  private onExternalDismissRequest(): void {
+    if (!this.editor.changed()) {
+      return
+    }
+    this.confirmDiscard()
+  }
+
+  private confirmDiscard(): void {
     const options: AlertDialogParamWithButtons = {
       title: $r('app.string.unsaved_title'),
       message: $r('app.string.unsaved_message'),
@@ -100,21 +122,10 @@ export struct EntryEditSheet {
       secondaryButton: {
         value: $r('app.string.discard'),
         fontColor: $r('sys.color.warning'),
-        action: () => onDiscard(),
+        action: () => this.onCancel(),
       },
     }
     this.getUIContext().showAlertDialog(options)
-  }
-
-  private requestExit(): void {
-    if (this.viewModel.busy) {
-      return
-    }
-    if (!this.editor.changed()) {
-      this.closeSheet()
-      return
-    }
-    this.confirmDiscard(() => this.closeSheet())
   }
 
   private saveEntry(): void {
@@ -125,9 +136,8 @@ export struct EntryEditSheet {
     if (invalidFieldKey === undefined) {
       this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
         if (saved) {
-          this.justSaved = true
-          this.pendingHomeRefresh = true
-          this.closeSheet()
+          AppToast.show(this.getUIContext(), $r('app.string.saved'))
+          this.onSaved()
           return
         }
         this.toastStatus()
@@ -148,35 +158,12 @@ export struct EntryEditSheet {
     AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
   }
 
-  private notifySaved(): void {
-    if (!this.justSaved) {
-      return
-    }
-    this.justSaved = false
-    AppToast.show(this.getUIContext(), $r('app.string.saved'))
-  }
-
-  /**
-   * 保存成功后的首页快照刷新推迟到 sheet 收起完成，并在动画上下文里执行：
-   * 首页列表的增删与重排在卡片可见时才播出转场动画（写入本身已在保存时完成）。
-   */
-  private refreshHomeSnapshot(): void {
-    if (!this.pendingHomeRefresh) {
-      return
-    }
-    this.pendingHomeRefresh = false
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-    }, () => this.viewModel.refreshHomeSnapshot())
-  }
-
   private scrollToField(fieldKey: string): void {
     const componentUtils = this.getUIContext().getComponentUtils()
     const fieldTopPx: number = componentUtils.getRectangleById(`field_${fieldKey}`).windowOffset.y
     const scrollTopPx: number = componentUtils.getRectangleById('entry_edit_scroll').windowOffset.y
     const targetY: number = this.scroller.currentOffset().yOffset +
-      this.getUIContext().px2vp(fieldTopPx - scrollTopPx) - this.contentTopOffset
+      this.getUIContext().px2vp(fieldTopPx - scrollTopPx) - this.topOffset
     this.scroller.scrollTo({
       xOffset: 0,
       yOffset: Math.max(targetY, 0),
@@ -207,38 +194,8 @@ export struct EntryEditSheet {
     this.closeGeneratorSheet()
   }
 
-  private onSheetWillDismiss(action: DismissSheetAction): void {
-    if (this.viewModel.busy) {
-      return
-    }
-    if (!this.editor.changed()) {
-      action.dismiss()
-      return
-    }
-    this.confirmDiscard(() => this.closeSheet())
-  }
-
   private get readOnly(): boolean {
     return this.viewModel.currentSource().readOnly
-  }
-
-  @Computed
-  get contentTopOffset(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level16').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
-  }
-
-  @Computed
-  get contentBottomOffset(): number {
-    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
-  }
-
-  @Computed
-  get sheetTopAvoidAreaHeight(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const paddingHeightPx = ResUtil.getNumber($r('sys.float.padding_level12').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + paddingHeightPx)
   }
 
   @Computed
@@ -324,9 +281,9 @@ export struct EntryEditSheet {
       editor: this.editor,
       readOnly: this.readOnly,
       invalidFieldId: this.invalidFieldId,
-      active: this.state.visible,
-      topOffset: this.sheetTopAvoidAreaHeight,
-      bottomOffset: this.contentBottomOffset,
+      active: this.state.mode === EntrySheetMode.Edit,
+      topOffset: this.topOffset,
+      bottomOffset: this.bottomOffset,
       onInvalidCleared: () => this.invalidFieldId = -1,
       onActivity: () => this.viewModel.recordActivity(),
     })
@@ -337,12 +294,12 @@ export struct EntryEditSheet {
     EntryTagEditor({
       editor: this.editor,
       readOnly: this.readOnly,
-      active: this.state.visible,
+      active: this.state.mode === EntrySheetMode.Edit,
       onActivity: () => this.viewModel.recordActivity(),
     })
   }
 
-  @Builder
+  @LocalBuilder
   private otherFieldLabel() {
     Row() {
       Text($r('app.string.field_other'))
@@ -359,8 +316,8 @@ export struct EntryEditSheet {
       GeneratorContent({
         viewModel: this.viewModel.generator,
         controller: this.generatorController,
-        topOffset: this.sheetTopAvoidAreaHeight,
-        bottomOffset: this.contentBottomOffset,
+        topOffset: this.topOffset,
+        bottomOffset: this.bottomOffset,
         onActivity: () => this.viewModel.recordActivity(),
       })
     }
@@ -399,8 +356,7 @@ export struct EntryEditSheet {
     })
   }
 
-  @Builder
-  private sheetContent() {
+  build() {
     HdsNavigation() {
       Scroll(this.scroller) {
         Column() {
@@ -409,7 +365,7 @@ export struct EntryEditSheet {
             avatarData: this.editor.avatarData,
             readOnly: this.readOnly,
             onPicked: (data: ArrayBuffer) => {
-              if (this.state.visible) {
+              if (this.state.mode === EntrySheetMode.Edit) {
                 this.editor.setAvatar(data)
               }
             },
@@ -488,8 +444,8 @@ export struct EntryEditSheet {
         .width('100%')
         .constraintSize({ maxWidth: $r('app.float.content_max_width') })
         .padding({
-          top: this.contentTopOffset,
-          bottom: this.contentBottomOffset,
+          top: this.topOffset,
+          bottom: this.bottomOffset,
         })
       }
       .width('100%')
@@ -501,9 +457,7 @@ export struct EntryEditSheet {
       .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
         dragBar: true,
         backgroundColor: Color.Transparent,
-        systemMaterial: new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-        }),
+        systemMaterial: this.sheetMaterial,
         showClose: false,
         onDisappear: () => this.closeGeneratorSheet(),
       })
@@ -526,39 +480,23 @@ export struct EntryEditSheet {
             ? $r('app.string.new_entry') : $r('app.string.edit'),
         },
         menu: {
+          // 菜单项按数组顺序从右往左排：确认排在数组首位即落在最右侧，
+          // 取消排在其后落在左侧。
           value: [{
-            content: {
-              icon: this.cancelIcon,
-              label: $r('app.string.cancel'),
-              action: () => this.requestExit(),
-            },
-          }, {
             content: {
               icon: this.saveIcon,
               label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
               action: () => this.saveEntry(),
             },
+          }, {
+            content: {
+              icon: this.cancelIcon,
+              label: $r('app.string.cancel'),
+              action: () => this.requestExit(),
+            },
           }],
         },
       },
     })
-  }
-
-  build() {
-    Stack()
-      .width(0)
-      .height(0)
-      .bindSheet(this.state.visible, this.sheetContent(), {
-        dragBar: true,
-        showClose: false,
-        backgroundColor: Color.Transparent,
-        systemMaterial: this.sheetMaterial,
-        onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
-        onDisappear: () => {
-          this.state.visible = false
-          this.notifySaved()
-          this.refreshHomeSnapshot()
-        },
-      })
   }
 }

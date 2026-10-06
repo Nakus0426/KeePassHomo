@@ -8,20 +8,14 @@ const USERNAME_FIELD_NAME: string = 'UserName'
 export struct EntryCard {
   @Require @Param entry: VaultEntry
   @Param avatarData: ArrayBuffer | undefined = undefined
+  /** 收藏状态由列表行模型携带：@Param 保证行模型变化能驱动图标刷新。 */
+  @Param favorite: boolean = false
   @Param favoriteEnabled: boolean = true
-  @Event onEntryClick: (entry: VaultEntry) => void = () => {
+  @Event onEntryClick: () => void = () => {
   }
   @Event onFavoriteToggle: (next: boolean) => void = () => {
   }
-  @Local private favorite: boolean = false
-
-  aboutToAppear(): void {
-    this.favorite = this.entry.favorite
-  }
-
-  @Monitor('entry')
-  private onEntryChanged(): void {
-    this.favorite = this.entry.favorite
+  @Event onEdit: () => void = () => {
   }
 
   @Computed
@@ -30,8 +24,7 @@ export struct EntryCard {
   }
 
   private toggleFavorite(): void {
-    this.favorite = !this.favorite
-    this.onFavoriteToggle(this.favorite)
+    this.onFavoriteToggle(!this.favorite)
   }
 
   build() {
@@ -76,9 +69,8 @@ export struct EntryCard {
     .width('100%')
     .padding(0)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    // border 的适用性大于 borderRadius，必须先写 border，否则圆角会被覆盖掉。
     .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .borderRadius($r('sys.float.corner_radius_level10'))
-    .onClick(() => this.onEntryClick(this.entry))
+    .onClick(() => this.onEntryClick())
   }
 }

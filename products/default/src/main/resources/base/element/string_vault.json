@@ -69,6 +69,18 @@
       "value": "密码"
     },
     {
+      "name": "password_hide_countdown",
+      "value": "密码将在 %s 后自动隐藏"
+    },
+    {
+      "name": "show_password",
+      "value": "显示密码"
+    },
+    {
+      "name": "hide_password",
+      "value": "隐藏密码"
+    },
+    {
       "name": "website",
       "value": "网址"
     },
@@ -303,6 +315,10 @@
     {
       "name": "entry_moved_to_recycle_bin",
       "value": "已放入回收站"
+    },
+    {
+      "name": "preview_placeholder",
+      "value": "条目内容区"
     }
   ]
 }

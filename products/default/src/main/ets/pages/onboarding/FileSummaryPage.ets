@@ -47,7 +47,7 @@ export struct FileSummaryPage {
     return ColorUtil.withAlpha($r('sys.color.alert'), READ_ONLY_BANNER_OPACITY)
   }
 
-  @Builder
+  @LocalBuilder
   fileStatusBuilder() {
     Tag({ type: this.fileSummaryReadOnly ? TagType.Alert : TagType.Confirm }) {
       Text(this.fileSummaryReadOnly ? $r('app.string.read_only') : $r('app.string.writable'))
