@@ -132,11 +132,14 @@ export class HomeEntryListViewModel {
       return
     }
     const next: boolean = !row.favorite
+    LogUtil.info(`[收藏调试] 请求切换，uuid=${uuid}，当前=${row.favorite}，目标=${next}`)
     row.setFavorite(next)
     this.persistFavorite(uuid, next).then((applied: boolean) => {
       // 主表在收藏筛选下会整体重排，回写必须按 uuid 重新定位，不持有旧行模型的引用。
       this.refresh()
-      this.rows.find((item: EntryRowModel) => item.uuid === uuid)?.setFavorite(applied)
+      const refreshedRow: EntryRowModel | undefined = this.rows.find((item: EntryRowModel) => item.uuid === uuid)
+      refreshedRow?.setFavorite(applied)
+      LogUtil.info(`[收藏调试] 列表回写完成，uuid=${uuid}，状态=${applied}，找到行=${refreshedRow !== undefined}`)
     })
   }
 
@@ -225,6 +228,7 @@ export class HomeEntryListViewModel {
     try {
       const entry: VaultEntry = await stageOneVaultStore.setFavorite(uuid, favorite)
       vaultHomeViewModel.invalidate()
+      LogUtil.info(`[收藏调试] 落盘完成，uuid=${uuid}，状态=${entry.favorite}`)
       return entry.favorite
     } catch (error) {
       LogUtil.error(`更新收藏状态失败，错误码=${(error as BusinessError).code}`)

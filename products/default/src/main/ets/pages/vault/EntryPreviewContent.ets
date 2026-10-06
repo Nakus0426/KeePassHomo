@@ -1,4 +1,4 @@
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import {
   hdsMaterial,
   HdsNavigation,
@@ -12,7 +12,7 @@ import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
-import { VaultField, VaultFieldType } from '@ohos/common'
+import { AppToast, VaultField, VaultFieldType } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 
 const PREVIEW_MENU_MAX_COUNT: number = 4
@@ -27,7 +27,14 @@ struct Cell {
   @Require @Param icon: Resource
   @Require @Param label: ResourceStr
   @Param value: string = ''
+  @Param valueExpanded: boolean = false
   @Param clickable: boolean = true
+  @Param showTrailingButton: boolean = false
+  @Param trailingSymbol: Resource = $r('sys.symbol.chevron_down')
+  @Param showExpandedContent: boolean = false
+  @Param expandedContent: string = ''
+  @Event onTrailingClick: () => void = () => {
+  }
   @Event onCellClick: () => void = () => {
   }
   /** 右侧自定义区域：密码可见性、跳转链接、展开折叠按钮。 */
@@ -37,7 +44,8 @@ struct Cell {
 
   build() {
     ListItem() {
-      Row({ space: $r('sys.float.padding_level8') }) {
+      Column() {
+      Row({ space: $r('sys.float.padding_level4') }) {
         SymbolGlyph(this.icon)
           .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
           .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
@@ -47,12 +55,21 @@ struct Cell {
           Text(this.label)
             .fontSize($r('sys.float.Body_M'))
             .fontColor($r('sys.color.font_secondary'))
-          Text(this.value.length > 0 ? this.value : ' ')
-            .fontSize($r('sys.float.Body_L'))
-            .fontColor($r('sys.color.font_primary'))
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.valueExpanded) {
+            Text(this.value.length > 0 ? this.value : ' ')
+              .fontSize($r('sys.float.Body_L'))
+              .fontColor($r('sys.color.font_primary'))
+              .fontWeight(FontWeight.Medium)
+              .wordBreak(WordBreak.BREAK_ALL)
+          } else {
+            Text(this.value.length > 0 ? this.value : ' ')
+              .fontSize($r('sys.float.Body_L'))
+              .fontColor($r('sys.color.font_primary'))
+              .fontWeight(FontWeight.Medium)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .wordBreak(WordBreak.BREAK_ALL)
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
@@ -63,11 +80,20 @@ struct Cell {
           }
           .alignSelf(ItemAlign.Center)
         }
+        if (this.showTrailingButton) {
+          IconToggleButton({
+            symbol: this.trailingSymbol,
+            accessibilityLabel: $r('app.string.notes'),
+            exclusive: true,
+            onToggle: () => this.onTrailingClick(),
+          })
+        }
       }
       .alignItems(VerticalAlign.Top)
 
       if (this.extraBuilder !== undefined) {
         this.extraBuilder()
+      }
       }
 
     }
@@ -111,6 +137,7 @@ export struct EntryPreviewContent {
   @Local private passwordVisible: boolean = false
   @Local private passwordSeconds: number = 0
   @Local private notesExpanded: boolean = false
+  @Local private expandedCustomFields: Set<string> = new Set<string>()
   private passwordTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly favoriteIcon: SymbolGlyphModifier =
@@ -128,6 +155,37 @@ export struct EntryPreviewContent {
   private readonly closeIcon: SymbolGlyphModifier =
     new SymbolGlyphModifier($r('sys.symbol.xmark')).fontSize($r('sys.float.titlebar_icon_width'))
       .fontColor([$r('sys.color.titlebar_icon_color')])
+
+  private needsExpansion(value: string): boolean {
+    return value.includes('\n') || value.length > 48
+  }
+
+  private isCustomExpanded(name: string): boolean {
+    return this.expandedCustomFields.has(name)
+  }
+
+  private toggleCustomExpanded(name: string): void {
+    const expanded: Set<string> = new Set(this.expandedCustomFields)
+    if (expanded.has(name)) {
+      expanded.delete(name)
+    } else {
+      expanded.add(name)
+    }
+    this.expandedCustomFields = expanded
+  }
+
+  private customFieldIcon(type: VaultFieldType): Resource {
+    switch (type) {
+      case VaultFieldType.Url: return $r('sys.symbol.link')
+      case VaultFieldType.Email: return $r('sys.symbol.envelope')
+      case VaultFieldType.Phone: return $r('sys.symbol.phone')
+      case VaultFieldType.Address: return $r('sys.symbol.map')
+      case VaultFieldType.Date: return $r('sys.symbol.calendar')
+      case VaultFieldType.Password: return $r('sys.symbol.key')
+      case VaultFieldType.Text: return $r('sys.symbol.textformat')
+      default: return $r('sys.symbol.circle_grid_2x2')
+    }
+  }
 
   @Computed
   private get username(): string {
@@ -208,11 +266,20 @@ export struct EntryPreviewContent {
     if (this.password.length === 0) {
       return
     }
-    this.viewModel.copyValue(this.password).then(() => this.startPasswordTimeout())
+    this.viewModel.copyValue(this.password).then((copied: boolean) => {
+      if (copied) {
+        this.startPasswordTimeout()
+        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+      }
+    })
   }
 
   private copy(value: string): void {
-    this.viewModel.copyValue(value)
+    this.viewModel.copyValue(value).then((copied: boolean) => {
+      if (copied) {
+        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+      }
+    })
   }
 
   private openUrl(): void {
@@ -297,12 +364,16 @@ export struct EntryPreviewContent {
 
   @LocalBuilder
   private notesTrailing() {
-    IconToggleButton({
-      symbol: this.notesExpanded ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
-      accessibilityLabel: $r('app.string.notes'),
-      exclusive: true,
-      onToggle: () => this.notesExpanded = !this.notesExpanded,
-    })
+    if (this.needsExpansion(this.notes)) {
+      IconToggleButton({
+        symbol: this.notesExpanded ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+        accessibilityLabel: $r('app.string.notes'),
+        exclusive: true,
+        onToggle: () => {
+          this.notesExpanded = !this.notesExpanded
+        },
+      })
+    }
   }
 
   @Builder
@@ -312,7 +383,12 @@ export struct EntryPreviewContent {
         Column({ space: $r('sys.float.padding_level16') }) {
           Row({ space: $r('sys.float.padding_level8') }) {
             EntryAvatar(
-              { title: this.title, avatarData: this.avatarData, avatarSize: $r('app.float.entry_avatar_size') })
+              {
+                title: this.title,
+                avatarData: this.avatarData,
+                avatarSize: $r('app.float.entry_avatar_size'),
+                initialsFontSize: $r('sys.float.Display_S'),
+              })
             Column({ space: $r('sys.float.padding_level4') }) {
               Text(this.title)
                 .width('100%')
@@ -333,7 +409,8 @@ export struct EntryPreviewContent {
           }
           .margin({ left: $r('sys.float.padding_level8') })
 
-          List() {
+          Column({ space: $r('sys.float.padding_level8') }) {
+            List() {
             Cell({
               icon: $r('sys.symbol.person'),
               label: $r('app.string.username'),
@@ -370,84 +447,83 @@ export struct EntryPreviewContent {
             Cell({
               icon: $r('sys.symbol.doc_text'),
               label: $r('app.string.notes'),
-              value: '',
+              value: this.notesExpanded ? this.notes : this.notes.split('\n')[0],
+              valueExpanded: this.notesExpanded,
               clickable: this.notes.length > 0,
               onCellClick: () => this.copy(this.notes),
               trailingBuilder: this.notesTrailing,
-              extraBuilder: () => {
-                if (this.notesExpanded) {
-                  Text(this.notes)
-                    .width('100%')
-                    .fontSize($r('sys.float.Body_M'))
-                    .fontColor($r('sys.color.font_primary'))
-                    .wordBreak(WordBreak.BREAK_ALL)
-                    .padding({
-                      left: $r('sys.float.padding_level16'),
-                      right: $r('sys.float.padding_level8'),
-                      top: $r('sys.float.padding_level4'),
-                      bottom: $r('sys.float.padding_level8'),
-                    })
-                }
-              },
             })
 
-            ListItem() {
-              Row({ space: $r('sys.float.padding_level8') }) {
+            }
+            .backgroundColor($r('sys.color.comp_background_primary'))
+            .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+            .borderRadius($r('sys.float.corner_radius_level10'))
+            .divider({
+              strokeWidth: 1,
+              color: $r('sys.color.grid_menu_divider_color'),
+              startMargin: $r('sys.float.padding_level8'),
+              endMargin: $r('sys.float.padding_level8'),
+            })
+
+            Row() {
+              Row({ space: $r('sys.float.padding_level4') }) {
                 SymbolGlyph($r('sys.symbol.label'))
                   .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
                   .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
                   .fontColor([$r('sys.color.brand')])
                 Flex({
                   wrap: FlexWrap.Wrap, space: {
-                    main: LengthMetrics.vp(ResUtil.getNumber($r('sys.float.padding_level4').id)),
-                    cross: LengthMetrics.vp(ResUtil.getNumber($r('sys.float.padding_level4').id)),
+                    main: LengthMetrics.resource($r('sys.float.padding_level8')),
+                    cross: LengthMetrics.resource($r('sys.float.padding_level8')),
                   },
                 }) {
                   ForEach(this.tags, (tag: string) => {
-                    Text(tag)
-                      .fontSize($r('sys.float.Caption_M'))
-                      .fontColor($r('sys.color.brand'))
-                      .padding({
-                        left: $r('sys.float.padding_level8'),
-                        right: $r('sys.float.padding_level8'),
-                        top: $r('sys.float.padding_level4'),
-                        bottom: $r('sys.float.padding_level4'),
-                      })
-                      .backgroundColor($r('sys.color.comp_background_secondary'))
-                      .borderRadius($r('sys.float.chip_border_radius_normal'))
+                    ChipV2({ chipV2Options: new ChipV2Options({
+                      label: new ChipV2Label({ text: tag }),
+                      allowClose: false,
+                    }) })
                   }, (tag: string) => tag)
                 }
                 .layoutWeight(1)
               }
               .width('100%')
               .alignItems(VerticalAlign.Top)
-              .padding($r('sys.float.padding_level4'))
+              .padding($r('sys.float.padding_level8'))
             }
             .width('100%')
-            .backgroundColor(Color.Transparent)
+            .backgroundColor($r('sys.color.comp_background_primary'))
+            .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+            .borderRadius($r('sys.float.corner_radius_level10'))
 
-            ForEach(this.customFields, (field: VaultField) => {
-              Cell({
-                icon: field.type === VaultFieldType.Password ? $r('sys.symbol.lock') : $r('sys.symbol.circle_grid_2x2'),
-                label: field.name,
-                value: field.value.length > 0 &&
-                  (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value,
-                clickable: field.value.length > 0,
-                onCellClick: () => this.copy(field.value),
-              })
-            }, (field: VaultField) => field.name)
+            if (this.customFields.length > 0) {
+              List() {
+                ForEach(this.customFields, (field: VaultField) => {
+                  Cell({
+                    icon: this.customFieldIcon(field.type),
+                    label: field.name,
+                    value: this.isCustomExpanded(field.name)
+                      ? (field.value.length > 0 &&
+                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value)
+                      : (field.value.length > 0 &&
+                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value).split('\n')[0],
+                    valueExpanded: this.isCustomExpanded(field.name),
+                    clickable: field.value.length > 0,
+                    onCellClick: () => this.copy(field.value),
+                    showTrailingButton: this.needsExpansion(field.value),
+                    trailingSymbol: this.isCustomExpanded(field.name) ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+                    onTrailingClick: () => this.toggleCustomExpanded(field.name),
+                  })
+                }, (field: VaultField) => field.name)
+              }
+              .width('100%')
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+              .borderRadius($r('sys.float.corner_radius_level10'))
+              .divider({ strokeWidth: 1, color: $r('sys.color.grid_menu_divider_color'), startMargin: $r('sys.float.padding_level8'), endMargin: $r('sys.float.padding_level8') })
+              .scrollBar(BarState.Off)
+            }
           }
-          .backgroundColor($r('sys.color.comp_background_primary'))
-          .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-          .borderRadius($r('sys.float.corner_radius_level10'))
-          .divider({
-            strokeWidth: 1,
-            color: $r('sys.color.grid_menu_divider_color'),
-            startMargin: $r('sys.float.padding_level8'),
-            endMargin: $r('sys.float.padding_level8'),
-          })
           .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-          .scrollBar(BarState.Off)
 
         }
         .justifyContent(FlexAlign.Start)

@@ -13,6 +13,7 @@ export struct EntryAvatar {
   @Param title: string = ''
   @Param avatarData: ArrayBuffer | undefined = undefined
   @Param avatarSize: Length = $r('app.float.entry_card_avatar_size')
+  @Param initialsFontSize: Length = $r('sys.float.Body_L')
   @Local private avatarPixelMap: image.PixelMap | undefined = undefined
   /** 已解码的来源字节：列表节点换条目复用时，据此判断旧图必须先清空。 */
   private decodedSource: ArrayBuffer | undefined = undefined
@@ -65,7 +66,7 @@ export struct EntryAvatar {
           .objectFit(ImageFit.Cover)
       } else {
         Text(this.initials)
-          .fontSize($r('sys.float.Body_L'))
+          .fontSize(this.initialsFontSize)
           .fontWeight(FontWeight.Bold)
           .fontColor(Color.White)
       }

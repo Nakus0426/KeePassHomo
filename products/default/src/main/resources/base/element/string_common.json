@@ -41,6 +41,10 @@
       "value": "复制"
     },
     {
+      "name": "copy_completed",
+      "value": "复制成功"
+    },
+    {
       "name": "edit",
       "value": "编辑"
     },

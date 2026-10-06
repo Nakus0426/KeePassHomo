@@ -281,27 +281,27 @@ export struct VaultHomePage {
   }
 
   @Builder
-  private entryCardSlot(row: EntryRowModel) {
+  private entryCardSlot(item: RepeatItem<EntryRowModel>) {
     Row() {
       EntryCard({
-        entry: row.entry,
-        avatarData: row.avatarData,
-        favorite: row.favorite,
+        entry: item.item.entry,
+        avatarData: item.item.avatarData,
+        favorite: item.item.favorite,
         favoriteEnabled: !this.app.currentSource().readOnly,
-        onEntryClick: () => this.list.openEntry(row.uuid),
-        onFavoriteToggle: () => this.list.toggleFavorite(row.uuid),
-        onEdit: () => this.list.openEdit(row.uuid),
+        onEntryClick: () => this.list.openEntry(item.item.uuid),
+        onFavoriteToggle: () => this.list.toggleFavorite(item.item.uuid),
+        onEdit: () => this.list.openEdit(item.item.uuid),
       })
     }
     .width('100%')
     .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-    .height(this.removingEntryUuid === row.uuid ? 0 : 'auto')
-    .opacity(this.removingEntryUuid === row.uuid ? 0 : 1)
+    .height(this.removingEntryUuid === item.item.uuid ? 0 : 'auto')
+    .opacity(this.removingEntryUuid === item.item.uuid ? 0 : 1)
     .scale({
-      x: this.removingEntryUuid === row.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
-      y: this.removingEntryUuid === row.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
+      x: this.removingEntryUuid === item.item.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
+      y: this.removingEntryUuid === item.item.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
     })
-    .clip(this.removingEntryUuid === row.uuid)
+    .clip(this.removingEntryUuid === item.item.uuid)
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
@@ -322,7 +322,7 @@ export struct VaultHomePage {
           HdsListItem({
             customItemBuilder: () => {
               // 必须整体传 RepeatItem：只传 item.item 会让复用节点读不到数据变化（官方 FAQ faqs-arkui-609）。
-              this.entryCardSlot(item.item)
+              this.entryCardSlot(item)
             },
             listItemModifier: this.entryCardItemModifier,
             swipeActionOptions: this.app.currentSource().readOnly ? undefined : {

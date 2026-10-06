@@ -14,6 +14,14 @@ oh_modules/
 .zcode
 .codegenie
 /sign
+/signing/*.p12
+/signing/*.p7b
+/signing/*.cer
+/signing/*.csr
+/signing/*.pem
+/signing/*.key
+/signing/*.jks
+/signing/*.keystore
 /.codex
 *.p12
 *.p7b

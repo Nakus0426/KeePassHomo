@@ -416,14 +416,16 @@ export class AppViewModel {
     }
   }
 
-  async copyValue(value: string): Promise<void> {
+  async copyValue(value: string): Promise<boolean> {
     if (value.length === 0) {
-      return
+      return false
     }
     try {
       await this.session.copyValue(value)
+      return true
     } catch (error) {
       this.reportBoundaryError('复制失败', error)
+      return false
     }
   }
 
