@@ -36,3 +36,5 @@ oh_modules/
 /.codegraph/
 /.trae/
 /.qoder/
+/.dsh/
+/.cache/
