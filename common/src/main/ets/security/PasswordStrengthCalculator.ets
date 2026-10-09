@@ -1,6 +1,3 @@
-/**
- * 密码强度等级。
- */
 export enum StrengthLevel {
   Invalid = 0,
   VeryWeak = 1,
@@ -21,10 +18,6 @@ const KEYBOARD_SEQUENCES: string[] = [
   'qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890',
 ]
 
-/**
- * 轻量启发式密码强度计算器。
- * 仅依赖密码文本，适合在 UI 输入变化时同步调用。
- */
 export class PasswordStrengthCalculator {
   static calculate(password: string): StrengthLevel {
     if (password.length === 0) {

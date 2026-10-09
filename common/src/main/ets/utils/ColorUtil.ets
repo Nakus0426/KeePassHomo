@@ -4,17 +4,8 @@ export interface ColorMetricsLike {
   getColor(): ResourceColor
 }
 
-/**
- * 颜色透明度工具类。
- * 将 ResourceColor（数值、十六进制字符串、资源）或 ColorMetrics 施加指定透明度，
- * 返回可直接用于 ArkUI 颜色属性的 ARGB 数值（ResourceColor 数值形态）。
- *
- * 注意：
- * - Resource 资源色（如 $r('sys.color.brand')）经解析后色值固化，深浅色切换不会自动更新；
- *   若需跟随深浅色，应在颜色资源变化时重新调用本工具。
- * - ColorMetrics 仅作为入参支持；如需 ColorMetrics 出参形态，
- *   请在 UI 文件中使用 ColorMetrics.createColor(withAlpha(...)) 包装。
- */
+// Resource 资源色解析后色值固化，深浅色切换不会自动更新，需跟随色调时应重新调用；
+// ColorMetrics 仅支持下入参，出参形态需在 UI 层用 ColorMetrics.createColor(withAlpha(...)) 包装。
 export class ColorUtil {
   static withAlpha(color: ResourceColor | ColorMetricsLike, alpha: number): number {
     if (!(alpha >= 0 && alpha <= 1)) {
@@ -25,12 +16,7 @@ export class ColorUtil {
     return ((argb & 0x00FFFFFF) | (alphaChannel << 24)) >>> 0
   }
 
-  /**
-   * 为颜色设置透明度并返回 #AARRGGBB 字符串。
-   *
-   * linearGradient 的零透明度颜色不能使用数值型 0x00RRGGBB，
-   * 使用字符串可以避免 ArkUI 忽略 Alpha 通道。
-   */
+  // linearGradient 的零透明度颜色须用字符串，数值型 0x00RRGGBB 会被 ArkUI 忽略 Alpha 通道。
   static withAlphaHex(color: ResourceColor | ColorMetricsLike, alpha: number): string {
     if (!(alpha >= 0 && alpha <= 1)) {
       throw new Error(`透明度取值非法：${alpha}，应在 [0, 1] 区间`)
