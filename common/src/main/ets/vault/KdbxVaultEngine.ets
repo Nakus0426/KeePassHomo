@@ -29,12 +29,10 @@ const KDBX_SIGNATURE_1: number = 0x9AA2D903
 const KDBX_SIGNATURE_2: number = 0xB54BFB67
 const FAVORITE_KEY: string = `${META_KEY_PREFIX}Favorite`
 const ARCHIVED_KEY: string = `${META_KEY_PREFIX}Archived`
-/** 字段类型表：{ 字段名: VaultFieldType }，仅存非 Text 项。 */
+// 字段类型表：{ 字段名: VaultFieldType }，仅存非 Text 项。
 const FIELD_TYPES_KEY: string = `${META_KEY_PREFIX}FieldTypes`
-/**
- * 条目使用自定义图标时的 IconID。KDBX 约定 IconID >= 69 才表示"图标来自自定义图标池"，
- * 只设 entry.customIcon 而不设该值，写出的 IconID=0 会被 KeePass 忽略。
- */
+// 条目使用自定义图标时的 IconID：KDBX 约定 IconID >= 69 才表示图标来自自定义图标池，
+// 只设 entry.customIcon 而不设该值，写出的 IconID=0 会被 KeePass 忽略。
 const CUSTOM_ICON_ID: number = 69
 
 export enum VaultEngineErrorCategory {
@@ -91,7 +89,6 @@ function fieldValue(field: string | ProtectedValue): VaultField {
   return { name: '', protected: false, value: field, type: VaultFieldType.Text }
 }
 
-/** 类型字符串无法识别时回落到 Text（应用私有元数据，不做透传）。 */
 function toFieldType(value: string | undefined): VaultFieldType {
   switch (value) {
     case VaultFieldType.Url:
@@ -113,7 +110,7 @@ function toFieldType(value: string | undefined): VaultFieldType {
   }
 }
 
-/** 读取字段类型表；缺失或损坏时按空表处理（值不受影响，仅类型回落到 Text）。 */
+// 类型表缺失或损坏时按空表处理：字段值不受影响，仅类型回落到 Text。
 function readFieldTypes(entry: KdbxEntry): Map<string, VaultFieldType> {
   const types: Map<string, VaultFieldType> = new Map()
   const raw: string | undefined = entry.customData?.get(FIELD_TYPES_KEY)?.value
@@ -149,7 +146,6 @@ function groupPath(group: KdbxGroup | undefined): string {
   return names.filter((name: string) => name.length > 0).join(' / ')
 }
 
-/** 逐字节比较图标池中的图片内容，用于复用同一张头像。 */
 function sameBytes(left: ArrayBuffer, right: ArrayBuffer): boolean {
   if (left.byteLength !== right.byteLength) {
     return false
@@ -321,23 +317,17 @@ export class KdbxVaultEngine implements VaultEngine {
       throw new Error('保险库分组不存在')
     }
     const created: KdbxGroup = kdbx.createGroup(parentGroup, name)
-    // 挂到映射树的父组上：document.groups 与 store.groups() 是同一批对象，
-    // 只加不改，后续全量读取即可见，无需重建整棵映射树。
     const mappedParent: VaultGroup | undefined = this.findMappedGroup(document.groups, parentGroup.uuid.id)
     if (mappedParent === undefined) {
       throw new Error('保险库分组映射不存在')
     }
-    // 父路径显式传入，保证新组 path 与整树重映射的结果一致。
     const mapped: VaultGroup = mapGroup(created, kdbx.meta.customIcons, mappedParent.path)
     mappedParent.groups.push(mapped)
     return mapped
   }
 
-  /**
-   * 删除分组：kdbx.remove 按 KDBX 语义把整棵子树移入回收站（回收站关闭时彻底移除并写删除墓碑），
-   * 映射树则把该子树整块摘除——映射树只承载应用可见的分组，与 removeEntry 的约定一致
-   * （回收站子树在 StageOneVaultStore 的读取侧本就整体跳过）。
-   */
+  // 按 KDBX 语义，kdbx.remove 把整棵子树（子分组与条目）移入回收站，回收站关闭时彻底移除；
+  // 映射树整块摘除该子树，只承载应用可见分组。
   removeGroup(document: VaultDocument, groupUuid: string): void {
     this.requireWritable(document)
     const kdbx: Kdbx = this.getKdbx(document)
@@ -372,8 +362,6 @@ export class KdbxVaultEngine implements VaultEngine {
     group.name = name
     group.times.update()
     mapped.name = name
-    // name/path 是映射时算好的快照：改名后必须重算子树的 path（含子树内条目的分组快照），
-    // 否则分组搜索、行副行与条目预览仍显示旧路径。
     this.rewriteMappedPaths(mapped, parentPath)
     return mapped
   }
@@ -582,10 +570,7 @@ export class KdbxVaultEngine implements VaultEngine {
     return undefined
   }
 
-  /**
-   * 写入条目的全部字段：5 个保留字段 + 自定义字段，
-   * 未出现在 input.fields 里的既有自定义字段会被删除（用户删除或改名的旧键）。
-   */
+  // 写入 5 个保留字段与自定义字段；未列入 input.fields 的既有自定义字段会被删除。
   private writeFields(entry: KdbxEntry, input: VaultEntryInput): void {
     entry.setField('Title', input.title)
     entry.setField('UserName', input.username)
@@ -634,10 +619,7 @@ export class KdbxVaultEngine implements VaultEngine {
     entry.customData.set(FIELD_TYPES_KEY, { value: JSON.stringify(types), lastModified: new Date() })
   }
 
-  /**
-   * 写入条目头像：KDBX 用 meta 级共享的图标池承载自定义图标，
-   * 条目只通过 entry.customIcon 指向池中的一项。
-   */
+  // KDBX 自定义图标存于 meta 级共享图标池，条目仅通过 entry.customIcon 指向其中一项。
   private writeAvatar(entry: KdbxEntry, kdbx: Kdbx, avatar: ArrayBuffer | null | undefined): void {
     if (avatar === undefined) {
       return
@@ -651,7 +633,6 @@ export class KdbxVaultEngine implements VaultEngine {
     entry.icon = CUSTOM_ICON_ID
   }
 
-  /** 图标池里已有内容相同的图片时复用其 uuid，否则新建一项。 */
   private customIconUuid(customIcons: Map<string, KdbxCustomIcon>, data: ArrayBuffer): KdbxUuid {
     let existingId: string = ''
     customIcons.forEach((icon: KdbxCustomIcon, id: string) => {
@@ -713,7 +694,6 @@ export class KdbxVaultEngine implements VaultEngine {
     return undefined
   }
 
-  /** 从映射树摘除分组子树；命中即返回 true。 */
   private removeMappedGroup(groups: VaultGroup[], groupUuid: string): boolean {
     for (const group of groups) {
       const index: number = group.groups.findIndex((child: VaultGroup) => child.uuid === groupUuid)
@@ -728,7 +708,6 @@ export class KdbxVaultEngine implements VaultEngine {
     return false
   }
 
-  /** 映射组的父路径，根层为空串；与 mapGroup 的路径拼接规则一致。 */
   private findMappedParentPath(groups: VaultGroup[], groupUuid: string,
     parentPath: string): string | undefined {
     for (const group of groups) {
@@ -743,7 +722,6 @@ export class KdbxVaultEngine implements VaultEngine {
     return undefined
   }
 
-  /** 重写子树内所有分组的 path，并同步子树内条目的分组名称与全路径快照。 */
   private rewriteMappedPaths(group: VaultGroup, parentPath: string): void {
     group.path = parentPath.length === 0 ? group.name : `${parentPath} / ${group.name}`
     for (const entry of group.entries) {

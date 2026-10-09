@@ -95,17 +95,13 @@ export interface AuditFinding {
   evidence: string;
 }
 
-/** KDBX 保留字段名：条目标识与凭据走强类型属性，不进入自定义字段列表。 */
+// KDBX 保留字段名：条目标识与凭据走强类型属性，不进入自定义字段列表。
 export const RESERVED_FIELD_NAMES: string[] = ['Title', 'UserName', 'Password', 'URL', 'Notes']
 
-/** 应用私有元数据（条目 customData）的键前缀，其他客户端会忽略。 */
+// 应用私有元数据（条目 customData）的键前缀，其他客户端会忽略。
 export const META_KEY_PREFIX: string = 'KeePassHomo.'
 
-/**
- * 字段类型：KDBX 本身没有类型系统，类型由应用存于条目 customData，
- * 仅驱动输入控件与点击动作，落盘的值一律是字符串。
- * Custom 不预置字段名，也不改变输入控件，仅用于把用户自建的字段与内置「文本」类型区分开。
- */
+// KDBX 无类型系统：类型由应用存于条目 customData，仅驱动输入控件与点击动作，落盘值一律为字符串。
 export enum VaultFieldType {
   Text = 'text',
   Url = 'url',
@@ -137,7 +133,7 @@ export interface VaultEntry {
   favorite: boolean;
   archived: boolean;
 
-  /** 条目绑定了 KDBX 自定义图标（头像）。图标字节按需通过 loadEntryAvatar 读取。 */
+  // 条目绑定了 KDBX 自定义图标（头像）；图标字节按需通过 loadEntryAvatar 读取。
   hasAvatar: boolean;
   lastModifiedAt: number;
 }
@@ -156,14 +152,12 @@ export interface VaultEntryInput {
   password: string;
   url: string;
   notes: string;
-  /** 自定义字段：不含 5 个保留字段；未列出的既有自定义字段会被删除。 */
+  // 自定义字段：不含 5 个保留字段；未列出的既有自定义字段会被删除。
   fields: VaultFieldInput[];
   tags: string[];
 
-  /**
-   * 头像三态：undefined 表示保持原有头像不变，null 表示删除头像，
-   * ArrayBuffer 表示写入该图片字节（复用图标池中内容相同的项，否则新建）。
-   */
+  // 头像三态：undefined 保持原有头像，null 删除头像，ArrayBuffer 写入该图片字节
+  // （图标池中内容相同的项会被复用，否则新建）。
   avatar?: ArrayBuffer | null;
 }
 
@@ -179,7 +173,7 @@ export interface VaultDocument {
   format: VaultFormat;
   name: string;
   groups: VaultGroup[];
-  /** KDBX 回收站分组 uuid（meta.recycleBinUuid）；无回收站时为空串。 */
+  // KDBX 回收站分组 uuid（meta.recycleBinUuid）；无回收站时为空串。
   recycleBinUuid: string;
 }
 
@@ -196,16 +190,14 @@ export interface VaultEngine {
 
   removeEntry(document: VaultDocument, entryUuid: string): void;
 
-  /** 在指定父分组下新建子分组；父分组不存在时抛错。 */
+  // 父分组不存在时抛错。
   createGroup(document: VaultDocument, parentGroupUuid: string, name: string): VaultGroup;
 
-  /**
-   * 删除分组：按 KDBX 语义把整棵子树（子分组与条目）移入回收站，回收站关闭时彻底移除；
-   * 根分组是文档容器，不允许删除。
-   */
+  // 按 KDBX 语义把整棵子树（子分组与条目）移入回收站，回收站关闭时彻底移除；
+  // 根分组是文档容器，不允许删除。
   removeGroup(document: VaultDocument, groupUuid: string): void;
 
-  /** 重命名分组；名称与全路径会同步到该子树的映射快照。 */
+  // 名称与该子树的 path 快照会同步更新。
   renameGroup(document: VaultDocument, groupUuid: string, name: string): VaultGroup;
 
   loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined;
