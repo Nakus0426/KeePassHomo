@@ -77,8 +77,9 @@ export struct FileSummaryPage {
                     .fontSize($r('sys.float.Title_S'))
                     .fontColor($r('sys.color.font_primary'))
                     .fontWeight(FontWeight.Medium)
-                    .textOverflow({ overflow: TextOverflow.MARQUEE })
-                    .marqueeOptions({ start: true, fadeout: true })
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .ellipsisMode(EllipsisMode.CENTER)
                 }
                 .alignItems(VerticalAlign.Center)
                 .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })

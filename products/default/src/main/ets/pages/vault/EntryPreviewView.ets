@@ -374,15 +374,18 @@ export struct EntryPreviewView {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('sys.color.font_primary'))
                 .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.MARQUEE })
-                .marqueeOptions({ fadeout: true, start: true })
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .ellipsisMode(EllipsisMode.CENTER)
               Row({ space: $r('sys.float.padding_level4') }) {
                 SymbolGlyph($r('sys.symbol.folder')).fontSize($r('sys.float.Body_M'))
                   .fontColor([$r('sys.color.font_secondary')])
                 Text(this.sheet.groupPath).fontSize($r('sys.float.Body_M'))
                   .fontColor($r('sys.color.font_secondary'))
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .ellipsisMode(EllipsisMode.CENTER)
+                  .layoutWeight(1)
               }
+              .width('100%')
             }
             .layoutWeight(1).alignItems(HorizontalAlign.Start)
           }

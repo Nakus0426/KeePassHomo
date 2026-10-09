@@ -55,26 +55,24 @@ export struct Cell {
         .justifyContent(FlexAlign.End)
         .alignItems(VerticalAlign.Center)
       }
-      .padding($r('sys.float.padding_level6'))
-      .margin($r('sys.float.padding_level2'))
       .alignItems(VerticalAlign.Center)
-      .stateStyles({
-        normal: {
-          .backgroundColor(Color.Transparent)
-        },
-        pressed: {
-          .backgroundColor(this.clickable ? $r('sys.color.interactive_pressed') : Color.Transparent)
-        },
-      })
-      .borderRadius($r('sys.float.corner_radius_level8'))
-      .onClick(() => {
-        if (!this.clickable) {
-          return
-        }
-        this.onCellClick()
-      })
     }
-    .width('100%')
-    .backgroundColor(Color.Transparent)
+    .padding($r('sys.float.padding_level6'))
+    .margin($r('sys.float.padding_level2'))
+    .stateStyles({
+      normal: {
+        .backgroundColor(Color.Transparent)
+      },
+      pressed: {
+        .backgroundColor(this.clickable ? $r('sys.color.interactive_pressed') : Color.Transparent)
+      },
+    })
+    .borderRadius($r('sys.float.corner_radius_level8'))
+    .onClick(() => {
+      if (!this.clickable) {
+        return
+      }
+      this.onCellClick()
+    })
   }
 }
