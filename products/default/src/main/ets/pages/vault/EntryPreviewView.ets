@@ -10,6 +10,7 @@ import {
 } from '@kit.UIDesignKit'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
+import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
@@ -40,55 +41,55 @@ struct Cell {
   build() {
     ListItem() {
       Column() {
-      Row({ space: $r('sys.float.padding_level4') }) {
-        SymbolGlyph(this.icon)
-          .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
-          .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-          .fontColor([$r('sys.color.brand')])
+        Row({ space: $r('sys.float.padding_level4') }) {
+          SymbolGlyph(this.icon)
+            .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
+            .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
+            .fontColor([$r('sys.color.brand')])
 
-        Column({ space: $r('sys.float.padding_level4') }) {
-          Text(this.label)
-            .fontSize($r('sys.float.Body_M'))
-            .fontColor($r('sys.color.font_secondary'))
-          if (this.valueExpanded) {
-            Text(this.value.length > 0 ? this.value : ' ')
-              .fontSize($r('sys.float.Body_L'))
-              .fontColor($r('sys.color.font_primary'))
-              .fontWeight(FontWeight.Medium)
-              .wordBreak(WordBreak.BREAK_ALL)
-          } else {
-            Text(this.value.length > 0 ? this.value : ' ')
-              .fontSize($r('sys.float.Body_L'))
-              .fontColor($r('sys.color.font_primary'))
-              .fontWeight(FontWeight.Medium)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .wordBreak(WordBreak.BREAK_ALL)
+          Column({ space: $r('sys.float.padding_level4') }) {
+            Text(this.label)
+              .fontSize($r('sys.float.Body_M'))
+              .fontColor($r('sys.color.font_secondary'))
+            if (this.valueExpanded) {
+              Text(this.value.length > 0 ? this.value : ' ')
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+                .fontWeight(FontWeight.Medium)
+                .wordBreak(WordBreak.BREAK_ALL)
+            } else {
+              Text(this.value.length > 0 ? this.value : ' ')
+                .fontSize($r('sys.float.Body_L'))
+                .fontColor($r('sys.color.font_primary'))
+                .fontWeight(FontWeight.Medium)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .wordBreak(WordBreak.BREAK_ALL)
+            }
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.trailingBuilder !== undefined) {
+            Row({ space: $r('sys.float.padding_level4') }) {
+              this.trailingBuilder()
+            }
+            .alignSelf(ItemAlign.Center)
+          }
+          if (this.showTrailingButton) {
+            IconToggleButton({
+              symbol: this.trailingSymbol,
+              accessibilityLabel: $r('app.string.notes'),
+              exclusive: true,
+              onToggle: () => this.onTrailingClick(),
+            })
           }
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
+        .alignItems(VerticalAlign.Top)
 
-        if (this.trailingBuilder !== undefined) {
-          Row({ space: $r('sys.float.padding_level4') }) {
-            this.trailingBuilder()
-          }
-          .alignSelf(ItemAlign.Center)
+        if (this.extraBuilder !== undefined) {
+          this.extraBuilder()
         }
-        if (this.showTrailingButton) {
-          IconToggleButton({
-            symbol: this.trailingSymbol,
-            accessibilityLabel: $r('app.string.notes'),
-            exclusive: true,
-            onToggle: () => this.onTrailingClick(),
-          })
-        }
-      }
-      .alignItems(VerticalAlign.Top)
-
-      if (this.extraBuilder !== undefined) {
-        this.extraBuilder()
-      }
       }
 
     }
@@ -113,15 +114,8 @@ struct Cell {
 }
 
 @ComponentV2
-export struct EntryPreviewContent {
-  @Param title: string = ''
-  @Param groupPath: string = ''
-  @Param fields: VaultField[] = []
-  @Param tags: string[] = []
-  @Param entryUuid: string = ''
-  @Param favorite: boolean = false
-  @Param readOnly: boolean = false
-  @Param avatarData: ArrayBuffer | undefined = undefined
+export struct EntryPreviewView {
+  @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Param topOffset: number = 0
   @Param bottomOffset: number = 0
   @Event onClose: () => void = () => {
@@ -129,10 +123,9 @@ export struct EntryPreviewContent {
   @Event onEdit: () => void = () => {
   }
   @Local private session: AppSessionState = appSessionState
+  // 明文可见性是敏感状态，只在预览体存活期间有效，绝不外提。
   @Local private passwordVisible: boolean = false
   @Local private passwordSeconds: number = 0
-  @Local private notesExpanded: boolean = false
-  @Local private expandedCustomFields: Set<string> = new Set<string>()
   private passwordTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly favoriteIcon: SymbolGlyphModifier =
@@ -155,30 +148,24 @@ export struct EntryPreviewContent {
     return value.includes('\n') || value.length > 48
   }
 
-  private isCustomExpanded(name: string): boolean {
-    return this.expandedCustomFields.has(name)
-  }
-
-  private toggleCustomExpanded(name: string): void {
-    const expanded: Set<string> = new Set(this.expandedCustomFields)
-    if (expanded.has(name)) {
-      expanded.delete(name)
-    } else {
-      expanded.add(name)
-    }
-    this.expandedCustomFields = expanded
-  }
-
   private customFieldIcon(type: VaultFieldType): Resource {
     switch (type) {
-      case VaultFieldType.Url: return $r('sys.symbol.link')
-      case VaultFieldType.Email: return $r('sys.symbol.envelope')
-      case VaultFieldType.Phone: return $r('sys.symbol.phone')
-      case VaultFieldType.Address: return $r('sys.symbol.map')
-      case VaultFieldType.Date: return $r('sys.symbol.calendar')
-      case VaultFieldType.Password: return $r('sys.symbol.key')
-      case VaultFieldType.Text: return $r('sys.symbol.textformat')
-      default: return $r('sys.symbol.circle_grid_2x2')
+      case VaultFieldType.Url:
+        return $r('sys.symbol.link')
+      case VaultFieldType.Email:
+        return $r('sys.symbol.envelope')
+      case VaultFieldType.Phone:
+        return $r('sys.symbol.phone')
+      case VaultFieldType.Address:
+        return $r('sys.symbol.map')
+      case VaultFieldType.Date:
+        return $r('sys.symbol.calendar')
+      case VaultFieldType.Password:
+        return $r('sys.symbol.key')
+      case VaultFieldType.Text:
+        return $r('sys.symbol.textformat')
+      default:
+        return $r('sys.symbol.circle_grid_2x2')
     }
   }
 
@@ -204,7 +191,7 @@ export struct EntryPreviewContent {
 
   @Computed
   private get customFields(): VaultField[] {
-    return this.fields.filter((field: VaultField) =>
+    return this.sheet.fields.filter((field: VaultField) =>
     field.name !== 'Title' && field.name !== 'UserName' && field.name !== 'Password' &&
       field.name !== 'URL' && field.name !== 'Notes')
   }
@@ -221,7 +208,7 @@ export struct EntryPreviewContent {
   }
 
   private fieldValue(name: string): string {
-    return this.fields.find((field: VaultField) => field.name === name)?.value ?? ''
+    return this.sheet.fields.find((field: VaultField) => field.name === name)?.value ?? ''
   }
 
   private clearPasswordTimer(): void {
@@ -286,10 +273,6 @@ export struct EntryPreviewContent {
     return ResUtil.getStringSync($r('app.string.password_hide_countdown')).replace('%s', time)
   }
 
-  private toggleFavorite(): void {
-    this.viewModel.toggleFavorite(this.entryUuid)
-  }
-
   private confirmDelete(): void {
     const options: AlertDialogParamWithButtons = {
       title: $r('app.string.delete_entry_title'),
@@ -301,7 +284,7 @@ export struct EntryPreviewContent {
       secondaryButton: {
         value: $r('app.string.delete_entry'),
         fontColor: $r('sys.color.warning'),
-        action: () => this.viewModel.deleteEntry(this.entryUuid).then((deleted: boolean) => {
+        action: () => this.viewModel.deleteEntry(this.sheet.entryUuid).then((deleted: boolean) => {
           if (deleted) {
             this.onClose()
           }
@@ -324,15 +307,16 @@ export struct EntryPreviewContent {
   }
 
   private previewMenuItems(): HdsNavigationMenuItemOptions[] {
-    if (this.readOnly) {
+    if (this.sheet.readOnly) {
       return [this.menuItem(this.closeIcon, $r('app.string.close'), () => this.onClose())]
     }
     return [
-      this.menuItem(this.favorite ? this.favoritedIcon : this.favoriteIcon,
-        this.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
-        () => this.toggleFavorite(), !this.viewModel.busy),
+      this.menuItem(this.sheet.favorite ? this.favoritedIcon : this.favoriteIcon,
+        this.sheet.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
+        () => this.sheet.toggleFavorite(), !this.viewModel.busy),
       this.menuItem(this.editIcon, $r('app.string.edit'), () => this.onEdit(), !this.viewModel.busy),
-      this.menuItem(this.deleteIcon, $r('app.string.delete_entry'), () => this.confirmDelete(), !this.viewModel.busy),
+      this.menuItem(this.deleteIcon, $r('app.string.delete_entry'), () => this.confirmDelete(),
+        !this.viewModel.busy),
       this.menuItem(this.closeIcon, $r('app.string.close'), () => this.onClose()),
     ]
   }
@@ -362,12 +346,10 @@ export struct EntryPreviewContent {
   private notesTrailing() {
     if (this.needsExpansion(this.notes)) {
       IconToggleButton({
-        symbol: this.notesExpanded ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+        symbol: this.sheet.notesExpanded ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
         accessibilityLabel: $r('app.string.notes'),
         exclusive: true,
-        onToggle: () => {
-          this.notesExpanded = !this.notesExpanded
-        },
+        onToggle: () => this.sheet.toggleNotesExpanded(),
       })
     }
   }
@@ -380,13 +362,13 @@ export struct EntryPreviewContent {
           Row({ space: $r('sys.float.padding_level8') }) {
             EntryAvatar(
               {
-                title: this.title,
-                avatarData: this.avatarData,
+                title: this.sheet.title,
+                avatarData: this.sheet.avatarData,
                 avatarSize: $r('app.float.entry_avatar_size'),
                 initialsFontSize: $r('sys.float.Display_S'),
               })
             Column({ space: $r('sys.float.padding_level4') }) {
-              Text(this.title)
+              Text(this.sheet.title)
                 .width('100%')
                 .fontSize($r('sys.float.Title_M'))
                 .fontWeight(FontWeight.Bold)
@@ -397,7 +379,8 @@ export struct EntryPreviewContent {
               Row({ space: $r('sys.float.padding_level4') }) {
                 SymbolGlyph($r('sys.symbol.folder')).fontSize($r('sys.float.Body_M'))
                   .fontColor([$r('sys.color.font_secondary')])
-                Text(this.groupPath).fontSize($r('sys.float.Body_M')).fontColor($r('sys.color.font_secondary'))
+                Text(this.sheet.groupPath).fontSize($r('sys.float.Body_M'))
+                  .fontColor($r('sys.color.font_secondary'))
                   .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               }
             }
@@ -407,48 +390,48 @@ export struct EntryPreviewContent {
 
           Column({ space: $r('sys.float.padding_level8') }) {
             List() {
-            Cell({
-              icon: $r('sys.symbol.person'),
-              label: $r('app.string.username'),
-              value: this.username,
-              clickable: this.username.length > 0,
-              onCellClick: () => this.copy(this.username),
-            })
+              Cell({
+                icon: $r('sys.symbol.person'),
+                label: $r('app.string.username'),
+                value: this.username,
+                clickable: this.username.length > 0,
+                onCellClick: () => this.copy(this.username),
+              })
 
-            Cell({
-              icon: $r('sys.symbol.lock'),
-              label: $r('app.string.password'),
-              value: this.passwordVisible || this.password.length === 0 ? this.password : PASSWORD_MASK,
-              clickable: this.password.length > 0,
-              onCellClick: () => this.copyPassword(),
-              trailingBuilder: this.passwordTrailing,
-              extraBuilder: () => {
-                if (this.passwordSeconds > 0) {
-                  Text(this.countdownText()).width('100%').fontSize($r('sys.float.Caption_S'))
-                    .fontColor($r('sys.color.font_tertiary'))
-                    .padding({ left: $r('sys.float.padding_level16'), bottom: $r('sys.float.padding_level8') })
-                }
-              },
-            })
+              Cell({
+                icon: $r('sys.symbol.lock'),
+                label: $r('app.string.password'),
+                value: this.passwordVisible || this.password.length === 0 ? this.password : PASSWORD_MASK,
+                clickable: this.password.length > 0,
+                onCellClick: () => this.copyPassword(),
+                trailingBuilder: this.passwordTrailing,
+                extraBuilder: () => {
+                  if (this.passwordSeconds > 0) {
+                    Text(this.countdownText()).width('100%').fontSize($r('sys.float.Caption_S'))
+                      .fontColor($r('sys.color.font_tertiary'))
+                      .padding({ left: $r('sys.float.padding_level16'), bottom: $r('sys.float.padding_level8') })
+                  }
+                },
+              })
 
-            Cell({
-              icon: $r('sys.symbol.link'),
-              label: $r('app.string.website'),
-              value: this.url,
-              clickable: this.url.length > 0,
-              onCellClick: () => this.copy(this.url),
-              trailingBuilder: this.urlTrailing,
-            })
+              Cell({
+                icon: $r('sys.symbol.link'),
+                label: $r('app.string.website'),
+                value: this.url,
+                clickable: this.url.length > 0,
+                onCellClick: () => this.copy(this.url),
+                trailingBuilder: this.urlTrailing,
+              })
 
-            Cell({
-              icon: $r('sys.symbol.doc_text'),
-              label: $r('app.string.notes'),
-              value: this.notesExpanded ? this.notes : this.notes.split('\n')[0],
-              valueExpanded: this.notesExpanded,
-              clickable: this.notes.length > 0,
-              onCellClick: () => this.copy(this.notes),
-              trailingBuilder: this.notesTrailing,
-            })
+              Cell({
+                icon: $r('sys.symbol.doc_text'),
+                label: $r('app.string.notes'),
+                value: this.sheet.notesExpanded ? this.notes : this.notes.split('\n')[0],
+                valueExpanded: this.sheet.notesExpanded,
+                clickable: this.notes.length > 0,
+                onCellClick: () => this.copy(this.notes),
+                trailingBuilder: this.notesTrailing,
+              })
 
             }
             .backgroundColor($r('sys.color.comp_background_primary'))
@@ -473,11 +456,13 @@ export struct EntryPreviewContent {
                     cross: LengthMetrics.resource($r('sys.float.padding_level8')),
                   },
                 }) {
-                  ForEach(this.tags, (tag: string) => {
-                    ChipV2({ chipV2Options: new ChipV2Options({
-                      label: new ChipV2Label({ text: tag }),
-                      allowClose: false,
-                    }) })
+                  ForEach(this.sheet.tags, (tag: string) => {
+                    ChipV2({
+                      chipV2Options: new ChipV2Options({
+                        label: new ChipV2Label({ text: tag }),
+                        allowClose: false,
+                      }),
+                    })
                   }, (tag: string) => tag)
                 }
                 .layoutWeight(1)
@@ -497,17 +482,19 @@ export struct EntryPreviewContent {
                   Cell({
                     icon: this.customFieldIcon(field.type),
                     label: field.name,
-                    value: this.isCustomExpanded(field.name)
+                    value: this.sheet.expandedCustomFields.has(field.name)
                       ? (field.value.length > 0 &&
                         (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value)
                       : (field.value.length > 0 &&
-                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value).split('\n')[0],
-                    valueExpanded: this.isCustomExpanded(field.name),
+                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK :
+                        field.value).split('\n')[0],
+                    valueExpanded: this.sheet.expandedCustomFields.has(field.name),
                     clickable: field.value.length > 0,
                     onCellClick: () => this.copy(field.value),
                     showTrailingButton: this.needsExpansion(field.value),
-                    trailingSymbol: this.isCustomExpanded(field.name) ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
-                    onTrailingClick: () => this.toggleCustomExpanded(field.name),
+                    trailingSymbol: this.sheet.expandedCustomFields.has(field.name)
+                      ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+                    onTrailingClick: () => this.sheet.toggleCustomExpanded(field.name),
                   })
                 }, (field: VaultField) => field.name)
               }
@@ -515,7 +502,12 @@ export struct EntryPreviewContent {
               .backgroundColor($r('sys.color.comp_background_primary'))
               .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
               .borderRadius($r('sys.float.corner_radius_level10'))
-              .divider({ strokeWidth: 1, color: $r('sys.color.grid_menu_divider_color'), startMargin: $r('sys.float.padding_level8'), endMargin: $r('sys.float.padding_level8') })
+              .divider({
+                strokeWidth: 1,
+                color: $r('sys.color.grid_menu_divider_color'),
+                startMargin: $r('sys.float.padding_level8'),
+                endMargin: $r('sys.float.padding_level8'),
+              })
               .scrollBar(BarState.Off)
             }
           }

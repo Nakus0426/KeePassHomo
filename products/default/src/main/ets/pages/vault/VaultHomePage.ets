@@ -13,6 +13,7 @@ import {
   VaultEntryListHost,
 } from '../../viewmodel/HomeEntryListViewModel'
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
+import { entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntrySheet } from './EntrySheet'
 
 const TITLE_BAR_FILTER_ROW_HEIGHT_VP: number = 56
@@ -228,7 +229,7 @@ export struct VaultHomePage {
         .buttonStyle(ButtonStyleMode.NORMAL)
         .type(ButtonType.Capsule)
         .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-        .onClick(() => this.list.openNewEntry())
+        .onClick(() => entrySheetViewModel.openNew())
       }
     }
     .alignItems(HorizontalAlign.Center)
@@ -251,9 +252,9 @@ export struct VaultHomePage {
         avatarData: item.item.avatarData,
         favorite: item.item.favorite,
         favoriteEnabled: !this.app.currentSource().readOnly,
-        onEntryClick: () => this.list.openEntry(item.item.uuid),
+        onEntryClick: () => entrySheetViewModel.openPreview(item.item.uuid),
         onFavoriteToggle: () => this.list.toggleFavorite(item.item.uuid),
-        onEdit: () => this.list.openEdit(item.item.uuid),
+        onEdit: () => entrySheetViewModel.openEdit(item.item.uuid),
       })
     }
     .width('100%')
@@ -294,7 +295,7 @@ export struct VaultHomePage {
                   .fontColor([$r('sys.color.icon_on_primary')])
                   .fontSize($r('sys.float.titlebar_icon_width')),
                 backgroundColor: $r('sys.color.brand'),
-                onAction: () => this.list.openEdit(item.item.uuid),
+                onAction: () => entrySheetViewModel.openEdit(item.item.uuid),
               }],
               deleteIconOptions: {
                 onAction: () => this.confirmDeleteEntry(item.item),
@@ -373,7 +374,7 @@ export struct VaultHomePage {
       .animation({ curve: this.fabAppeared ? this.fabHandSwitchCurve : this.fabAppearCurve }))
     .accessibilityText($r('app.string.new_entry'))
     .onAppear(() => this.fabAppeared = true)
-    .onClick(() => this.list.openNewEntry())
+    .onClick(() => entrySheetViewModel.openNew())
   }
 
   build() {
@@ -395,7 +396,7 @@ export struct VaultHomePage {
           }
         }
 
-        EntrySheet({ state: this.list.sheet })
+        EntrySheet({ sheet: entrySheetViewModel })
       }
     }
     .width('100%')

@@ -10,15 +10,15 @@ import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndi
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
-import { EntrySheetMode, EntrySheetState } from '../../viewmodel/EntrySheetState'
+import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntryAvatarPicker } from './EntryAvatarPicker'
 import { EntryCustomFields } from './EntryCustomFields'
 import { EntryGroupPicker } from './EntryGroupPicker'
 import { EntryTagEditor } from './EntryTagEditor'
 
 @ComponentV2
-export struct EntryEditorContent {
-  @Param state: EntrySheetState = new EntrySheetState()
+export struct EntryEditorView {
+  @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Param topOffset: number = 0
   @Param bottomOffset: number = 0
   @Event onWillDismissCheck: (handler: () => void) => void = () => {
@@ -55,17 +55,14 @@ export struct EntryEditorContent {
     this.onWillDismissCheck(() => this.onExternalDismissRequest())
   }
 
-  @Monitor('state.mode')
-  onModeChanged(): void {
-    if (this.state.mode === EntrySheetMode.Edit) {
-      return
-    }
+  // 草稿与敏感状态要等转场结束、节点销毁后再清：官方禁止在转场过程中更新消失节点的属性。
+  aboutToDisappear(): void {
     this.releaseEditor()
   }
 
   private loadEditor(): void {
-    if (this.state.entryUuid.length > 0) {
-      this.viewModel.loadEntryForEdit(this.editor, this.state.entryUuid)
+    if (this.sheet.entryUuid.length > 0) {
+      this.viewModel.loadEntryForEdit(this.editor, this.sheet.entryUuid)
       return
     }
     this.viewModel.loadNewEntry(this.editor)
@@ -266,7 +263,7 @@ export struct EntryEditorContent {
       editor: this.editor,
       readOnly: this.readOnly,
       invalidFieldId: this.invalidFieldId,
-      active: this.state.mode === EntrySheetMode.Edit,
+      active: this.sheet.mode === EntrySheetMode.Edit,
       topOffset: this.topOffset,
       bottomOffset: this.bottomOffset,
       onInvalidCleared: () => this.invalidFieldId = -1,
@@ -279,7 +276,7 @@ export struct EntryEditorContent {
     EntryTagEditor({
       editor: this.editor,
       readOnly: this.readOnly,
-      active: this.state.mode === EntrySheetMode.Edit,
+      active: this.sheet.mode === EntrySheetMode.Edit,
       onActivity: () => this.viewModel.recordActivity(),
     })
   }
@@ -419,7 +416,7 @@ export struct EntryEditorContent {
             avatarData: this.editor.avatarData,
             readOnly: this.readOnly,
             onPicked: (data: ArrayBuffer) => {
-              if (this.state.mode === EntrySheetMode.Edit) {
+              if (this.sheet.mode === EntrySheetMode.Edit) {
                 this.editor.setAvatar(data)
               }
             },
@@ -534,7 +531,7 @@ export struct EntryEditorContent {
       },
       content: {
         title: {
-          mainTitle: this.state.entryUuid.length === 0
+          mainTitle: this.sheet.entryUuid.length === 0
             ? $r('app.string.new_entry') : $r('app.string.edit'),
         },
         menu: {

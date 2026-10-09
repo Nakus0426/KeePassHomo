@@ -3,7 +3,6 @@ import { motion } from '@kit.MultimodalAwarenessKit'
 import { VaultEntry } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
-import { EntrySheetMode, EntrySheetState } from './EntrySheetState'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 
 // 列表的 UI 回调出口：ViewModel 只声明「该做什么」，不持有 UIContext，由页面继承并覆写。
@@ -55,7 +54,6 @@ export class HomeEntryListViewModel {
   @Trace rows: EntryRowModel[] = []
   // 悬浮按钮贴右还是贴左：跟随握持手，初始与设备不支持智感握姿时固定贴右。
   @Trace fabRight: boolean = true
-  @Trace sheet: EntrySheetState = new EntrySheetState()
   // 握持手回调需要固定引用，退订时才能配对。
   private readonly onHoldingHandChanged: (status: motion.HoldingHandStatus) => void =
     (status: motion.HoldingHandStatus) => this.applyHoldingHand(status)
@@ -65,30 +63,6 @@ export class HomeEntryListViewModel {
   // 快照变化、解锁刷新、条目增删保存后都必须调用，否则列表与快照脱节。
   refresh(): void {
     this.rows = this.entryRows()
-  }
-
-  openNewEntry(): void {
-    this.sheet.entryUuid = ''
-    this.sheet.editFromPreview = false
-    this.sheet.mode = EntrySheetMode.Edit
-    this.sheet.visible = true
-  }
-
-  // 进预览态，并记一次活动让闲置计时不误锁。
-  openEntry(uuid: string): void {
-    this.sheet.entryUuid = uuid
-    this.sheet.editFromPreview = false
-    this.sheet.mode = EntrySheetMode.Preview
-    this.sheet.visible = true
-    stageOneVaultStore.touch()
-  }
-
-  openEdit(uuid: string): void {
-    this.sheet.entryUuid = uuid
-    this.sheet.editFromPreview = false
-    this.sheet.mode = EntrySheetMode.Edit
-    this.sheet.visible = true
-    stageOneVaultStore.touch()
   }
 
   // 先乐观更新行模型让图标立即响应，再落盘。

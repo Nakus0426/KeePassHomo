@@ -1,21 +1,19 @@
 import { uiMaterial } from '@kit.ArkUI'
-import { AnimationTokens, VaultEntry } from '@ohos/common'
+import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { EntrySheetMode, EntrySheetState } from '../../viewmodel/EntrySheetState'
-import { EntryEditorContent } from './EntryEditorContent'
-import { EntryPreviewContent } from './EntryPreviewContent'
+import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { EntryEditorView } from './EntryEditorView'
+import { EntryPreviewView } from './EntryPreviewView'
 
-// 三种入口共用一套开合逻辑，只负责半模态容器与形态切换，预览体与编辑体各自管理状态。
+// 三种入口共用一套开合逻辑：只负责半模态容器、形态转场与收起拦截，内容体各自管理自己的状态。
 @ComponentV2
 export struct EntrySheet {
-  @Param state: EntrySheetState = new EntrySheetState()
+  @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Local private session: AppSessionState = appSessionState
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  @Local private entry: VaultEntry | undefined = undefined
-  @Local private avatarData: ArrayBuffer | undefined = undefined
   // 草稿归编辑体所有，宿主只能在收起前问它；形态或条目变化时必须重置以免回调残留。
   private childHandler: (() => void) | undefined = undefined
   private readonly viewModel: AppViewModel = appViewModel
@@ -38,48 +36,21 @@ export struct EntrySheet {
   @Monitor('session.vaultLocked')
   onVaultLockChanged(): void {
     if (this.session.vaultLocked) {
-      this.state.visible = false
+      this.sheet.visible = false
     }
   }
 
   // 换条目、重新打开、revision 变化时重取；收藏与归档都会推进 revision。
-  @Monitor('state.entryUuid', 'state.visible', 'viewModel.revision')
+  @Monitor('sheet.entryUuid', 'sheet.visible', 'viewModel.revision')
   onTargetChanged(): void {
     this.childHandler = undefined
-    this.loadEntry()
+    this.sheet.load()
   }
 
   // 形态变化时重置拦截钩子，避免残留指向已销毁实例的回调。
-  @Monitor('state.mode')
+  @Monitor('sheet.mode')
   onModeChanged(): void {
     this.childHandler = undefined
-  }
-
-  private loadEntry(): void {
-    this.entry = this.state.visible && this.state.entryUuid.length > 0
-      ? this.viewModel.entry(this.state.entryUuid) : undefined
-    this.avatarData = this.entry === undefined
-      ? undefined : this.viewModel.loadEntryAvatar(this.entry.uuid)
-  }
-
-  private get readOnly(): boolean {
-    return this.viewModel.currentSource().readOnly
-  }
-
-  private get isNewEntry(): boolean {
-    return this.state.entryUuid.length === 0
-  }
-
-  private get entryTitle(): string {
-    return this.entry?.title ?? ''
-  }
-
-  private get entryGroupPath(): string {
-    return this.entry?.groupPath ?? ''
-  }
-
-  private get entryFavorite(): boolean {
-    return this.entry?.favorite ?? false
   }
 
   @Computed
@@ -101,33 +72,7 @@ export struct EntrySheet {
     return this.getUIContext().px2vp(titlebarHeightPx + paddingHeightPx)
   }
 
-  private closeSheet(): void {
-    this.state.visible = false
-  }
-
-  private openEditor(): void {
-    this.state.editFromPreview = true
-    this.state.mode = EntrySheetMode.Edit
-  }
-
-  private returnToPreview(): void {
-    this.state.mode = EntrySheetMode.Preview
-  }
-
-  // 草稿的丢弃由编辑体自行复位，宿主只管形态。
-  private exitEditor(): void {
-    if (this.isNewEntry || !this.state.editFromPreview) {
-      this.state.visible = false
-      return
-    }
-    this.returnToPreview()
-  }
-
-  private toggleFavorite(): void {
-    this.viewModel.toggleFavorite(this.state.entryUuid)
-  }
-
-  private confirmDiscard(onDiscard: () => void): void {
+  private confirmDiscard(): void {
     const options: AlertDialogParamWithButtons = {
       title: $r('app.string.unsaved_title'),
       message: $r('app.string.unsaved_message'),
@@ -139,7 +84,7 @@ export struct EntrySheet {
       secondaryButton: {
         value: $r('app.string.discard'),
         fontColor: $r('sys.color.warning'),
-        action: () => onDiscard(),
+        action: () => this.sheet.close(),
       },
     }
     this.getUIContext().showAlertDialog(options)
@@ -151,34 +96,27 @@ export struct EntrySheet {
       action.dismiss()
       return
     }
-    this.confirmDiscard(() => this.closeSheet())
+    this.confirmDiscard()
   }
 
   @Builder
   private sheetContent() {
-    if (this.state.mode === EntrySheetMode.Preview) {
-      EntryPreviewContent({
-        title: this.entryTitle,
-        groupPath: this.entryGroupPath,
-        fields: this.entry?.fields ?? [],
-        tags: this.entry?.tags ?? [],
-        entryUuid: this.state.entryUuid,
-        favorite: this.entryFavorite,
-        readOnly: this.readOnly,
-        avatarData: this.avatarData,
+    if (this.sheet.mode === EntrySheetMode.Preview) {
+      EntryPreviewView({
+        sheet: this.sheet,
         topOffset: this.contentTopOffset,
         bottomOffset: this.contentBottomOffset,
-        onClose: () => this.closeSheet(),
-        onEdit: () => this.openEditor(),
+        onClose: () => this.sheet.close(),
+        onEdit: () => this.sheet.beginEdit(),
       }).transition(this.contentTransition)
     } else {
-      EntryEditorContent({
-        state: this.state,
+      EntryEditorView({
+        sheet: this.sheet,
         topOffset: this.sheetTopAvoidAreaHeight,
         bottomOffset: this.contentBottomOffset,
         onWillDismissCheck: (handler: () => void) => this.childHandler = handler,
-        onCancel: () => this.exitEditor(),
-        onSaved: () => this.exitEditor(),
+        onCancel: () => this.sheet.exitEditor(),
+        onSaved: () => this.sheet.exitEditor(),
       }).transition(this.contentTransition)
     }
   }
@@ -187,7 +125,7 @@ export struct EntrySheet {
     Stack()
       .width(0)
       .height(0)
-      .bindSheet(this.state.visible, this.sheetContent(), {
+      .bindSheet(this.sheet.visible, this.sheetContent(), {
         dragBar: true,
         showClose: false,
         backgroundColor: Color.Transparent,
@@ -195,12 +133,7 @@ export struct EntrySheet {
           style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
         }),
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
-        onDisappear: () => {
-          this.state.visible = false
-          this.state.mode = EntrySheetMode.Preview
-          this.state.editFromPreview = false
-          this.viewModel.refreshHomeSnapshot()
-        },
+        onDisappear: () => this.sheet.onDismissed(),
       })
   }
 }
