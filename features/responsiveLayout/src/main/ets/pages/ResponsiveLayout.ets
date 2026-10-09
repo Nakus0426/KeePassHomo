@@ -4,9 +4,6 @@ import { commonConstants } from '../constants/CommonConstants';
 import { TabBarItem } from '../viewmodel/TabBarItem';
 import TabsViewModel from '../viewmodel/TabsViewModel';
 
-/**
- * ResponsiveLayout page is the entry of project responsiveLayout which combining tab components with grid components.
- */
 @Builder
 export function responsiveLayout() {
   Column() {

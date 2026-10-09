@@ -1,9 +1,6 @@
 import { BreakPointType } from '@ohos/common';
 import { commonConstants } from '../constants/CommonConstants';
 
-/**
- * Grid component.
- */
 @Component
 export struct GridComponent {
   @StorageProp('mainBreakpoint') currentBreakpoint: string = commonConstants.breakpointsInitializeName;

@@ -1,15 +1,7 @@
 import { commonConstants } from '../constants/CommonConstants';
 import { TabBarItem } from './TabBarItem';
 
-/**
- * Binds data to components and provides interfaces.
- */
 export class TabsViewModel {
-  /**
-   * Get item information for the tab.
-   *
-   * @return {Array<TabBarItem>} tabItems
-   */
   getTabData(): TabBarItem[] {
     const tabItems: TabBarItem[] = [];
     for (let i = 0; i < commonConstants.tabSize; i++) {
