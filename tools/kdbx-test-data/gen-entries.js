@@ -1,9 +1,5 @@
-// 向现有 KDBX 保险库追加测试条目（只填 Title 与 UserName），用于手测条目列表。
-//
-// 用法：
-//   node gen-entries.js <保险库路径> <主密码> [数量] [--out <输出文件>]
-//   默认就地写回原文件，并在同目录先生成 <文件名>.backup-<时间戳>.kdbx 备份；
-//   带 --out 时写入新文件，原文件不动。
+// 用法：node gen-entries.js <保险库路径> <主密码> [数量] [--out <输出文件>]
+// 默认就地写回原文件并先生成 <文件名>.backup-<时间戳>.kdbx 备份；带 --out 时写入新文件。
 
 const fs = require('fs')
 const path = require('path')
@@ -13,7 +9,7 @@ const DEFAULT_COUNT = 100
 const PAD_LENGTH = 3
 const NUMBERED_LIMIT = 90
 
-/** 超长中英混排标题：验证列表标题的省略号。 */
+// 超长中英混排标题：验证列表标题的省略号。
 const LONG_TITLES = [
     '企业统一身份认证平台生产环境管理员账户（含双因子与备用恢复码）',
     'MyBankOnlineBankingPersonalAccountWithLongName',
@@ -22,10 +18,10 @@ const LONG_TITLES = [
     '家庭共享流媒体订阅与设备授权管理入口（含子账号与家长控制）',
 ]
 
-/** 纯英文标题：验证无头像时「标题前两个字母」的展示。 */
+// 纯英文标题：验证无头像时「标题前两个字母」的展示。
 const ENGLISH_TITLES = ['AlphaBetaSite', 'GitHubPersonal', 'AmazonShopping']
 
-/** 含 emoji 与前后空格的标题：验证 trim 与空标题回退。 */
+// 含 emoji 与前后空格的标题：验证 trim 与空标题回退。
 const EMOJI_TITLES = ['  🎉 生日礼物与红包记账  ', '🔐 二次元账号收藏夹']
 
 function pad(index) {

@@ -26,9 +26,7 @@ import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
 import { generatorTabChrome } from '../pages/generator/GeneratorTabChrome'
 
-/**
- * 底部页签描述：路由名与页签图标、文案、标题栏供给的映射，顺序即 HdsTabs 页签顺序。
- */
+// 数组顺序即 HdsTabs 页签顺序。
 interface ModuleTabDescriptor {
   route: string
   label: Resource
@@ -92,12 +90,8 @@ export struct AppShell {
     return this.getUIContext().getHostContext() as common.UIAbilityContext
   }
 
-  /**
-   * Navigation 级转场代理：clearToHome 的清栈回首页零时长，
-   * 消除首页露出的系统默认横向滑入残影；其余转场委托 fadeNavTransition
-   * 解析（页面经 registerFadeDestination 注册即得淡入淡出，未注册走系统默认）。
-   * 注意：本委托存在时页面级 systemTransition 不生效，须统一在此分发。
-   */
+  // clearToHome 回首页用零时长转场；其余委托 fadeNavTransition 解析。
+  // 平台限制：本委托存在时页面级 systemTransition 不生效，须统一在此分发。
   private readonly navTransition: CustomTransitionDelegate =
     (from: NavContentInfo, to: NavContentInfo, _operation: NavigationOperation):
     NavigationAnimatedTransition | undefined => {
@@ -135,20 +129,12 @@ export struct AppShell {
     }, module.label)
   }
 
-  /**
-   * 模块标题行代理：在组件上下文内调用契约供给的 WrappedBuilder，
-   * 使模块自绘标题行拿到正确的渲染上下文（直接传全局 @Builder 引用会丢失）。
-   * 仅在模块提供了 titleRowBuilder 时才作为 stackBuilder 被调用。
-   */
+  // 须在组件上下文内调用契约供给的 WrappedBuilder：直接传全局 @Builder 引用会丢失渲染上下文。
   @Builder
   private moduleTitleRow() {
     this.currentTab.chrome!.titleRowBuilder!.builder()
   }
 
-  /**
-   * 模块标题栏底部行代理：与 moduleTitleRow 同理，在组件上下文内调用契约供给的
-   * WrappedBuilder；仅在模块提供了 bottomRowBuilder 且保险库已解锁时被调用。
-   */
   @Builder
   private moduleBottomRow() {
     this.currentTab.chrome!.bottomRowBuilder!.builder()

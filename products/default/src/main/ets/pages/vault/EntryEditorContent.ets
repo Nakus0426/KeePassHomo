@@ -16,18 +16,11 @@ import { EntryCustomFields } from './EntryCustomFields'
 import { EntryGroupPicker } from './EntryGroupPicker'
 import { EntryTagEditor } from './EntryTagEditor'
 
-/**
- * 编辑态内容：半模态内的第二种形态，负责表单、校验与保存。
- * 不持有 bindSheet —— 容器由 EntrySheet 宿主管理，本组件只做内容与草稿。
- * 草稿归本组件所有，因此「有未保存改动」只有这里答得出来，宿主靠注册钩子取。
- */
 @ComponentV2
 export struct EntryEditorContent {
   @Param state: EntrySheetState = new EntrySheetState()
-  /** 标题栏与内容区的避让尺寸，由宿主按半模态测量结果下发。 */
   @Param topOffset: number = 0
   @Param bottomOffset: number = 0
-  /** 把「请求放弃改动」的钩子交给宿主：宿主在拖拽收起前调用它弹确认。 */
   @Event onWillDismissCheck: (handler: () => void) => void = () => {
   }
   @Event onCancel: () => void = () => {
@@ -38,9 +31,8 @@ export struct EntryEditorContent {
   @Local private passwordVisible: boolean = false
   @Local private generatorSheetVisible: boolean = false
   @Local private groupPickerVisible: boolean = false
-  /** 选择器注册的返回消费者：返回 true 表示这次返回已用于回退层级，半模态不收起。 */
+  // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
-  /** 保存时字段名为空的卡片 id，-1 表示无。 */
   @Local private invalidFieldId: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly scroller: Scroller = new Scroller()
@@ -63,10 +55,6 @@ export struct EntryEditorContent {
     this.onWillDismissCheck(() => this.onExternalDismissRequest())
   }
 
-  /**
-   * 半模态离开编辑态时丢弃草稿：取消、保存后回预览、拖拽收起都走这里。
-   * 不重置就无法区分「草稿」与「已保存内容」，下次进入会带着上一次的残留。
-   */
   @Monitor('state.mode')
   onModeChanged(): void {
     if (this.state.mode === EntrySheetMode.Edit) {
@@ -100,10 +88,6 @@ export struct EntryEditorContent {
     this.confirmDiscard()
   }
 
-  /**
-   * 宿主在拖拽收起前调用：只有存在未保存改动才需要确认。
-   * 无改动时保持静默，由宿主自己收起半模态。
-   */
   private onExternalDismissRequest(): void {
     if (!this.editor.changed()) {
       return
@@ -404,7 +388,7 @@ export struct EntryEditorContent {
     .onClick(() => this.groupPickerVisible = true)
   }
 
-  /** 分组选择器自带标题栏与菜单，半模态壳只配容器参数；高度与编辑半模态一致，不设挡位。 */
+  // 选择器自带标题栏与菜单，半模态壳只配容器参数；与编辑半模态同高，故不设挡位。
   @LocalBuilder
   private groupPickerSheet() {
     EntryGroupPicker({
@@ -417,10 +401,7 @@ export struct EntryEditorContent {
     })
   }
 
-  /**
-   * 选择器半模态的返回拦截：返回键、屏幕边缘返回手势、导航栏返回都归入 PRESS_BACK，
-   * 先交给选择器，它还能回退（退出搜索或上一层）就消费掉；其余原因（下拉收起、点遮罩）按默认关闭。
-   */
+  // 返回键、边缘返回手势、导航栏返回都归入 PRESS_BACK，先交给选择器消费；其余原因按默认关闭。
   private onGroupPickerWillDismiss(action: DismissSheetAction): void {
     const backHandler: (() => boolean) | undefined = this.groupPickerBackHandler
     if (action.reason === DismissReason.PRESS_BACK && backHandler !== undefined && backHandler()) {

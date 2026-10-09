@@ -11,18 +11,15 @@ import { ResUtil } from '@pura/harmony-utils'
 import { EntryEditorViewModel, TagAddResult } from '../../viewmodel/EntryEditorViewModel'
 
 const TAG_INPUT_ID: string = 'entry_tag_input'
-/** 标签输入态宽度：按 chip 字号的 10 个字符估算，与 VaultTabChrome 的 chip 文案宽度算法一致。 */
+// 按 chip 字号的 10 个字符估算，与 VaultTabChrome 的 chip 文案宽度算法一致。
 const TAG_INPUT_CHARS: number = 10
 
-/**
- * 标签编辑器：chip 列表 + 行内输入。
- * 输入态、草稿与拒绝提示都封在这里，宿主只在标签实际变化时刷新活跃时间。
- */
+// 输入态、草稿与拒绝提示都封在这里，宿主只在标签实际变化时刷新活跃时间。
 @ComponentV2
 export struct EntryTagEditor {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Param readOnly: boolean = false
-  /** 宿主编辑会话是否打开：会话关闭时丢弃未提交的草稿与输入态。 */
+  // 宿主编辑会话是否打开：会话关闭时丢弃未提交的草稿与输入态。
   @Param active: boolean = false
   @Event onActivity: () => void = () => {
   }

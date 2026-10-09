@@ -40,11 +40,6 @@ const ACTION_VIEW_DATA: string = 'ohos.want.action.viewData'
 const ACTION_DIAL: string = 'ohos.want.action.dial'
 const ACTION_SEND_TO_DATA: string = 'ohos.want.action.sendToData'
 
-/**
- * 应用级会话 ViewModel：持有应用生命周期、锁定流程、解锁封禁策略、
- * 文件来源流程与剪贴板/错误管道。表单与编辑状态归属各自页面域 ViewModel，
- * 浏览状态归属 VaultHomeViewModel。
- */
 @ObservedV2
 export class AppViewModel {
   @Trace busy: boolean = false
@@ -172,10 +167,7 @@ export class AppViewModel {
     }
   }
 
-  /**
-   * 解锁保险库。成功返回 true（由解锁页播放离场动画后自行跳转首页），
-   * 失败返回 false 并通过 lastError 通知页面。
-   */
+  // 成功返回 true（解锁页播放离场动画后自行跳转首页），失败经 lastError 通告页面。
   async unlockVault(password: string): Promise<boolean> {
     if (password.length === 0 || this.unlockBlocked) {
       return false
@@ -272,10 +264,7 @@ export class AppViewModel {
     this.recordActivity()
   }
 
-  /**
-   * 保存条目。是否成功由调用方决定后续（关闭编辑器或留在当前页面），
-   * 本方法只落盘并刷新派生数据。
-   */
+  // 只落盘并刷新派生数据；是否关闭编辑器由调用方决定。
   async saveEntry(editor: EntryEditorViewModel): Promise<boolean> {
     const fields: VaultFieldInput[] = editor.fieldInputs()
     const invalidFieldMessage: string = this.validateCustomFields(fields)
@@ -313,9 +302,7 @@ export class AppViewModel {
     }
   }
 
-  /**
-   * 自定义字段名不能为空，也不能与保留字段名冲突（否则会覆盖固定字段）。
-   */
+  // 字段名不能为空，也不能与保留字段名冲突，否则会覆盖固定字段。
   private validateCustomFields(fields: VaultFieldInput[]): string {
     for (const field of fields) {
       const name: string = field.name.trim()
@@ -329,10 +316,7 @@ export class AppViewModel {
     return ''
   }
 
-  /**
-   * 按字段类型交给系统应用处理：网址走浏览器、电话走拨号、邮箱走邮件、地址走地图；
-   * 其余类型没有外部动作。值缺少协议前缀时补齐，否则系统无法解析目标。
-   */
+  // 值缺少协议前缀时补齐，否则系统无法解析目标。
   openFieldAction(value: string, type: VaultFieldType): void {
     const trimmed: string = value.trim()
     if (trimmed.length === 0) {
@@ -396,10 +380,6 @@ export class AppViewModel {
     }
   }
 
-  /**
-   * 新建分组并立即落盘。revision 推进让分组选择器等读取点随即可见，
-   * 失败时经 status 管道提示，返回值供界面决定是否关闭输入弹窗。
-   */
   async createGroup(parentGroupUuid: string, name: string): Promise<boolean> {
     this.busy = true
     try {
@@ -416,10 +396,7 @@ export class AppViewModel {
     }
   }
 
-  /**
-   * 删除分组并立即落盘。分组下的条目随子树一起离开可见树，首页快照必须当场重建
-   * （与条目删除不同：那条路径由首页在动画上下文里自行重建）。
-   */
+  // 分组下的条目随子树离开可见树，首页快照必须当场重建（条目删除由首页在动画上下文重建）。
   async deleteGroup(groupUuid: string): Promise<boolean> {
     this.busy = true
     try {
@@ -438,7 +415,7 @@ export class AppViewModel {
     }
   }
 
-  /** 重命名分组：只有分组自身的名称与路径变化，首页条目不变，故不重建首页快照。 */
+  // 分组名与路径变化不影响首页条目，故只推进 revision，不重建快照。
   async renameGroup(groupUuid: string, name: string): Promise<boolean> {
     this.busy = true
     try {
@@ -455,11 +432,7 @@ export class AppViewModel {
     }
   }
 
-  /**
-   * 归档与还原都改变条目归属的分类，列表快照必须重建：
-   * 归档后条目退出「全部条目」，还原后重回列表。
-   * 半模态的收起由调用方负责，本方法只管落盘与刷新。
-   */
+  // 归档改变条目归属分类，必须重建列表快照；半模态收起由调用方负责。
   async toggleArchived(entryUuid: string): Promise<void> {
     this.busy = true
     try {
@@ -575,10 +548,7 @@ export class AppViewModel {
     return stageOneVaultStore.topLevelGroups()
   }
 
-  /**
-   * 根分组：KDBX 文档的容器组，新建条目的默认落点。
-   * groups() 的收集顺序即文档顺序，首项必为根组；取不到即文档损坏，快速失败。
-   */
+  // 根分组是 KDBX 文档容器组，groups() 首项必为根组；取不到即文档损坏。
   rootGroup(): VaultGroup {
     this.revision
     const groups: VaultGroup[] = stageOneVaultStore.groups()
@@ -588,7 +558,7 @@ export class AppViewModel {
     return groups[0]
   }
 
-  /** 按 uuid 取分组：条目所在组必然存在于全量分组里，取不到即数据损坏，快速失败。 */
+  // 条目所在组必然存在于全量分组，取不到即数据损坏。
   requireGroup(groupUuid: string): VaultGroup {
     const group: VaultGroup | undefined = this.groups()
       .find((item: VaultGroup) => item.uuid === groupUuid)
@@ -638,10 +608,8 @@ export class AppViewModel {
     this.refreshHomeSnapshot()
   }
 
-  /**
-   * 只重建首页列表快照，不推进 revision。条目增删保存后快照的刷新时机由调用方决定：
-   * 首页在动画上下文里调用，让列表增删、重排在可见时播出转场动画。
-   */
+  // 只重建首页快照，不推进 revision。刷新时机由调用方决定：
+  // 首页在动画上下文调用，让列表增删、重排在可见时播出转场。
   refreshHomeSnapshot(): void {
     vaultHomeViewModel.invalidate()
   }
@@ -654,7 +622,4 @@ export class AppViewModel {
   }
 }
 
-/**
- * 应用级单例：与 AppShell 同生命周期的全局会话 ViewModel。
- */
 export const appViewModel: AppViewModel = new AppViewModel()

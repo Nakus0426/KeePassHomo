@@ -19,10 +19,6 @@ import { ResUtil } from '@pura/harmony-utils'
 const PREVIEW_MENU_MAX_COUNT: number = 4
 const PASSWORD_MASK: string = '••••••••'
 
-/**
- * 预览详情行：整行可点，点击行为由页面经 onCellClick 绑定（默认为复制值）。
- * 交互与按压反馈对齐 components/Cell.ets，布局沿用预览页既有两行结构。
- */
 @ComponentV2
 struct Cell {
   @Require @Param icon: Resource
@@ -38,9 +34,7 @@ struct Cell {
   }
   @Event onCellClick: () => void = () => {
   }
-  /** 右侧自定义区域：密码可见性、跳转链接、展开折叠按钮。 */
   @BuilderParam trailingBuilder?: () => void
-  /** 行内附加内容：密码可见倒计时、备注展开文本。 */
   @BuilderParam extraBuilder?: () => void
 
   build() {

@@ -16,16 +16,16 @@ import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/Gr
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
 
-/** 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。 */
+// 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
 const NEW_GROUP_NAME_MAX_LENGTH: number = 64
 
-/** 标题栏下方搜索区高度，与官方自定义区域示例一致。 */
+// 标题栏下方搜索区高度，与官方自定义区域示例一致。
 const SEARCH_BAR_HEIGHT_VP: number = 56
 
-/** 层级切换横移距离占比：与生成器页签切换动画同参，横移自身宽度的 20%。 */
+// 横移自身宽度的 20%，与生成器页签切换动画同参。
 const LEVEL_TRANSITION_OFFSET_RATIO: number = 0.2
 
-/** 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。 */
+// 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。
 function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | undefined {
   if (group.uuid === targetUuid) {
     return [group]
@@ -40,53 +40,44 @@ function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | u
   return undefined
 }
 
-/** 两轮可见顺序是否一致：一致就不重建行，避免逐字输入时无谓地整表重播转场。 */
 function sameOrder(previous: string[], next: string[]): boolean {
   return previous.length === next.length
     && previous.every((uuid: string, index: number) => uuid === next[index])
 }
 
-/**
- * 分组选择器：编辑半模态内的第二层半模态，形态对齐官方文件选择器（保存位置模式）——
- * 面包屑 + 文件夹列表 + 搜索 + 新建分组。
- * 只读数据来自 AppViewModel；editor 仅确认按钮经 setGroup 单一入口写回编辑草稿；
- * 浏览栈、搜索词、瞬态选中与弹窗草稿是本组件的瞬态 UI 状态，随半模态销毁而重置。
- */
+// 分组选择器：编辑半模态内的第二层半模态，形态对齐官方文件选择器（保存位置模式）。
 @ComponentV2
 export struct EntryGroupPicker {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
-  /** 底部避让尺寸由宿主按半模态测量结果下发（手势区随窗口变化，宿主统一感知）。 */
+  // 底部避让尺寸由宿主按半模态测量结果下发（手势区随窗口变化，宿主统一感知）。
   @Param bottomOffset: number = 0
-  /** 选中分组后由宿主收起半模态：开合状态归宿主，本组件只发信号。 */
+  // 选中分组后由宿主收起半模态：开合状态归宿主，本组件只发信号。
   @Event onPicked: () => void = () => {
   }
-  /** 关闭选择器：不改变已选分组，仅收起半模态。 */
+  // 关闭选择器：不改变已选分组，仅收起半模态。
   @Event onClose: () => void = () => {
   }
   @Event onActivity: () => void = () => {
   }
-  /**
-   * 把「返回已被消费」的判定交给宿主：宿主拦截到返回类事件时调用注册进来的回调，
-   * 返回 true 表示这次返回已用于回退层级（或退出搜索），半模态保持打开。
-   */
+  // 宿主拦截到返回类事件时调用；返回 true 表示这次返回已被消费，半模态保持打开。
   @Event onBackHandler: (handler: () => boolean) => void = () => {
   }
-  /** 浏览栈：根下顶层到当前层的分组链；空链表示停在根层。 */
+  // 浏览栈：根下顶层到当前层的分组链；空链表示停在根层。
   @Local private pathGroups: VaultGroup[] = []
-  /** 瞬态选中分组：点击与进层只写这里，确认按钮才经 editor.setGroup 落稿；初始值为进入时的分组。 */
+  // 瞬态选中分组：点击与进层只写这里，确认按钮才经 editor.setGroup 落稿；初始值为进入时的分组。
   @Local private selectedGroupUuid: string = ''
   @Local private searchDraft: string = ''
-  /** 新建分组弹窗的输入草稿：弹窗内容是组件内 @Builder，直接读写本状态，无需参数中介。 */
+  // 新建分组弹窗的输入草稿：弹窗内容是组件内 @Builder，直接读写本状态，无需参数中介。
   @Local private newGroupName: string = ''
-  /** 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。 */
+  // 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。
   @Local private levelOffsetX: number = 0
   @Local private levelOpacity: number = 1
   @Local private levelWidthVp: number = 0
   @Local private levelSwitching: boolean = false
-  /** 行版本号：换词后自增让 ForEach 重建行，重排才有转场可播。 */
+  // 行版本号：换词后自增让 ForEach 重建行，重排才有转场可播。
   @Local private rowVersion: number = 0
   private readonly rowShift: GroupRowShift = new GroupRowShift()
-  /** 面包屑滚动控制器：层级变化后把当前层级滚回视野。 */
+  // 面包屑滚动控制器：层级变化后把当前层级滚回视野。
   private readonly breadcrumbScroller: Scroller = new Scroller()
   private readonly viewModel: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
@@ -99,10 +90,7 @@ export struct EntryGroupPicker {
     .fontColor([$r('sys.color.titlebar_icon_color')])
   private readonly backIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.chevron_backward'))
     .fontColor([$r('sys.color.titlebar_icon_color')])
-  /**
-   * 纯淡入淡出：面包屑在搜索态直接淡出，列表与空态整块互换也用它——
-   * 缩放交给行本身（与首页列表/空态切换同款）。
-   */
+  // 纯淡入淡出：面包屑搜索态淡出、列表与空态互换共用；缩放交给行自身。
   private readonly fadeTransition: TransitionEffect = TransitionEffect.OPACITY
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -116,7 +104,7 @@ export struct EntryGroupPicker {
     this.onBackHandler(() => this.navigateUp())
   }
 
-  /** 半模态销毁时连带关闭新建弹窗：拖拽收起不应把输入弹窗留在窗口上。 */
+  // 半模态销毁时连带关闭新建弹窗：拖拽收起不应把输入弹窗留在窗口上。
   aboutToDisappear(): void {
     this.dialogController.close()
   }
@@ -126,7 +114,7 @@ export struct EntryGroupPicker {
     return this.searchDraft.trim().length > 0
   }
 
-  /** 当前层分组：根层取根分组，否则取浏览栈末项，恒有值。 */
+  // 当前层分组：根层取根分组，否则取浏览栈末项，恒有值。
   @Computed
   private get currentGroup(): VaultGroup {
     if (this.pathGroups.length === 0) {
@@ -143,7 +131,7 @@ export struct EntryGroupPicker {
     return this.pathGroups[this.pathGroups.length - 1].groups
   }
 
-  /** 全库匹配组名与全路径，大小写不敏感；命中行点击即选中，无层级概念。 */
+  // 全库匹配组名与全路径，大小写不敏感；命中行点击即选中，无层级概念。
   @Computed
   private get searchResults(): VaultGroup[] {
     return this.matchGroups(this.searchDraft)
@@ -158,10 +146,7 @@ export struct EntryGroupPicker {
     group.name.toLocaleLowerCase().includes(keyword) || group.path.toLocaleLowerCase().includes(keyword))
   }
 
-  /**
-   * 某个搜索词下的可见顺序：空词即当前浏览层。
-   * 换词前后各算一次，不读 @Computed，免得依赖它的重算时机。
-   */
+  // 某个搜索词下的可见顺序：空词即当前浏览层；不读 @Computed，避免依赖其重算时机。
   private orderForDraft(query: string): string[] {
     const groups: VaultGroup[] = query.trim().length === 0 ? this.currentGroups : this.matchGroups(query)
     return groups.map((group: VaultGroup) => group.uuid)
@@ -201,11 +186,6 @@ export struct EntryGroupPicker {
     .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
   }
 
-  /**
-   * 搜索词变化：先记下当前可见顺序，再换词，再判断结果集是否真的变了。
-   * 结果集变了才重建行并据旧下标算入场位移，于是命中行从原位置滑到新位置，而不是瞬移。
-   * 搜索词本身立即上屏，输入不因动画而迟滞。
-   */
   private applyQuery(value: string): void {
     const previousOrder: string[] = this.orderForDraft(this.searchDraft)
     const nextOrder: string[] = this.orderForDraft(value)
@@ -231,7 +211,7 @@ export struct EntryGroupPicker {
     return ResUtil.getStringSync(resource).replace('%s', String(count))
   }
 
-  /** 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。 */
+  // 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。
   @Computed
   private get dividerStartMargin(): number {
     const padding8Px = ResUtil.getNumber($r('sys.float.padding_level8').id) * 2
@@ -245,11 +225,8 @@ export struct EntryGroupPicker {
     return this.levelWidthVp * LEVEL_TRANSITION_OFFSET_RATIO
   }
 
-  /**
-   * 层级切换动画，方向对齐生成器页签切换：前进（进子组）时旧层左移淡出、新层自右侧进入；
-   * 后退（面包屑回跳）时反向。数据切换发生在两段动画之间，该帧内容不可见。
-   * 本 SDK 的 animateTo 只收两参，onFinish 写在 AnimateParam 里（与生成器一致）。
-   */
+  // 层级切换：前进时旧层左移淡出、新层自右侧进入，后退反向，与生成器页签切换同参。
+  // 本 SDK 的 animateTo 只收两参，onFinish 写在 AnimateParam 里。
   private switchLevel(forward: boolean, update: () => void): void {
     if (this.levelSwitching) {
       return
@@ -263,8 +240,7 @@ export struct EntryGroupPicker {
     }
     exitParam.onFinish = () => {
       update()
-      // 入场起点必须同步落到渲染树：V2 下异步刷新的话，入场动画的起点仍是退场动画的终点，
-      // 新层会从反方向进来（前进时本该自右侧进入，却从左往右走）。
+      // 入场起点必须同步落到渲染树，否则入场动画起点仍是退场终点，新层会反向进入。
       UIUtils.applySync(() => this.levelOffsetX = forward ? offset : -offset)
       const enterParam: AnimateParam = {
         duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -289,17 +265,14 @@ export struct EntryGroupPicker {
     this.onActivity()
   }
 
-  /**
-   * 确认选中：唯一写 editor 的入口，按瞬态选中取组落稿后发收起信号。
-   * 关闭路径不经这里，editor 保持进入时的值，无需还原。
-   */
+  // 确认选中：唯一写 editor 的入口；关闭路径不经这里，editor 无需还原。
   private confirmPick(): void {
     this.editor.setGroup(this.viewModel.requireGroup(this.selectedGroupUuid))
     this.onActivity()
     this.onPicked()
   }
 
-  /** 面包屑跳转：depth 为保留的层数，0 回根层；depth 大于当前层数视为前进。 */
+  // 面包屑跳转：depth 为保留的层数，0 回根层；depth 大于当前层数视为前进。
   private jumpTo(depth: number): void {
     const nextPath: VaultGroup[] = this.pathGroups.slice(0, depth)
     // 跳到的层即选中该层分组；回根层无可选项，还原为进入时的分组。
@@ -308,11 +281,7 @@ export struct EntryGroupPicker {
     this.onActivity()
   }
 
-  /**
-   * 返回一步：标题栏返回按钮、系统返回键/返回手势、导航栏返回共用这一条路径。
-   * 先退出搜索（此时列表是全库结果，层级并不可见），再逐层回退，回到根层才算没得退。
-   * 返回 true 表示这次返回已被消费，半模态保持打开。
-   */
+  // 返回一步：标题栏返回按钮、系统返回键/返回手势与导航栏返回共用；返回 true 表示本次返回已被消费。
   private navigateUp(): boolean {
     if (this.searching) {
       this.searchDraft = ''
@@ -397,7 +366,7 @@ export struct EntryGroupPicker {
     this.dialogController.close()
   }
 
-  /** 新建落在当前浏览层；成功后停留本层，由用户自行决定是否选中（不自动选中、不自动收选择器）。 */
+  // 新建落在当前浏览层；成功后停留本层，由用户自行决定是否选中（不自动选中、不自动收选择器）。
   private submitNewGroup(): void {
     if (this.viewModel.busy) {
       return
@@ -475,11 +444,9 @@ export struct EntryGroupPicker {
           }
         }, (group: VaultGroup) => group.uuid)
       }
-      // 内容尺寸一变就把当前层级带回视野（等价 scrollIntoView）：首帧布局、下钻/回退层级、
-      // 窗口尺寸变化都走这里。当前层级恒为末项，滚到末端即可，无需测量各项位置。
+      // 内容尺寸一变就把当前层级带回视野：当前层级恒为末项，滚到末端即可。
       .onAreaChange((_oldArea: Area, _newArea: Area) => this.breadcrumbScroller.scrollEdge(Edge.End))
-      // 内边距放在内容上而不是外层 margin 上：滚动视口因此贴住左右边缘，
-      // 首尾两项各自让出内边距。该值与下方渐隐长度取同一 token，滚到两端时末项不落在渐隐区里被压暗。
+      // 内边距放在内容上让滚动视口贴边；与渐隐长度取同一 token，两端末项不被压暗。
       .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     }
     .width('100%')
@@ -597,8 +564,7 @@ export struct EntryGroupPicker {
         },
       },
       content: {
-        // MODAL 半模态标题栏不渲染内置返回键（hideBackButton 文档：返回键仅 titleMode 为 MINI 时生效），
-        // 因此返回图标走同版本引入的 subIcon 槽位：HDS 原生图标按钮，落在标题左侧。
+        // MODAL 半模态标题栏不渲染内置返回键，返回图标走 subIcon 槽位；
         // 根层级不显示，返回语义由 navigateUp 统一裁决。
         subIcon: this.pathGroups.length === 0 ? undefined : {
           content: {

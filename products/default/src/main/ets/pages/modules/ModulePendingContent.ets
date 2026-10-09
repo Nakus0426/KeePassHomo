@@ -2,9 +2,6 @@ import { ResUtil } from '@pura/harmony-utils'
 import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 
-/**
- * 未开放模块的占位内容，由对应模块页签直接复用。
- */
 @ComponentV2
 export struct ModulePendingContent {
   @Computed

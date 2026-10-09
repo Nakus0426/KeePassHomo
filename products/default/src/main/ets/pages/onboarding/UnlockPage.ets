@@ -44,7 +44,6 @@ export struct UnlockPage {
     return this.getUIContext().px2vp(buttonHeight - padding * 2)
   }
 
-  // 分割线与解锁按钮的显示条件：输入框有焦点，或已输入非空密码
   @Computed
   get showUnlockSuffix(): boolean {
     return this.passwordFocused || this.password.length > 0
@@ -60,7 +59,7 @@ export struct UnlockPage {
 
   aboutToAppear(): void {
     if (appRouter.consumeLockEnter()) {
-      // 首帧即隐藏（整页透明），待首次布局完成后再从屏幕外滑入
+      // 首帧即隐藏（整页透明），待首次布局完成后再从屏幕外滑入。
       this.splitProgress = 1
       this.enterPending = true
     }
@@ -79,10 +78,6 @@ export struct UnlockPage {
     }
   }
 
-  /**
-   * 解锁成功离场动画：上下背景分离、图标随上半背景上移、整页淡出，
-   * 动画结束后清栈回到首页。
-   */
   private playExitAnimation(): void {
     this.exitAnimating = true
     this.getUIContext().getFocusController().clearFocus()
@@ -102,13 +97,10 @@ export struct UnlockPage {
     }, 50)
   }
 
-  /**
-   * 锁定后入场动画：与解锁离场相反，上下背景从屏幕外滑入并整页淡入。
-   */
   private playEnterAnimation(): void {
     this.topShift = this.pageHeight * 0.2
     this.bottomShift = this.pageHeight * 0.8
-    // 延迟启动，避开首次布局与动画首帧同帧的干扰（与离场动画同因）
+    // 延迟启动，避开首次布局与动画首帧同帧。
     setTimeout(() => {
       this.getUIContext().animateTo({
         duration: AnimationTokens.STATE_TRANSITION_DURATION,

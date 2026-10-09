@@ -40,10 +40,7 @@ export enum VaultBrowseMode {
   Archived,
 }
 
-/**
- * 用户在保存对话框中取消选择。区别于真实的创建失败，
- * 调用方应静默中止流程而非提示错误。
- */
+// 用户取消选择而非真实失败：调用方应静默中止流程。
 export class UserCancelledError extends Error {
   constructor() {
     super('用户取消了保存位置选择')
@@ -259,7 +256,7 @@ export class StageOneVaultStore {
     this.session.unlock(document)
   }
 
-  /** 全部条目：不含回收站子树，已删除条目不作为可浏览数据。 */
+  // 全部条目：不含回收站子树。
   entries(): VaultEntry[] {
     const document: VaultDocument = this.session.getDocument()
     const entries: VaultEntry[] = []
@@ -267,10 +264,7 @@ export class StageOneVaultStore {
     return entries
   }
 
-  /**
-   * 按分组筛选：传入组为子树的根，命中该组及其全部后代组内的条目
-   * （KDBX 组即文件夹，选父组须含子组）。
-   */
+  // 组筛选：传入组为子树根，命中该组及全部后代组内的条目。
   browse(query: string, mode: VaultBrowseMode, groupUuids: string[] = []): VaultEntry[] {
     const acceptedGroupUuids: string[] = []
     if (groupUuids.length > 0) {
@@ -291,7 +285,7 @@ export class StageOneVaultStore {
     }).sort((left: VaultEntry, right: VaultEntry) => left.title.localeCompare(right.title))
   }
 
-  /** 全量分组（含根组）：不含回收站子树，回收站不作为可归类目标。 */
+  // 全量分组（含根组）：不含回收站子树。
   groups(): VaultGroup[] {
     const document: VaultDocument = this.session.getDocument()
     const groups: VaultGroup[] = []
@@ -299,10 +293,7 @@ export class StageOneVaultStore {
     return groups
   }
 
-  /**
-   * 顶层分组：根组的直接子组。根组是容器、非用户归类用的文件夹，
-   * 故不参与筛选行展示；回收站同属 KDBX 内部结构，同样不展示。
-   */
+  // 顶层分组：根组是容器、非用户归类文件夹，与回收站同样不展示。
   topLevelGroups(): VaultGroup[] {
     const document: VaultDocument = this.session.getDocument()
     if (document.groups.length === 0) {
@@ -357,7 +348,6 @@ export class StageOneVaultStore {
     await this.persistDocument(document)
   }
 
-  /** 新建分组立即落盘：选择器数据源始终等于引擎真状态，取消条目编辑也不回滚空组。 */
   async createGroup(parentGroupUuid: string, name: string): Promise<VaultGroup> {
     if (this.currentSource.readOnly) {
       throw new Error('只读保险库不能新建分组')
@@ -368,7 +358,7 @@ export class StageOneVaultStore {
     return created
   }
 
-  /** 删除分组立即落盘：整棵子树按 KDBX 语义移入回收站，映射树同步摘除。 */
+  // 删除分组：整棵子树按 KDBX 语义移入回收站。
   async deleteGroup(groupUuid: string): Promise<void> {
     if (this.currentSource.readOnly) {
       throw new Error('只读保险库不能删除分组')
@@ -535,7 +525,7 @@ export class StageOneVaultStore {
     return this.credential
   }
 
-  /** KDBX 回收站由 meta.recycleBinUuid 指向，是普通分组，需按 uuid 而非名字识别。 */
+  // KDBX 回收站由 meta.recycleBinUuid 指向，须按 uuid 而非名字识别。
   private isRecycleBin(group: VaultGroup, recycleBinUuid: string): boolean {
     return group.uuid === recycleBinUuid
   }
@@ -560,9 +550,6 @@ export class StageOneVaultStore {
     }
   }
 
-  /**
-   * 收集选中组及其全部后代组的 uuid；inherited 表示当前分支已命中选中组。
-   */
   private collectSubtreeUuids(groups: VaultGroup[], selected: string[], target: string[],
     inherited: boolean): void {
     for (const group of groups) {

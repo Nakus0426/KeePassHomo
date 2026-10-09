@@ -145,7 +145,7 @@ export class GeneratorContentController {
   }
 }
 
-/** 生成器内容的全局控制器实例：GeneratorPage 与标题栏复制菜单共享同一实例。 */
+// GeneratorPage 与标题栏复制菜单共享同一实例
 export const generatorContentController: GeneratorContentController = new GeneratorContentController()
 
 @ComponentV2

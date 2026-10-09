@@ -1,17 +1,14 @@
 import { ResUtil } from '@pura/harmony-utils'
 import { BounceAnimator } from '@ohos/common'
 
-/**
- * 圆形图标开关按钮：点击时播放弹跳动画，在收缩点回调业务切换。
- * 尺寸由 app.float.control_height 推出，保证与表单控件同高。
- */
+// 尺寸由 app.float.control_height 推出，与表单控件同高
 @ComponentV2
 export struct IconToggleButton {
   @Param symbol: Resource = $r('sys.symbol.eye')
   @Param symbolColor: ResourceColor = $r('sys.color.font_secondary')
   @Require @Param accessibilityLabel: Resource
   @Param clickable: boolean = true
-  /** 独占本次交互：用于按钮被更大的可点区域包住时，避免两层都响应点击。 */
+  // 按钮被更大的可点区域包住时，独占交互避免两层同时响应点击
   @Param exclusive: boolean = false
   @Event onToggle: () => void = () => {
   }

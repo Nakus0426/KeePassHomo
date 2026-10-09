@@ -8,7 +8,7 @@ const USERNAME_FIELD_NAME: string = 'UserName'
 export struct EntryCard {
   @Require @Param entry: VaultEntry
   @Param avatarData: ArrayBuffer | undefined = undefined
-  /** 收藏状态由列表行模型携带：@Param 保证行模型变化能驱动图标刷新。 */
+  // 收藏状态由列表行模型携带，@Param 才能驱动行模型变化刷新图标
   @Param favorite: boolean = false
   @Param favoriteEnabled: boolean = true
   @Event onEntryClick: () => void = () => {

@@ -14,13 +14,13 @@ import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/Gr
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 
-/** 分组名的长度上限：与分组选择器同规则，防异常输入，KDBX 组名本身无硬性限制。 */
+// 分组名的长度上限：与分组选择器同规则，防异常输入，KDBX 组名本身无硬性限制。
 const GROUP_NAME_MAX_LENGTH: number = 64
 
-/** 层级切换横移距离占比：与分组选择器同参，横移自身宽度的 20%。 */
+// 横移自身宽度的 20%，与分组选择器同参。
 const LEVEL_TRANSITION_OFFSET_RATIO: number = 0.2
 
-/** 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。 */
+// 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。
 function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | undefined {
   if (group.uuid === targetUuid) {
     return [group]
@@ -35,7 +35,7 @@ function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | u
   return undefined
 }
 
-/** 子树规模：子分组数与条目数，不含自身分组。 */
+// 子树规模：子分组数与条目数，不含自身分组。
 interface GroupSubtreeStat {
   groups: number
   entries: number
@@ -52,50 +52,40 @@ function subtreeStat(group: VaultGroup): GroupSubtreeStat {
   return { groups, entries }
 }
 
-/**
- * 两轮可见顺序是否一致：一致就不重建行，避免逐字输入时无谓地整表重播转场。
- */
 function sameOrder(previous: string[], next: string[]): boolean {
   return previous.length === next.length
     && previous.every((uuid: string, index: number) => uuid === next[index])
 }
 
-/**
- * 分组管理页：面包屑 + 分组列表 + 全库搜索，行内左滑重命名与删除。
- * 独立于条目编辑流程，不存在草稿与瞬态选中，删除后只需收敛本页的浏览栈。
- * 入口暂未接线，路由已注册（groupManager），后续由设置页 cell 跳转。
- */
+// 分组管理页：面包屑 + 分组列表 + 全库搜索，行内左滑重命名与删除；入口暂未接线，路由已注册（groupManager）。
 @ComponentV2
 export struct GroupManagerPage {
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  /** 浏览栈：根下顶层到当前层的分组链；空链表示停在根层。 */
+  // 浏览栈：根下顶层到当前层的分组链；空链表示停在根层。
   @Local private pathGroups: VaultGroup[] = []
   @Local private searchDraft: string = ''
-  /** 名称弹窗的输入草稿：弹窗内容是组件内 @Builder，直接读写本状态，无需参数中介。 */
+  // 名称弹窗的输入草稿：弹窗内容是组件内 @Builder，直接读写本状态，无需参数中介。
   @Local private groupNameDraft: string = ''
-  /** 非空表示弹窗处于编辑模式，值即被改名的分组 uuid，用于区分新建与改名两条提交路径。 */
+  // 非空表示弹窗处于编辑模式，值即被改名的分组 uuid，用于区分新建与改名两条提交路径。
   @Local private renameGroupUuid: string = ''
-  /** 出场动画中的分组 uuid：行高先收 0，动画结束才落盘，避免列表跳动。 */
+  // 出场动画中的分组 uuid：行高先收 0，动画结束才落盘，避免列表跳动。
   @Local private removingGroupUuid: string = ''
-  /** 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。 */
+  // 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。
   @Local private levelOffsetX: number = 0
   @Local private levelOpacity: number = 1
   @Local private levelWidthVp: number = 0
   @Local private levelSwitching: boolean = false
-  /** 行版本号：换词后自增让 ForEach 重建行，重排才有转场可播。 */
+  // 行版本号：换词后自增让 ForEach 重建行，重排才有转场可播。
   @Local private rowVersion: number = 0
   private readonly rowShift: GroupRowShift = new GroupRowShift()
-  /** 面包屑滚动控制器：层级变化后把当前层级滚回视野。 */
+  // 面包屑滚动控制器：层级变化后把当前层级滚回视野。
   private readonly breadcrumbScroller: Scroller = new Scroller()
   private readonly viewModel: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
   private readonly createIcon: SymbolGlyphModifier =
     new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus'))
       .fontColor([$r('sys.color.titlebar_icon_color')])
-  /**
-   * 纯淡入淡出：面包屑在搜索态直接淡出，列表与空态整块互换也用它——
-   * 缩放交给行本身（与首页列表/空态切换同款）。
-   */
+  // 纯淡入淡出：面包屑搜索态淡出、列表与空态互换共用；缩放交给行自身。
   private readonly fadeTransition: TransitionEffect = TransitionEffect.OPACITY
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -116,7 +106,7 @@ export struct GroupManagerPage {
     return this.viewModel.currentSource().readOnly
   }
 
-  /** 当前层分组：根层取根分组，否则取浏览栈末项，恒有值。 */
+  // 当前层分组：根层取根分组，否则取浏览栈末项，恒有值。
   @Computed
   private get currentGroup(): VaultGroup {
     if (this.pathGroups.length === 0) {
@@ -133,7 +123,7 @@ export struct GroupManagerPage {
     return this.pathGroups[this.pathGroups.length - 1].groups
   }
 
-  /** 全库匹配组名与全路径，大小写不敏感。 */
+  // 全库匹配组名与全路径，大小写不敏感。
   @Computed
   private get searchResults(): VaultGroup[] {
     return this.matchGroups(this.searchDraft)
@@ -148,10 +138,7 @@ export struct GroupManagerPage {
     group.name.toLocaleLowerCase().includes(keyword) || group.path.toLocaleLowerCase().includes(keyword))
   }
 
-  /**
-   * 某个搜索词下的可见顺序：空词即当前浏览层。
-   * 换词前后各算一次，不读 @Computed，免得依赖它的重算时机。
-   */
+  // 某个搜索词下的可见顺序：空词即当前浏览层；不读 @Computed，避免依赖其重算时机。
   private orderForDraft(query: string): string[] {
     const groups: VaultGroup[] = query.trim().length === 0 ? this.currentGroups : this.matchGroups(query)
     return groups.map((group: VaultGroup) => group.uuid)
@@ -167,13 +154,13 @@ export struct GroupManagerPage {
     return this.viewModel.rootGroup().name
   }
 
-  /** 根分组 uuid：根组是文档容器，不开放重命名与删除。 */
+  // 根分组 uuid：根组是文档容器，不开放重命名与删除。
   @Computed
   private get rootUuid(): string {
     return this.viewModel.rootGroup().uuid
   }
 
-  /** 内容顶部避让：沉浸式标题栏之下，状态栏与标题栏高度都要让开。 */
+  // 内容顶部避让：沉浸式标题栏之下，状态栏与标题栏高度都要让开。
   @Computed
   private get contentTopOffset(): number {
     const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
@@ -187,7 +174,7 @@ export struct GroupManagerPage {
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
   }
 
-  /** 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。 */
+  // 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。
   @Computed
   private get dividerStartMargin(): number {
     const padding8Px = ResUtil.getNumber($r('sys.float.padding_level8').id) * 2
@@ -215,12 +202,12 @@ export struct GroupManagerPage {
     return ResUtil.getStringSync(resource).replace('%s', String(count))
   }
 
-  /** 分组是否仍在可见分组树内：删除落盘后用它收敛浏览栈。 */
+  // 分组是否仍在可见分组树内：删除落盘后用它收敛浏览栈。
   private groupAlive(groupUuid: string): boolean {
     return this.viewModel.groups().some((group: VaultGroup) => group.uuid === groupUuid)
   }
 
-  /** 删除确认文案：把子分组数与条目数一并作为风险提示，数量为 0 的项不出现。 */
+  // 删除确认文案：把子分组数与条目数一并作为风险提示，数量为 0 的项不出现。
   private deleteGroupMessage(group: VaultGroup): string {
     const stat: GroupSubtreeStat = subtreeStat(group)
     const parts: string[] = []
@@ -240,10 +227,7 @@ export struct GroupManagerPage {
     return `${risk}\n${base}`
   }
 
-  /**
-   * 层级切换动画，与生成器页签切换同参：前进（进子组）时旧层左移淡出、新层自右侧进入；
-   * 后退（面包屑回跳）时反向。数据切换发生在两段动画之间，该帧内容不可见。
-   */
+  // 层级切换：前进时旧层左移淡出、新层自右侧进入，后退反向；与生成器页签切换同参。
   private switchLevel(forward: boolean, update: () => void): void {
     if (this.levelSwitching) {
       return
@@ -257,8 +241,7 @@ export struct GroupManagerPage {
     }
     exitParam.onFinish = () => {
       update()
-      // 入场起点必须同步落到渲染树：V2 下异步刷新的话，入场动画的起点仍是退场动画的终点，
-      // 新层会从反方向进来（前进时本该自右侧进入，却从左往右走）。
+      // 入场起点必须同步落到渲染树，否则入场动画起点仍是退场终点，新层会反向进入。
       UIUtils.applySync(() => this.levelOffsetX = forward ? offset : -offset)
       const enterParam: AnimateParam = {
         duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -276,7 +259,7 @@ export struct GroupManagerPage {
     })
   }
 
-  /** 点行进层：浏览态进入该行子层；搜索态跳到命中分组的所在层并清空搜索词，便于接着看它的内容。 */
+  // 点行进层：浏览态进入该行子层；搜索态跳到命中分组的所在层并清空搜索词，便于接着看它的内容。
   private openGroup(group: VaultGroup): void {
     if (this.searching) {
       const chain: VaultGroup[] = this.chainToGroup(group.uuid)
@@ -291,7 +274,7 @@ export struct GroupManagerPage {
     this.viewModel.recordActivity()
   }
 
-  /** 面包屑跳转：depth 为保留的层数，0 回根层。 */
+  // 面包屑跳转：depth 为保留的层数，0 回根层。
   private jumpTo(depth: number): void {
     const nextPath: VaultGroup[] = this.pathGroups.slice(0, depth)
     this.switchLevel(depth > nextPath.length, () => this.pathGroups = nextPath)
@@ -343,7 +326,7 @@ export struct GroupManagerPage {
     .padding($r('sys.float.padding_level8'))
   }
 
-  /** 新建落在当前浏览层；重命名沿用同一弹窗，只换标题并回填当前名称。 */
+  // 新建落在当前浏览层；重命名沿用同一弹窗，只换标题并回填当前名称。
   private openCreateDialog(): void {
     this.renameGroupUuid = ''
     this.groupNameDraft = ''
@@ -425,10 +408,7 @@ export struct GroupManagerPage {
     this.getUIContext().showAlertDialog(options)
   }
 
-  /**
-   * 删除分组：出场动画与首页卡片一致，先把行高收 0 再落盘；
-   * 落盘后浏览栈再收敛，被删层及之后都已不存在，过滤等价于截断到最近存活层。
-   */
+  // 删除分组：先把行高收 0 再落盘；落盘后过滤浏览栈，等价于截断到最近存活层。
   private deleteGroup(group: VaultGroup): void {
     const uiContext: UIContext = this.getUIContext()
     const exitParam: AnimateParam = {
@@ -493,11 +473,6 @@ export struct GroupManagerPage {
     .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
   }
 
-  /**
-   * 搜索词变化：先记下当前可见顺序，再换词，再判断结果集是否真的变了。
-   * 结果集变了才重建行并据旧下标算入场位移，于是命中行从原位置滑到新位置，而不是瞬移。
-   * 搜索词本身立即上屏，输入不因动画而迟滞。
-   */
   private applyQuery(value: string): void {
     const previousOrder: string[] = this.orderForDraft(this.searchDraft)
     const nextOrder: string[] = this.orderForDraft(value)
@@ -537,11 +512,9 @@ export struct GroupManagerPage {
           }
         }, (group: VaultGroup) => group.uuid)
       }
-      // 内容尺寸一变就把当前层级带回视野（等价 scrollIntoView）：首帧布局、下钻/回退层级、
-      // 窗口尺寸变化都走这里。当前层级恒为末项，滚到末端即可，无需测量各项位置。
+      // 内容尺寸一变就把当前层级带回视野：当前层级恒为末项，滚到末端即可。
       .onAreaChange((_oldArea: Area, _newArea: Area) => this.breadcrumbScroller.scrollEdge(Edge.End))
-      // 内边距放在内容上而不是外层 margin 上：滚动视口因此贴住左右边缘，
-      // 首尾两项各自让出内边距。该值与下方渐隐长度取同一 token，滚到两端时末项不落在渐隐区里被压暗。
+      // 内边距放在内容上让滚动视口贴边；与渐隐长度取同一 token，两端末项不被压暗。
       .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     }
     .width('100%')

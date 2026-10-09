@@ -1,5 +1,4 @@
-// 只读查看 KDBX 保险库：头部参数（分组数、条目数、前/末几条），用于确认生成结果或设备上的文件。
-//
+// 只读查看 KDBX 保险库：头部参数、分组与条目数、前后各 3 条。
 // 用法：node inspect.js <保险库路径> <主密码>
 
 const fs = require('fs')
@@ -18,7 +17,7 @@ const CIPHER_NAMES = {
     'd6038a2b8b6f4cb5a524339a31dbb59a': 'AES256-CBC',
 }
 
-/** 头部是明文：签名 8 字节 + 版本 4 字节，随后是按「字段号 + 长度 + 数据」排列的字段。 */
+// 头部是明文：签名 8 字节 + 版本 4 字节，随后是按「字段号 + 长度 + 数据」排列的字段。
 function readHeader(file) {
     const buffer = fs.readFileSync(file)
     const fields = {

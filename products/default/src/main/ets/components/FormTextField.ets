@@ -1,6 +1,6 @@
 import { AnimationTokens } from '@ohos/common'
 
-/** 输入框语义状态，成员与 sys.color 同名资源一一对应 */
+// 成员与 sys.color 同名资源一一对应
 export enum FormTextFieldStatus {
   Brand = 'brand',
   Confirm = 'confirm',
@@ -8,10 +8,6 @@ export enum FormTextFieldStatus {
   Warning = 'warning',
 }
 
-/**
- * 输入类控件的边框色：status 优先，无 status 时聚焦为 brand、失焦回落默认色。
- * 单行与多行输入框共用同一条规则。
- */
 export function formFieldBorderColor(status: FormTextFieldStatus | undefined, focused: boolean): ResourceColor {
   switch (status) {
     case FormTextFieldStatus.Brand:
@@ -26,30 +22,19 @@ export function formFieldBorderColor(status: FormTextFieldStatus | undefined, fo
   return focused ? $r('sys.color.brand') : $r('sys.color.comp_background_secondary')
 }
 
-/**
- * 通用文本输入框：统一封装边框、圆角、背景、高度等视觉样式与 Focus/Blur 状态过渡动画。
- * 未设置 status 时，获得焦点边框平滑过渡至 brand 色，失焦后恢复默认色；
- * 设置 status 时边框恒为对应语义色，优先于聚焦状态，颜色变化同样带过渡动画；
- * suffixBuilder 用于渲染尾部附加内容（如密码可见性切换、功能入口按钮）。
- */
 @ComponentV2
 export struct FormTextField {
-  /** 受控文本，由外部状态驱动 */
   @Param text: string = ''
   @Param placeholder: ResourceStr | undefined = undefined
   @Param type: InputType = InputType.Normal
-  /** 密码明文显示，仅 Password 类型生效，配合外部切换按钮使用 */
+  // 仅 Password 类型生效，配合外部切换按钮使用
   @Param showPassword: boolean = false
-  /** 语义状态色；undefined 表示无反馈，边框回落到默认/聚焦逻辑 */
   @Param status: FormTextFieldStatus | undefined = undefined
   @Event onChange: (value: string) => void = () => { }
-  /** 焦点变化回调，供外部驱动尾部内容的条件渲染 */
   @Event onFocusChange: (focused: boolean) => void = () => {
   }
-  /** 键盘提交回调（回车/前往） */
   @Event onSubmit: (value: string) => void = () => {
   }
-  /** 尾部附加内容插槽 */
   @BuilderParam suffixBuilder?: () => void
   @Local private focused: boolean = false
 

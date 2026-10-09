@@ -1,25 +1,18 @@
 import { AnimationTokens } from '@ohos/common'
 import { formFieldBorderColor, FormTextFieldStatus } from './FormTextField'
 
-/**
- * 通用多行文本输入框：边框、圆角、背景与 Focus/Blur 过渡与 FormTextField 保持一致，
- * 高度在 min/max 区间内随内容自适应。
- */
+// 视觉与过渡须与 FormTextField 保持一致
 @ComponentV2
 export struct FormTextArea {
   @Param text: string = ''
   @Param placeholder: ResourceStr | undefined = undefined
-  /** 语义状态色；undefined 表示无反馈，边框回落到默认/聚焦逻辑 */
   @Param status: FormTextFieldStatus | undefined = undefined
   @Event onChange: (value: string) => void = () => {
   }
-  /** 焦点变化回调，供外部驱动尾部内容的条件渲染 */
   @Event onFocusChange: (focused: boolean) => void = () => {
   }
-  /** 键盘提交回调（回车/前往） */
   @Event onSubmit: (value: string) => void = () => {
   }
-  /** 尾部附加内容插槽 */
   @BuilderParam suffixBuilder?: () => void
   @Local private focused: boolean = false
 

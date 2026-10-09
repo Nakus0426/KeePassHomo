@@ -36,7 +36,6 @@ export class FormItemController {
     return this.result.valid
   }
 
-  /** 清空校验状态，供复用的表单 ViewModel 在重置内容时一并复位反馈 UI。 */
   reset(): void {
     this.status = Status.Idle
     this.result = { valid: true, errors: [] }

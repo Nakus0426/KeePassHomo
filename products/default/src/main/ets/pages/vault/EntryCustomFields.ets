@@ -89,42 +89,32 @@ const CUSTOM_FIELD_PRESET: FieldPreset = {
   wordBreak: WordBreak.BREAK_ALL,
 }
 
-/** 类型弹窗的内置类型顺序：7 个预置类型在前，自定义在最后。 */
 const FIELD_TYPE_OPTIONS: FieldPreset[] = FIELD_PRESETS.concat([CUSTOM_FIELD_PRESET])
 
-/** 类型标识圆的背景透明度，与 FileSummaryPage 只读横幅同一取值。 */
+// 透明度取值与 FileSummaryPage 只读横幅一致，改动需同步。
 const TYPE_CIRCLE_OPACITY: number = 0.2
 
-/** 密码字段预览掩码的最大字符数：避免长密码把预览撑成多行，也不暴露完整长度。 */
+// 掩码上限：避免撑成多行，也不暴露密码完整长度。
 const PASSWORD_MASK_MAX: number = 12
 
 @ComponentV2
 export struct EntryCustomFields {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Param readOnly: boolean = false
-  /** 保存校验失败的自定义字段 id，-1 表示无。 */
   @Param invalidFieldId: number = -1
-  /** 宿主编辑会话是否打开：会话关闭时复位未提交的输入态与弹窗。 */
   @Param active: boolean = false
-  /** 类型弹窗的上下避让高度，由宿主按 sheet 布局传入。 */
   @Param topOffset: number = 0
   @Param bottomOffset: number = 0
-  /** 字段被改名或删除后，宿主复位校验失败高亮。 */
   @Event onInvalidCleared: () => void = () => {
   }
   @Event onActivity: () => void = () => {
   }
   @Local private typeSheetVisible: boolean = false
-  /** 处于行内编辑态的字段 id，-1 表示无；editingName 区分编辑字段名还是字段值。 */
   @Local private editingFieldId: number = -1
   @Local private editingName: boolean = false
-  /** 类型弹窗选中后待新增的字段类型，undefined 表示本次没有选择。 */
   private pendingPreset: FieldPreset | undefined = undefined
-  /**
-   * 卡片项样式：HdsListItem 不支持通用属性，间距与增删转场都通过 ListItemModifier 下发。
-   * 转场配合新增/删除处的 animateTo 使用：入场由小放大淡入，出场缩小淡出并由布局动画收起高度。
-   * animation 写在组合链的首个效果上，按官方规则会同时作用于后面的 scale 效果。
-   */
+  // HdsListItem 不支持通用属性，间距与增删转场经 ListItemModifier 下发。
+  // animation 必须挂在组合链首个效果上，否则不会作用于后面的 scale。
   private readonly fieldCardItemModifier: ListItemModifier = new ListItemModifier()
     .margin({ bottom: $r('sys.float.padding_level8') })
     .transition(TransitionEffect.asymmetric(
@@ -171,10 +161,7 @@ export struct EntryCustomFields {
     this.typeSheetVisible = false
   }
 
-  /**
-   * 类型弹窗退场后再新增字段：弹窗在场时申请的焦点会被弹窗收回、失焦又会立刻退出编辑态，
-   * 且新增转场也会被弹窗挡住，因此新增与进入字段名编辑态都推迟到这里。
-   */
+  // 弹窗在场时会收回焦点并遮挡新增转场，新增与进入字段名编辑态须推迟到弹窗退场后。
   private onTypeSheetDisappear(): void {
     this.typeSheetVisible = false
     const preset: FieldPreset | undefined = this.pendingPreset
@@ -182,7 +169,6 @@ export struct EntryCustomFields {
       return
     }
     this.pendingPreset = undefined
-    // 新增放在弹窗退场后：卡片入场转场要在弹窗收走后可见，随即进入字段名编辑态。
     this.getUIContext().animateTo({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
@@ -198,10 +184,6 @@ export struct EntryCustomFields {
     this.closeTypeSheet()
   }
 
-  /**
-   * 删除字段卡片。删除动作放在 animateTo 里，卡片按 transition 缩小淡出、其余卡片平滑上移；
-   * 被删字段若正在编辑或已被标记校验错误，一并复位。
-   */
   private deleteField(field: EntryFieldEditor, index: number): void {
     this.getUIContext().animateTo({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -235,7 +217,6 @@ export struct EntryCustomFields {
     return this.editingFieldId === fieldId && !this.editingName
   }
 
-  /** 密码字段非编辑态按值长度生成掩码（上限 PASSWORD_MASK_MAX），空值则什么都不显示。 */
   private displayValue(field: EntryFieldEditor): ResourceStr {
     if (field.type !== VaultFieldType.Password || this.isEditingValue(field.id)) {
       return field.value
@@ -247,7 +228,7 @@ export struct EntryCustomFields {
     return maskChar.repeat(Math.min(field.value.length, PASSWORD_MASK_MAX))
   }
 
-  /** 类型只可能来自 FIELD_TYPE_OPTIONS，查不到即类型表与枚举不同步。 */
+  // 类型只可能来自 FIELD_TYPE_OPTIONS，查不到即类型表与枚举不同步。
   private presetOf(type: VaultFieldType): FieldPreset {
     return FIELD_TYPE_OPTIONS.find((preset: FieldPreset) => preset.type === type)!
   }
@@ -259,10 +240,7 @@ export struct EntryCustomFields {
     }
   }
 
-  /**
-   * 卡片槽位：把卡片的左右留白放在这里而不是卡片自身的外边距，
-   * ListItem 保持通栏，左滑时卡片才能被屏幕边缘裁切、删除按钮才能从屏幕边缘划出。
-   */
+  // 留白放在槽位而非卡片外边距：ListItem 保持通栏，左滑才能被屏幕边缘裁切。
   @Builder
   private fieldCardSlot(field: EntryFieldEditor, index: number) {
     Row() {

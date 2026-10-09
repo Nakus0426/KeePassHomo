@@ -1,10 +1,6 @@
 import { IconToggleButton } from './IconToggleButton'
 
-/**
- * 收藏切换按钮：已收藏为实心星、未收藏为空心星，切换时播放弹跳动画。
- * 状态由宿主持有并落盘，组件只负责反馈与回调。
- * 星标色用 app.color.favorite：系统色板没有收藏语义，橘黄为产品指定色。
- */
+// 星标色用 app.color.favorite：系统色板无收藏语义，橘黄为产品指定色
 @ComponentV2
 export struct FavoriteToggle {
   @Param favorite: boolean = false

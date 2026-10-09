@@ -12,7 +12,6 @@ const AVATAR_IMAGE_FORMAT: string = 'image/jpeg'
 const AVATAR_QUALITY: number = 85
 const AVATAR_BACKGROUND: number = 0xFFFFFF
 
-/** 按最长边等比算出解码尺寸；原图不超过上限时不放大，结果保证为正整数。 */
 function avatarDecodeSize(size: image.Size): image.Size {
   const longest: number = Math.max(size.width, size.height)
   if (longest <= AVATAR_MAX_EDGE) {
@@ -25,10 +24,7 @@ function avatarDecodeSize(size: image.Size): image.Size {
   }
 }
 
-/**
- * 条目头像：没有自定义图片时显示标题前两个字符，右下角按钮弹出切换菜单。
- * 选图、沙箱暂存、压缩与预览解码都封在这里，宿主只负责把结果接进编辑器。
- */
+// 选图、沙箱暂存、压缩与预览解码都封在这里，宿主只负责把结果接进编辑器。
 @ComponentV2
 export struct EntryAvatarPicker {
   @Param title: string = ''
@@ -50,7 +46,6 @@ export struct EntryAvatarPicker {
     this.refreshPreview()
   }
 
-  /** 默认头像取标题前两个字符，空标题回退为问号。 */
   @Computed
   get initials(): string {
     const title: string = this.title.trim()
@@ -79,10 +74,7 @@ export struct EntryAvatarPicker {
     }
   }
 
-  /**
-   * 相册返回的是媒体库 uri，而 createImageSource 只接受应用沙箱路径，
-   * 传 uri 会静默返回 undefined，所以先按 fd 复制进 cacheDir 再解码。
-   */
+  // createImageSource 只接受应用沙箱路径，传媒体库 uri 会静默返回 undefined，故先按 fd 复制到 cacheDir。
   private copyImageToSandbox(uri: string): string {
     const context: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -99,7 +91,6 @@ export struct EntryAvatarPicker {
     return path
   }
 
-  /** 先用 desiredSize 在解码阶段缩到最长边 384，再质量压缩为 JPEG。 */
   private async compressAvatar(uri: string): Promise<ArrayBuffer> {
     const path: string = this.copyImageToSandbox(uri)
     try {

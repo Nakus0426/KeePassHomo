@@ -3,33 +3,23 @@ import { FormItemController } from '../components/FormItem'
 
 let nextFieldId: number = 1
 
-/**
- * 头像的待写入意图：Keep 不动原头像，Set 写入 avatarData，Clear 删除原头像。
- * 与 avatarData 分开，因为"当前显示的头像"和"保存时要写的动作"是两件事。
- */
 export enum EntryAvatarAction {
   Keep = 'keep',
   Set = 'set',
   Clear = 'clear'
 }
 
-/** 标签写入结果，调用方据此决定是否保留输入态并给出反馈。 */
 export enum TagAddResult {
   Added = 'added',
   Duplicate = 'duplicate',
   Separator = 'separator'
 }
 
-/**
- * 禁止写入标签的分隔符：半角分号是 KDBX 本体的标签分隔符，半角逗号是旧版编辑器的分隔符；
- * 全角逗号与分号不会被 KDBX 切分，但用户输入它们的意思是分隔，写盘后会与其他客户端显示不一致。
- */
+// 半角分号是 KDBX 的标签分隔符，半角逗号是旧版编辑器的分隔符；
+// 全角逗号/分号不会被 KDBX 切分，但写入后会与其他客户端显示不一致。
 const TAG_SEPARATORS: string[] = [',', ';', '，', '；']
 
-/**
- * 编辑器内的自定义字段：逐项 @Trace，改字段名/类型/敏感都直接驱动对应输入控件。
- * id 只用于列表渲染的稳定标识，删除中间项时不让控件身份错位。
- */
+// id 只作列表渲染的稳定标识，删除中间项时不让控件身份错位。
 @ObservedV2
 export class EntryFieldEditor {
   readonly id: number = nextFieldId++
@@ -39,10 +29,7 @@ export class EntryFieldEditor {
   @Trace protected: boolean = false
 }
 
-/**
- * 条目编辑器 ViewModel：由编辑态内容组件持有，一次编辑会话一份，
- * 随半模态离开编辑态而 reset，编辑内容与初始值快照不残留。
- */
+// 一次编辑会话一份，随半模态退出编辑态 reset，不残留内容与初始值快照。
 @ObservedV2
 export class EntryEditorViewModel {
   @Trace entryUuid: string = ''
@@ -53,7 +40,7 @@ export class EntryEditorViewModel {
   @Trace notes: string = ''
   @Trace tags: string[] = []
   @Trace groupUuid: string = ''
-  /** 当前分组的名称与全路径：仅用于分组行展示，不参与改动判断（随 groupUuid 派生）。 */
+  // 名称与路径仅用于分组行展示，不参与改动判断（随 groupUuid 派生）。
   @Trace groupName: string = ''
   @Trace groupPath: string = ''
   @Trace fields: EntryFieldEditor[] = []
@@ -63,10 +50,7 @@ export class EntryEditorViewModel {
   readonly titleController: FormItemController = new FormItemController()
   readonly titleSchema: ValidationSchema = stringSchema([required($r('app.string.entry_title_required'))])
 
-  /**
-   * 按表单字段顺序执行保存校验，返回首个未通过字段的 key，全部通过时返回 undefined。
-   * 自定义字段的 key 为 EntryFieldEditor.id，UI 据此定位到对应卡片。
-   */
+  // 返回首个未通过字段的 key（自定义字段为 EntryFieldEditor.id），全部通过返回 undefined。
   validate(): string | undefined {
     if (!this.titleController.validate(this.title)) {
       return 'title'
@@ -99,7 +83,6 @@ export class EntryEditorViewModel {
     this.notes = value
   }
 
-  /** 追加标签：含分隔符或与已有标签完全相同时拒绝，返回原因供 UI 提示。 */
   addTag(value: string): TagAddResult {
     if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
       return TagAddResult.Separator
@@ -115,7 +98,7 @@ export class EntryEditorViewModel {
     this.tags = this.tags.filter((tag: string) => tag !== value)
   }
 
-  /** 单一入口写分组三字段：uuid 驱动保存与改动判断，名称与路径驱动展示，禁止分散赋值。 */
+  // uuid 驱动保存与改动判断，名称与路径仅驱动展示；禁止分散赋值。
   setGroup(group: VaultGroup): void {
     this.groupUuid = group.uuid
     this.groupName = group.name
@@ -132,7 +115,7 @@ export class EntryEditorViewModel {
     this.avatarAction = EntryAvatarAction.Clear
   }
 
-  /** 保存入参的头像三态：undefined 不动、null 删除、ArrayBuffer 写入。 */
+  // 保存入参的头像三态：undefined 不动、null 删除、ArrayBuffer 写入。
   avatarInput(): ArrayBuffer | null | undefined {
     if (this.avatarAction === EntryAvatarAction.Set) {
       return this.avatarData
@@ -143,7 +126,7 @@ export class EntryEditorViewModel {
     return undefined
   }
 
-  /** 追加自定义字段：字段名重名时自动加序号后缀，保证 KDBX 字段名唯一。 */
+  // 字段名重名时自动加序号后缀，保证 KDBX 字段名唯一。
   addField(type: VaultFieldType, name: string): void {
     const field: EntryFieldEditor = new EntryFieldEditor()
     field.name = this.uniqueFieldName(name)
@@ -172,7 +155,6 @@ export class EntryEditorViewModel {
     this.fields[index].protected = protectedValue
   }
 
-  /** 保存入参：去除字段名两端空白后交给引擎。 */
   fieldInputs(): VaultFieldInput[] {
     return this.fields.map((field: EntryFieldEditor): VaultFieldInput => {
       return {
@@ -194,10 +176,7 @@ export class EntryEditorViewModel {
     return candidate
   }
 
-  /**
-   * 编辑器当前内容快照，用于与 initialValue 对比判断是否有未保存修改。
-   * 头像只记动作标记，不拼图片字节。
-   */
+  // 快照用于与 initialValue 比对修改；头像只记动作标记，不拼图片字节。
   currentValue(): string {
     const fields: string = this.fields.map((field: EntryFieldEditor): string => {
       return `${field.name}\u0001${field.value}\u0001${field.type}\u0001${field.protected}`
@@ -210,10 +189,7 @@ export class EntryEditorViewModel {
     return this.initialValue !== this.currentValue()
   }
 
-  /**
-   * 保存成功后同步初始值快照。头像动作先归位 Keep，
-   * 否则再次保存会重复写入同一张图。
-   */
+  // 头像动作先归位 Keep，否则再次保存会重复写入同一张图。
   markSaved(): void {
     this.avatarAction = EntryAvatarAction.Keep
     this.initialValue = this.currentValue()

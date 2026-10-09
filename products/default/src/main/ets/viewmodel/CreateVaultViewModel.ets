@@ -3,10 +3,6 @@ import { FormItemController } from '../components/FormItem'
 
 const DEFAULT_VAULT_NAME: string = '个人保险库'
 
-/**
- * 创建保险库表单页面域 ViewModel：随 CreateVaultPage 入栈创建、出栈销毁，
- * 表单值与校验状态不跨导航残留。
- */
 @ObservedV2
 export class CreateVaultViewModel {
   @Trace vaultName: string = DEFAULT_VAULT_NAME
@@ -39,10 +35,6 @@ export class CreateVaultViewModel {
     this.confirmPassword = value
   }
 
-  /**
-   * 按表单字段顺序执行创建校验，返回首个未通过字段的 key，
-   * 全部通过时返回 undefined。
-   */
   validate(): string | undefined {
     if (!this.vaultNameController.validate(this.vaultName)) {
       return 'vaultName'

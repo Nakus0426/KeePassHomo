@@ -4,10 +4,7 @@ import { LogUtil } from '@pura/harmony-utils'
 
 const EMPTY_TITLE_PLACEHOLDER: string = '?'
 
-/**
- * 条目头像展示：绑定了自定义图片时显示图片，否则显示标题前两个字符。
- * 图标字节由宿主读取后传入（StageOneVaultStore.loadEntryAvatar），组件只负责展示。
- */
+// 图标字节由宿主读取后传入（StageOneVaultStore.loadEntryAvatar）
 @ComponentV2
 export struct EntryAvatar {
   @Param title: string = ''
@@ -15,7 +12,7 @@ export struct EntryAvatar {
   @Param avatarSize: Length = $r('app.float.entry_card_avatar_size')
   @Param initialsFontSize: Length = $r('sys.float.Body_L')
   @Local private avatarPixelMap: image.PixelMap | undefined = undefined
-  /** 已解码的来源字节：列表节点换条目复用时，据此判断旧图必须先清空。 */
+  // 已解码的来源字节：列表节点换条目复用时据此判断旧图需先清空
   private decodedSource: ArrayBuffer | undefined = undefined
 
   aboutToAppear(): void {
@@ -38,7 +35,7 @@ export struct EntryAvatar {
     if (data === this.decodedSource) {
       return
     }
-    // 来源变化先把旧图解绑：复用节点上残留的上一条目头像比空头像更糟。
+    // 来源变化先解绑旧图，避免复用节点残留上一条目头像
     this.decodedSource = data
     this.avatarPixelMap = undefined
     if (data === undefined) {

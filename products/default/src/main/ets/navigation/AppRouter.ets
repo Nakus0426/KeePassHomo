@@ -8,10 +8,7 @@ import { ROUTE_HOME, ROUTE_UNLOCK } from '../constants/RouteConstants'
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
 const ROOT_BACK_TOAST_DURATION_MS: number = 2000
 
-/**
- * 应用级路由器：唯一持有 NavPathStack，集中提供路由操作；
- * 通过 uiObserver 同步 currentRoute，页面无需手动回写。
- */
+// 应用内唯一持有 NavPathStack；currentRoute 由 uiObserver 自动同步，页面无需回写
 @ObservedV2
 export class AppRouter {
   @Trace currentRoute: string = ''
@@ -43,28 +40,19 @@ export class AppRouter {
     this.stack.pop()
   }
 
-  /**
-   * 清空路由栈并压入新的根页面，用于登录态切换等整栈重建场景。
-   */
   resetTo(route: string, param?: Object, animated: boolean = false): void {
     this.stack.clear()
     this.stack.pushPathByName(route, param, animated)
   }
 
-  /**
-   * 清空路由栈回到 Navigation 首页（HdsTabs 所在内容区）；
-   * 首页非 NavDestination，需手动标记 currentRoute。
-   */
+  // 首页不是 NavDestination，uiObserver 收不到事件，需手动标记 currentRoute
   clearToHome(): void {
     this.stack.clear()
     this.currentRoute = ROUTE_HOME
     this.homeTransitionPending = true
   }
 
-  /**
-   * 供 Navigation 转场代理消费：clearToHome 触发的回首页转场需零时长，
-   * 否则首页会播系统默认的横向滑入残影；其余转场保持系统默认。
-   */
+  // clearToHome 的回首页转场需零时长，否则会露出系统默认的横向滑入残影
   consumeHomeTransition(): boolean {
     if (this.homeTransitionPending) {
       this.homeTransitionPending = false
@@ -73,17 +61,11 @@ export class AppRouter {
     return false
   }
 
-  /**
-   * 锁定保险库后跳转解锁页：标记解锁页播放上下滑入的反向入场动画。
-   */
   lockToUnlock(): void {
     this.lockEnterPending = true
     this.resetTo(ROUTE_UNLOCK)
   }
 
-  /**
-   * 供解锁页消费：锁定跳转进入时播放入场动画。
-   */
   consumeLockEnter(): boolean {
     if (this.lockEnterPending) {
       this.lockEnterPending = false
@@ -92,16 +74,12 @@ export class AppRouter {
     return false
   }
 
-  /**
-   * 是否处于 Navigation 首页；以栈深判定，避免 pop 回首页时 currentRoute 滞留旧值。
-   */
+  // 以栈深判定：pop 回首页时 currentRoute 会滞留旧值
   isHomePage(): boolean {
     return this.stack.size() === 0
   }
 
-  /**
-   * 栈顶路由的入参，供新压入的页面在 aboutToAppear 中读取。
-   */
+  // 供新压入的页面在 aboutToAppear 中读取栈顶入参
   topParam(): Object | undefined {
     const size: number = this.stack.size()
     if (size === 0) {
@@ -110,9 +88,6 @@ export class AppRouter {
     return this.stack.getParamByIndex(size - 1) as Object | undefined
   }
 
-  /**
-   * 根级页面系统返回：2 秒内连续两次返回同一根页面时将应用切至后台。
-   */
   handleRootBack(route: string): void {
     const now: number = Date.now()
     if (route !== this.lastBackRoute || now - this.lastBackPressedAt > ROOT_BACK_CONFIRM_INTERVAL_MS) {
