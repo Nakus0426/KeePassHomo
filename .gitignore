@@ -22,6 +22,7 @@ oh_modules/
 /signing/*.key
 /signing/*.jks
 /signing/*.keystore
+/signing/local-signing.json
 /.codex
 *.p12
 *.p7b
