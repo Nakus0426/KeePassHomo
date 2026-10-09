@@ -9,7 +9,7 @@ import {
   TextModifier,
   uiMaterial,
 } from '@kit.ArkUI'
-import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
+import { HdsNavigationMenuItemOptions, IconStyleMode } from '@kit.UIDesignKit'
 import { AnimationTokens, VaultGroup } from '@ohos/common'
 import { appRouter } from '../../navigation/AppRouter'
 import { appViewModel } from '../../viewmodel/AppViewModel'
@@ -283,6 +283,7 @@ export const vaultTabChrome: ModuleTabChrome = {
   menuItems: (): HdsNavigationMenuItemOptions[] => [{
     content: {
       icon: $r('sys.symbol.magnifyingglass'),
+      type: IconStyleMode.SMALL,
       label: $r('app.string.search'),
       action: (): void => {
         appRouter.push(ROUTE_SEARCH)

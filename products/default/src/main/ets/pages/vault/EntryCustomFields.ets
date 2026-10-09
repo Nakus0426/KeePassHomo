@@ -1,5 +1,12 @@
 import { ListItemModifier, SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
-import { HdsListItem, hdsMaterial, HdsNavigation, HdsNavigationTitleMode, ScrollEffectType } from '@kit.UIDesignKit'
+import {
+  HdsListItem,
+  hdsMaterial,
+  HdsNavigation,
+  HdsNavigationTitleMode,
+  IconStyleMode,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
 import { AnimationTokens, ColorUtil, VaultFieldType } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { Cell } from '../../components/Cell'
@@ -144,7 +151,6 @@ export struct EntryCustomFields {
     style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
   })
   private readonly cancelIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontSize($r('sys.float.titlebar_icon_width'))
     .fontColor([$r('sys.color.icon_primary')])
 
   @Monitor('active')
@@ -498,6 +504,7 @@ export struct EntryCustomFields {
           value: [{
             content: {
               icon: this.cancelIcon,
+              type: IconStyleMode.SMALL,
               label: $r('app.string.close'),
               action: () => this.closeTypeSheet(),
             },

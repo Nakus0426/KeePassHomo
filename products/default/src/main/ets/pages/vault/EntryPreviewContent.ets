@@ -5,6 +5,7 @@ import {
   HdsNavigationIconOptions,
   HdsNavigationMenuItemOptions,
   HdsNavigationTitleMode,
+  IconStyleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
@@ -141,19 +142,19 @@ export struct EntryPreviewContent {
   private passwordTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly favoriteIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.star')).fontSize($r('sys.float.titlebar_icon_width'))
+    new SymbolGlyphModifier($r('sys.symbol.star'))
       .fontColor([$r('sys.color.titlebar_icon_color')])
   private readonly favoritedIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.star_fill')).fontSize($r('sys.float.titlebar_icon_width'))
+    new SymbolGlyphModifier($r('sys.symbol.star_fill'))
       .fontColor([$r('app.color.favorite')])
   private readonly editIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.square_and_pencil')).fontSize($r('sys.float.titlebar_icon_width'))
+    new SymbolGlyphModifier($r('sys.symbol.square_and_pencil'))
       .fontColor([$r('sys.color.titlebar_icon_color')])
   private readonly deleteIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.trash')).fontSize($r('sys.float.titlebar_icon_width'))
+    new SymbolGlyphModifier($r('sys.symbol.trash'))
       .fontColor([$r('sys.color.warning')])
   private readonly closeIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.xmark')).fontSize($r('sys.float.titlebar_icon_width'))
+    new SymbolGlyphModifier($r('sys.symbol.xmark'))
       .fontColor([$r('sys.color.titlebar_icon_color')])
 
   private needsExpansion(value: string): boolean {
@@ -320,6 +321,7 @@ export struct EntryPreviewContent {
     enabled: boolean = true): HdsNavigationMenuItemOptions {
     const content: HdsNavigationIconOptions = {
       icon: icon,
+      type: IconStyleMode.SMALL,
       label: label,
       isEnabled: enabled,
       action: action,

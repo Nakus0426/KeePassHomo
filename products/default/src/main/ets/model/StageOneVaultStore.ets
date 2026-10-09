@@ -357,6 +357,37 @@ export class StageOneVaultStore {
     await this.persistDocument(document)
   }
 
+  /** 新建分组立即落盘：选择器数据源始终等于引擎真状态，取消条目编辑也不回滚空组。 */
+  async createGroup(parentGroupUuid: string, name: string): Promise<VaultGroup> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能新建分组')
+    }
+    const document: VaultDocument = this.session.getDocument()
+    const created: VaultGroup = this.engine.createGroup(document, parentGroupUuid, name)
+    await this.persistDocument(document)
+    return created
+  }
+
+  /** 删除分组立即落盘：整棵子树按 KDBX 语义移入回收站，映射树同步摘除。 */
+  async deleteGroup(groupUuid: string): Promise<void> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能删除分组')
+    }
+    const document: VaultDocument = this.session.getDocument()
+    this.engine.removeGroup(document, groupUuid)
+    await this.persistDocument(document)
+  }
+
+  async renameGroup(groupUuid: string, name: string): Promise<VaultGroup> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能重命名分组')
+    }
+    const document: VaultDocument = this.session.getDocument()
+    const renamed: VaultGroup = this.engine.renameGroup(document, groupUuid, name)
+    await this.persistDocument(document)
+    return renamed
+  }
+
   async setFavorite(entryUuid: string, favorite: boolean): Promise<VaultEntry> {
     const document: VaultDocument = this.session.getDocument()
     const entry: VaultEntry = this.engine.setEntryFavorite(document, entryUuid, favorite)

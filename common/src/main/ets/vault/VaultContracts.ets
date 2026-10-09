@@ -196,6 +196,18 @@ export interface VaultEngine {
 
   removeEntry(document: VaultDocument, entryUuid: string): void;
 
+  /** 在指定父分组下新建子分组；父分组不存在时抛错。 */
+  createGroup(document: VaultDocument, parentGroupUuid: string, name: string): VaultGroup;
+
+  /**
+   * 删除分组：按 KDBX 语义把整棵子树（子分组与条目）移入回收站，回收站关闭时彻底移除；
+   * 根分组是文档容器，不允许删除。
+   */
+  removeGroup(document: VaultDocument, groupUuid: string): void;
+
+  /** 重命名分组；名称与全路径会同步到该子树的映射快照。 */
+  renameGroup(document: VaultDocument, groupUuid: string, name: string): VaultGroup;
+
   loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined;
 
   setEntryFavorite(document: VaultDocument, entryUuid: string, favorite: boolean): VaultEntry;

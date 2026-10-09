@@ -1,5 +1,5 @@
 import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
-import { hdsMaterial, HdsNavigation, HdsNavigationTitleMode, ScrollEffectType } from '@kit.UIDesignKit'
+import { hdsMaterial, HdsNavigation, HdsNavigationTitleMode, IconStyleMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { AnimationTokens, AppToast, BounceAnimator } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
@@ -13,6 +13,7 @@ import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
 import { EntrySheetMode, EntrySheetState } from '../../viewmodel/EntrySheetState'
 import { EntryAvatarPicker } from './EntryAvatarPicker'
 import { EntryCustomFields } from './EntryCustomFields'
+import { EntryGroupPicker } from './EntryGroupPicker'
 import { EntryTagEditor } from './EntryTagEditor'
 
 /**
@@ -36,6 +37,9 @@ export struct EntryEditorContent {
   @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Local private passwordVisible: boolean = false
   @Local private generatorSheetVisible: boolean = false
+  @Local private groupPickerVisible: boolean = false
+  /** 选择器注册的返回消费者：返回 true 表示这次返回已用于回退层级，半模态不收起。 */
+  private groupPickerBackHandler: (() => boolean) | undefined = undefined
   /** 保存时字段名为空的卡片 id，-1 表示无。 */
   @Local private invalidFieldId: number = -1
   private readonly viewModel: AppViewModel = appViewModel
@@ -43,13 +47,10 @@ export struct EntryEditorContent {
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
     .fontColor([$r('sys.color.confirm')])
-    .fontSize($r('sys.float.titlebar_icon_width'))
   private bounce: BounceAnimator = new BounceAnimator()
   private readonly saveIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
     .fontColor([$r('sys.color.confirm')])
-    .fontSize($r('sys.float.titlebar_icon_width'))
   private readonly cancelIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontSize($r('sys.float.titlebar_icon_width'))
     .fontColor([$r('sys.color.icon_primary')])
   private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
     style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
@@ -341,12 +342,14 @@ export struct EntryEditorContent {
           value: [{
             content: {
               icon: $r('sys.symbol.doc_text_on_doc_text'),
+              type: IconStyleMode.SMALL,
               label: $r('app.string.copy'),
               action: () => this.generatorController.copyPassword(),
             },
           }, {
             content: {
               icon: this.fillIcon,
+              type: IconStyleMode.SMALL,
               label: $r('app.string.fill_current_entry'),
               action: () => this.fillPasswordFromGenerator(),
             },
@@ -354,6 +357,76 @@ export struct EntryEditorContent {
         },
       },
     })
+  }
+
+  @LocalBuilder
+  private groupBuilder() {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
+      Row({ space: $r('sys.float.padding_level8') }) {
+        Stack() {
+          SymbolGlyph($r('sys.symbol.folder_fill'))
+            .fontSize($r('sys.float.Title_L'))
+            .fontColor([$r('sys.color.brand')])
+        }
+        .padding($r('sys.float.padding_level4'))
+        .borderRadius('50%')
+        .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+
+        Column({ space: $r('sys.float.padding_level2') }) {
+          Text(this.editor.groupName)
+            .fontSize($r('sys.float.Subtitle_L'))
+            .fontColor($r('sys.color.font_primary'))
+            .fontWeight(FontWeight.Medium)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.editor.groupPath)
+            .fontSize($r('sys.float.Body_S'))
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        if (!this.readOnly) {
+          SymbolGlyph($r('sys.symbol.chevron_forward'))
+            .fontSize($r('sys.float.Title_S'))
+            .fontColor([$r('sys.color.font_secondary')])
+        }
+      }
+      .width('100%')
+    }
+    .padding($r('sys.float.padding_level8'))
+    .backgroundColor($r('sys.color.comp_background_primary'))
+    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+    .borderRadius($r('sys.float.corner_radius_level10'))
+    .enabled(!this.readOnly)
+    .onClick(() => this.groupPickerVisible = true)
+  }
+
+  /** 分组选择器自带标题栏与菜单，半模态壳只配容器参数；高度与编辑半模态一致，不设挡位。 */
+  @LocalBuilder
+  private groupPickerSheet() {
+    EntryGroupPicker({
+      editor: this.editor,
+      bottomOffset: this.bottomOffset,
+      onPicked: () => this.groupPickerVisible = false,
+      onClose: () => this.groupPickerVisible = false,
+      onActivity: () => this.viewModel.recordActivity(),
+      onBackHandler: (handler: () => boolean) => this.groupPickerBackHandler = handler,
+    })
+  }
+
+  /**
+   * 选择器半模态的返回拦截：返回键、屏幕边缘返回手势、导航栏返回都归入 PRESS_BACK，
+   * 先交给选择器，它还能回退（退出搜索或上一层）就消费掉；其余原因（下拉收起、点遮罩）按默认关闭。
+   */
+  private onGroupPickerWillDismiss(action: DismissSheetAction): void {
+    const backHandler: (() => boolean) | undefined = this.groupPickerBackHandler
+    if (action.reason === DismissReason.PRESS_BACK && backHandler !== undefined && backHandler()) {
+      return
+    }
+    action.dismiss()
   }
 
   build() {
@@ -373,6 +446,9 @@ export struct EntryEditorContent {
           })
             .margin({ bottom: $r('sys.float.padding_level12') })
 
+          FormItem({ label: $r('app.string.group'), contentBuilder: this.groupBuilder })
+            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+
           FormItem({
             label: $r('app.string.entry_title'),
             contentBuilder: this.titleBuilder,
@@ -384,6 +460,7 @@ export struct EntryEditorContent {
           })
             .id('field_title')
             .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+
 
           FormItem({
             label: $r('app.string.username'),
@@ -480,22 +557,34 @@ export struct EntryEditorContent {
             ? $r('app.string.new_entry') : $r('app.string.edit'),
         },
         menu: {
-          // 菜单项按数组顺序从右往左排：确认排在数组首位即落在最右侧，
-          // 取消排在其后落在左侧。
+          // 数组顺序即从左往右的渲染顺序：取消放末位，永远落在最右侧。
           value: [{
             content: {
               icon: this.saveIcon,
+              type: IconStyleMode.SMALL,
               label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
               action: () => this.saveEntry(),
             },
           }, {
             content: {
               icon: this.cancelIcon,
+              type: IconStyleMode.SMALL,
               label: $r('app.string.cancel'),
               action: () => this.requestExit(),
             },
           }],
         },
+      },
+    })
+    .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
+      dragBar: true,
+      backgroundColor: Color.Transparent,
+      systemMaterial: this.sheetMaterial,
+      showClose: false,
+      onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
+      onDisappear: () => {
+        this.groupPickerVisible = false
+        this.groupPickerBackHandler = undefined
       },
     })
   }

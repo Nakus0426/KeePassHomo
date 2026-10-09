@@ -4,6 +4,7 @@ import {
   HdsNavDestination,
   HdsNavigation,
   HdsNavigationTitleMode,
+  IconStyleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
@@ -30,7 +31,6 @@ export struct CreateVaultPage {
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
     .fontColor([$r('sys.color.confirm')])
-    .fontSize($r('sys.float.titlebar_icon_width'))
   private bounce: BounceAnimator = new BounceAnimator()
   private readonly scroller: Scroller = new Scroller()
 
@@ -256,12 +256,14 @@ export struct CreateVaultPage {
           value: [{
             content: {
               icon: $r('sys.symbol.doc_text_on_doc_text'),
+              type: IconStyleMode.SMALL,
               label: $r('app.string.copy'),
               action: () => this.generatorController.copyPassword(),
             },
           }, {
             content: {
               icon: this.fillIcon,
+              type: IconStyleMode.SMALL,
               label: $r('app.string.fill_current_entry'),
               action: () => this.fillMasterPasswordFromGenerator(),
             },

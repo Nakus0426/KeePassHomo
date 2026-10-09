@@ -313,6 +313,71 @@ export class KdbxVaultEngine implements VaultEngine {
     }
   }
 
+  createGroup(document: VaultDocument, parentGroupUuid: string, name: string): VaultGroup {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const parentGroup: KdbxGroup | undefined = kdbx.getGroup(parentGroupUuid)
+    if (parentGroup === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    const created: KdbxGroup = kdbx.createGroup(parentGroup, name)
+    // 挂到映射树的父组上：document.groups 与 store.groups() 是同一批对象，
+    // 只加不改，后续全量读取即可见，无需重建整棵映射树。
+    const mappedParent: VaultGroup | undefined = this.findMappedGroup(document.groups, parentGroup.uuid.id)
+    if (mappedParent === undefined) {
+      throw new Error('保险库分组映射不存在')
+    }
+    // 父路径显式传入，保证新组 path 与整树重映射的结果一致。
+    const mapped: VaultGroup = mapGroup(created, kdbx.meta.customIcons, mappedParent.path)
+    mappedParent.groups.push(mapped)
+    return mapped
+  }
+
+  /**
+   * 删除分组：kdbx.remove 按 KDBX 语义把整棵子树移入回收站（回收站关闭时彻底移除并写删除墓碑），
+   * 映射树则把该子树整块摘除——映射树只承载应用可见的分组，与 removeEntry 的约定一致
+   * （回收站子树在 StageOneVaultStore 的读取侧本就整体跳过）。
+   */
+  removeGroup(document: VaultDocument, groupUuid: string): void {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const group: KdbxGroup | undefined = kdbx.getGroup(groupUuid)
+    if (group === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    if (kdbx.getDefaultGroup().uuid.id === groupUuid) {
+      throw new Error('根分组不能删除')
+    }
+    kdbx.remove(group)
+    if (!this.removeMappedGroup(document.groups, groupUuid)) {
+      throw new Error('保险库分组映射不存在')
+    }
+  }
+
+  renameGroup(document: VaultDocument, groupUuid: string, name: string): VaultGroup {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const group: KdbxGroup | undefined = kdbx.getGroup(groupUuid)
+    if (group === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    const mapped: VaultGroup | undefined = this.findMappedGroup(document.groups, groupUuid)
+    if (mapped === undefined) {
+      throw new Error('保险库分组映射不存在')
+    }
+    const parentPath: string | undefined = this.findMappedParentPath(document.groups, groupUuid, '')
+    if (parentPath === undefined) {
+      throw new Error('保险库分组映射不存在')
+    }
+    group.name = name
+    group.times.update()
+    mapped.name = name
+    // name/path 是映射时算好的快照：改名后必须重算子树的 path（含子树内条目的分组快照），
+    // 否则分组搜索、行副行与条目预览仍显示旧路径。
+    this.rewriteMappedPaths(mapped, parentPath)
+    return mapped
+  }
+
   loadEntryAvatar(document: VaultDocument, entryUuid: string): ArrayBuffer | undefined {
     const kdbx: Kdbx = this.getKdbx(document)
     const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
@@ -646,6 +711,48 @@ export class KdbxVaultEngine implements VaultEngine {
       }
     }
     return undefined
+  }
+
+  /** 从映射树摘除分组子树；命中即返回 true。 */
+  private removeMappedGroup(groups: VaultGroup[], groupUuid: string): boolean {
+    for (const group of groups) {
+      const index: number = group.groups.findIndex((child: VaultGroup) => child.uuid === groupUuid)
+      if (index >= 0) {
+        group.groups.splice(index, 1)
+        return true
+      }
+      if (this.removeMappedGroup(group.groups, groupUuid)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /** 映射组的父路径，根层为空串；与 mapGroup 的路径拼接规则一致。 */
+  private findMappedParentPath(groups: VaultGroup[], groupUuid: string,
+    parentPath: string): string | undefined {
+    for (const group of groups) {
+      if (group.uuid === groupUuid) {
+        return parentPath
+      }
+      const found: string | undefined = this.findMappedParentPath(group.groups, groupUuid, group.path)
+      if (found !== undefined) {
+        return found
+      }
+    }
+    return undefined
+  }
+
+  /** 重写子树内所有分组的 path，并同步子树内条目的分组名称与全路径快照。 */
+  private rewriteMappedPaths(group: VaultGroup, parentPath: string): void {
+    group.path = parentPath.length === 0 ? group.name : `${parentPath} / ${group.name}`
+    for (const entry of group.entries) {
+      entry.groupName = group.name
+      entry.groupPath = group.path
+    }
+    for (const child of group.groups) {
+      this.rewriteMappedPaths(child, group.path)
+    }
   }
 
   private replaceMappedEntry(groups: VaultGroup[], replacement: VaultEntry): boolean {

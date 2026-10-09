@@ -113,6 +113,42 @@
       "value": "分组"
     },
     {
+      "name": "new_group",
+      "value": "新建分组"
+    },
+    {
+      "name": "group_name_placeholder",
+      "value": "分组名称"
+    },
+    {
+      "name": "group_name_required",
+      "value": "请输入分组名称"
+    },
+    {
+      "name": "select_current_group",
+      "value": "选择当前位置"
+    },
+    {
+      "name": "group_pick_confirm",
+      "value": "确认选择"
+    },
+    {
+      "name": "select_group",
+      "value": "选择分组"
+    },
+    {
+      "name": "search_groups",
+      "value": "搜索分组"
+    },
+    {
+      "name": "group_entry_count",
+      "value": "%s 个条目"
+    },
+    {
+      "name": "confirm",
+      "value": "确定"
+    },
+    {
       "name": "fields",
       "value": "自定义字段"
     },
@@ -319,6 +355,34 @@
     {
       "name": "preview_placeholder",
       "value": "条目内容区"
+    },
+    {
+      "name": "group_manager",
+      "value": "分组管理"
+    },
+    {
+      "name": "rename_group",
+      "value": "编辑分组"
+    },
+    {
+      "name": "delete_group_title",
+      "value": "删除分组"
+    },
+    {
+      "name": "delete_group_message",
+      "value": "「%s」删除后可在回收站内找回"
+    },
+    {
+      "name": "delete_group_risk",
+      "value": "该分组下还有 %s，删除后将一并放入回收站"
+    },
+    {
+      "name": "subgroup_count",
+      "value": "%s 个子分组"
+    },
+    {
+      "name": "delete_group",
+      "value": "删除"
     }
   ]
 }

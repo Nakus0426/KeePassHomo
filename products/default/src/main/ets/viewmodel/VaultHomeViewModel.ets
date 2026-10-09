@@ -33,6 +33,18 @@ export class VaultHomeViewModel {
   }
 
   /**
+   * 分组被删除后摘掉指向它的筛选。悬空 uuid 会命中已移入回收站的子树，
+   * 使分组过滤整体落空、首页被误判为「无结果」，所以必须随删除一起清理。
+   */
+  dropGroupFilter(groupUuid: string): void {
+    if (!this.selectedGroupUuids.includes(groupUuid)) {
+      return
+    }
+    this.selectedGroupUuids = this.selectedGroupUuids
+      .filter((uuid: string) => uuid !== groupUuid)
+  }
+
+  /**
    * 保险库存储变更后重建快照，列表随之刷新。
    */
   invalidate(): void {

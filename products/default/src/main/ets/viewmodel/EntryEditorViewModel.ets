@@ -1,4 +1,4 @@
-import { required, stringSchema, ValidationSchema, VaultFieldInput, VaultFieldType } from '@ohos/common'
+import { required, stringSchema, ValidationSchema, VaultFieldInput, VaultFieldType, VaultGroup } from '@ohos/common'
 import { FormItemController } from '../components/FormItem'
 
 let nextFieldId: number = 1
@@ -53,6 +53,9 @@ export class EntryEditorViewModel {
   @Trace notes: string = ''
   @Trace tags: string[] = []
   @Trace groupUuid: string = ''
+  /** 当前分组的名称与全路径：仅用于分组行展示，不参与改动判断（随 groupUuid 派生）。 */
+  @Trace groupName: string = ''
+  @Trace groupPath: string = ''
   @Trace fields: EntryFieldEditor[] = []
   @Trace avatarData: ArrayBuffer | undefined = undefined
   @Trace avatarAction: EntryAvatarAction = EntryAvatarAction.Keep
@@ -112,8 +115,11 @@ export class EntryEditorViewModel {
     this.tags = this.tags.filter((tag: string) => tag !== value)
   }
 
-  setGroup(groupUuid: string): void {
-    this.groupUuid = groupUuid
+  /** 单一入口写分组三字段：uuid 驱动保存与改动判断，名称与路径驱动展示，禁止分散赋值。 */
+  setGroup(group: VaultGroup): void {
+    this.groupUuid = group.uuid
+    this.groupName = group.name
+    this.groupPath = group.path
   }
 
   setAvatar(data: ArrayBuffer): void {
@@ -223,6 +229,8 @@ export class EntryEditorViewModel {
     this.notes = ''
     this.tags = []
     this.groupUuid = ''
+    this.groupName = ''
+    this.groupPath = ''
     this.fields = []
     this.avatarData = undefined
     this.avatarAction = EntryAvatarAction.Keep

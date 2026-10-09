@@ -9,6 +9,7 @@ import {
   HdsNavigationTitleMode,
   HdsTabs,
   HdsTabsController,
+  IconStyleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
@@ -164,6 +165,7 @@ export struct AppShell {
     menuItems.push({
       content: {
         icon: $r('sys.symbol.lock'),
+        type: IconStyleMode.SMALL,
         label: $r('app.string.lock'),
         action: () => appViewModel.lockVault(),
       },

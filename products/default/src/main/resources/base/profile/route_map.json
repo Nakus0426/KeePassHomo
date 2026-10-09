@@ -24,6 +24,11 @@
       "name": "search",
       "pageSourceFile": "src/main/ets/pages/vault/SearchPage.ets",
       "buildFunction": "searchPageBuilder"
+    },
+    {
+      "name": "groupManager",
+      "pageSourceFile": "src/main/ets/pages/vault/GroupManagerPage.ets",
+      "buildFunction": "groupManagerPageBuilder"
     }
   ]
 }

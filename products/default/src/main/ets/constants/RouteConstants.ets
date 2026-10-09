@@ -20,3 +20,5 @@ export const ROUTE_GENERATOR: string = 'generator'
 export const ROUTE_SETTINGS: string = 'settings'
 
 export const ROUTE_SEARCH: string = 'search'
+
+export const ROUTE_GROUP_MANAGER: string = 'groupManager'

@@ -240,7 +240,7 @@ export class AppViewModel {
 
   loadNewEntry(editor: EntryEditorViewModel): void {
     editor.reset()
-    editor.groupUuid = stageOneVaultStore.defaultGroupUuid()
+    editor.setGroup(this.requireGroup(stageOneVaultStore.defaultGroupUuid()))
     editor.initialValue = editor.currentValue()
     this.recordActivity()
   }
@@ -250,7 +250,7 @@ export class AppViewModel {
     editor.reset()
     editor.entryUuid = entry.uuid
     editor.title = entry.title
-    editor.groupUuid = entry.groupUuid
+    editor.setGroup(this.requireGroup(entry.groupUuid))
     editor.username = stageOneVaultStore.field(entry, 'UserName')
     editor.password = stageOneVaultStore.field(entry, 'Password')
     editor.url = stageOneVaultStore.field(entry, 'URL')
@@ -397,6 +397,65 @@ export class AppViewModel {
   }
 
   /**
+   * 新建分组并立即落盘。revision 推进让分组选择器等读取点随即可见，
+   * 失败时经 status 管道提示，返回值供界面决定是否关闭输入弹窗。
+   */
+  async createGroup(parentGroupUuid: string, name: string): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.createGroup(parentGroupUuid, name)
+      this.revision++
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('新建分组失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  /**
+   * 删除分组并立即落盘。分组下的条目随子树一起离开可见树，首页快照必须当场重建
+   * （与条目删除不同：那条路径由首页在动画上下文里自行重建）。
+   */
+  async deleteGroup(groupUuid: string): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.deleteGroup(groupUuid)
+      // 首页分组筛选可能正指向被删分组：悬空 uuid 会让整张列表被判为无结果，先摘掉再重建快照。
+      vaultHomeViewModel.dropGroupFilter(groupUuid)
+      this.refreshVault()
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('删除分组失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  /** 重命名分组：只有分组自身的名称与路径变化，首页条目不变，故不重建首页快照。 */
+  async renameGroup(groupUuid: string, name: string): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.renameGroup(groupUuid, name)
+      this.revision++
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('重命名分组失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  /**
    * 归档与还原都改变条目归属的分类，列表快照必须重建：
    * 归档后条目退出「全部条目」，还原后重回列表。
    * 半模态的收起由调用方负责，本方法只管落盘与刷新。
@@ -514,6 +573,29 @@ export class AppViewModel {
   topLevelGroups(): VaultGroup[] {
     this.revision
     return stageOneVaultStore.topLevelGroups()
+  }
+
+  /**
+   * 根分组：KDBX 文档的容器组，新建条目的默认落点。
+   * groups() 的收集顺序即文档顺序，首项必为根组；取不到即文档损坏，快速失败。
+   */
+  rootGroup(): VaultGroup {
+    this.revision
+    const groups: VaultGroup[] = stageOneVaultStore.groups()
+    if (groups.length === 0) {
+      throw new Error('保险库缺少默认分组')
+    }
+    return groups[0]
+  }
+
+  /** 按 uuid 取分组：条目所在组必然存在于全量分组里，取不到即数据损坏，快速失败。 */
+  requireGroup(groupUuid: string): VaultGroup {
+    const group: VaultGroup | undefined = this.groups()
+      .find((item: VaultGroup) => item.uuid === groupUuid)
+    if (group === undefined) {
+      throw new Error('保险库分组不存在')
+    }
+    return group
   }
 
   entry(entryUuid: string): VaultEntry {
