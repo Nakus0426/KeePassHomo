@@ -325,6 +325,10 @@
       "value": "全部条目"
     },
     {
+      "name": "all_groups",
+      "value": "全部分组"
+    },
+    {
       "name": "avatar_pick",
       "value": "从相册选择"
     },

@@ -389,9 +389,12 @@ export struct EntryEditorView {
   @LocalBuilder
   private groupPickerSheet() {
     EntryGroupPicker({
-      editor: this.editor,
+      initialGroupUuid: this.editor.groupUuid,
       bottomOffset: this.bottomOffset,
-      onPicked: () => this.groupPickerVisible = false,
+      onPicked: (groupUuid: string) => {
+        this.editor.setGroup(this.viewModel.requireGroup(groupUuid))
+        this.groupPickerVisible = false
+      },
       onClose: () => this.groupPickerVisible = false,
       onActivity: () => this.viewModel.recordActivity(),
       onBackHandler: (handler: () => boolean) => this.groupPickerBackHandler = handler,

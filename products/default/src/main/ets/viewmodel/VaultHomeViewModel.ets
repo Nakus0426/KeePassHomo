@@ -57,6 +57,10 @@ export class VaultHomeViewModel {
       this.hasAnyEntry = false
       return
     }
+    // 分组筛选恒指向一个真实分组：解锁后默认落在根分组，根子树覆盖全库即「全部分组」。
+    if (this.selectedGroupUuids.length === 0) {
+      this.selectedGroupUuids = [stageOneVaultStore.defaultGroupUuid()]
+    }
     this.entries = stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuids)
     this.hasAnyEntry = stageOneVaultStore.entries().length > 0
   }

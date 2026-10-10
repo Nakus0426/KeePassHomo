@@ -14,7 +14,6 @@ import { AnimationTokens, AppToast, VaultGroup } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/GroupRow'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
 
 // 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
 const NEW_GROUP_NAME_MAX_LENGTH: number = 64
@@ -48,11 +47,12 @@ function sameOrder(previous: string[], next: string[]): boolean {
 // 分组选择器：编辑半模态内的第二层半模态，形态对齐官方文件选择器（保存位置模式）。
 @ComponentV2
 export struct EntryGroupPicker {
-  @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
+  // 打开时定位到的分组：分组归属由宿主持有，本组件只负责选择。
+  @Param initialGroupUuid: string = ''
   // 底部避让尺寸由宿主按半模态测量结果下发（手势区随窗口变化，宿主统一感知）。
   @Param bottomOffset: number = 0
-  // 选中分组后由宿主收起半模态：开合状态归宿主，本组件只发信号。
-  @Event onPicked: () => void = () => {
+  // 确认选中后由宿主收起半模态并落稿分组：开合与归属都归宿主，本组件只发信号。
+  @Event onPicked: (groupUuid: string) => void = () => {
   }
   // 关闭选择器：不改变已选分组，仅收起半模态。
   @Event onClose: () => void = () => {
@@ -64,7 +64,7 @@ export struct EntryGroupPicker {
   }
   // 浏览栈：根下顶层到当前层的分组链；空链表示停在根层。
   @Local private pathGroups: VaultGroup[] = []
-  // 瞬态选中分组：点击与进层只写这里，确认按钮才经 editor.setGroup 落稿；初始值为进入时的分组。
+  // 瞬态选中分组：点击与进层只写这里，确认按钮才经 onPicked 交给宿主落稿；初始值为进入时的分组。
   @Local private selectedGroupUuid: string = ''
   @Local private searchDraft: string = ''
   // 新建分组弹窗的输入草稿：弹窗内容是组件内 @Builder，直接读写本状态，无需参数中介。
@@ -99,8 +99,8 @@ export struct EntryGroupPicker {
 
   aboutToAppear(): void {
     this.searchDraft = ''
-    this.pathGroups = this.chainToGroup(this.editor.groupUuid)
-    this.selectedGroupUuid = this.editor.groupUuid
+    this.pathGroups = this.chainToGroup(this.initialGroupUuid)
+    this.selectedGroupUuid = this.initialGroupUuid
     this.onBackHandler(() => this.navigateUp())
   }
 
@@ -265,18 +265,17 @@ export struct EntryGroupPicker {
     this.onActivity()
   }
 
-  // 确认选中：唯一写 editor 的入口；关闭路径不经这里，editor 无需还原。
+  // 确认选中：唯一把选中分组交给宿主的入口；关闭路径不经这里，宿主无需还原。
   private confirmPick(): void {
-    this.editor.setGroup(this.viewModel.requireGroup(this.selectedGroupUuid))
     this.onActivity()
-    this.onPicked()
+    this.onPicked(this.selectedGroupUuid)
   }
 
   // 面包屑跳转：depth 为保留的层数，0 回根层；depth 大于当前层数视为前进。
   private jumpTo(depth: number): void {
     const nextPath: VaultGroup[] = this.pathGroups.slice(0, depth)
-    // 跳到的层即选中该层分组；回根层无可选项，还原为进入时的分组。
-    this.selectedGroupUuid = depth === 0 ? this.editor.groupUuid : nextPath[depth - 1].uuid
+    // 所在层即选中层：根层就是根分组本身，它同样是条目可归属的真实分组。
+    this.selectedGroupUuid = depth === 0 ? this.viewModel.rootGroup().uuid : nextPath[depth - 1].uuid
     this.switchLevel(depth > nextPath.length, () => this.pathGroups = nextPath)
     this.onActivity()
   }
@@ -470,7 +469,7 @@ export struct EntryGroupPicker {
           showChevron: !this.searching,
           onRowClick: () => {
             if (this.searching) {
-              // 搜索态点选：只写瞬态选中并刷新高亮，不收半模态、不碰 editor。
+              // 搜索态点选：只写瞬态选中并刷新高亮，不收半模态、不通知宿主。
               this.selectedGroupUuid = group.uuid
               this.onActivity()
               return
