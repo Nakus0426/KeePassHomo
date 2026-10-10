@@ -209,7 +209,7 @@ export struct VaultHomePage {
   @Builder
   private emptyBuilder() {
     Column({ space: $r('sys.float.padding_level6') }) {
-      Image($r('app.media.empty'))
+      Image($r('app.media.entry_empty'))
         .width($r('app.float.vault_empty_icon_size'))
         .height($r('app.float.vault_empty_icon_size'))
 
@@ -238,10 +238,9 @@ export struct VaultHomePage {
 
   @Builder
   private noResultBuilder() {
-    Text($r('app.string.no_results'))
-      .fontSize($r('sys.float.Body_L'))
-      .fontColor($r('sys.color.font_secondary'))
-      .translate({ y: '-50%' })
+    Image($r('app.media.entry_search_empty'))
+      .width($r('app.float.vault_empty_icon_size'))
+      .height($r('app.float.vault_empty_icon_size'))
   }
 
   @Builder
