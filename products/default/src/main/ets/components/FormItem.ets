@@ -50,6 +50,7 @@ export struct FormItem {
   @Param schema: ValidationSchema | undefined = undefined
   @Param controller: FormItemController = new FormItemController()
   @Param reserveFeedbackSpace: boolean = false
+  @Param showFeedback: boolean = true
   @Param required: boolean = false
   @Param labelPlacement: LabelPlacement = LabelPlacement.Top
   @BuilderParam labelBuilder?: () => void
@@ -124,7 +125,7 @@ export struct FormItem {
           .justifyContent(FlexAlign.End)
         }
 
-        if (this.reserveFeedbackSpace || this.controller.status === Status.Invalid) {
+        if (this.showFeedback && (this.reserveFeedbackSpace || this.controller.status === Status.Invalid)) {
           this.feedbackRow()
         }
       } else {
@@ -142,7 +143,9 @@ export struct FormItem {
           this.contentBuilder()
         }
 
-        this.feedbackRow()
+        if (this.showFeedback) {
+          this.feedbackRow()
+        }
       }
     }
     .width('100%')

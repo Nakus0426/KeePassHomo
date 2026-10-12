@@ -1,4 +1,4 @@
-import { VaultEntry, VaultField } from '@ohos/common'
+import { ItemTemplate, VaultEntry, VaultField } from '@ohos/common'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { AppViewModel, appViewModel } from './AppViewModel'
 
@@ -16,6 +16,8 @@ export class EntrySheetViewModel {
   @Trace mode: EntrySheetMode = EntrySheetMode.Preview
   // 目标条目 uuid；空串表示新建，没有预览态。
   @Trace entryUuid: string = ''
+  // 新建时选定的模板类型：编辑会话内固定，不随条目内容变化。
+  @Trace newEntryTemplate: ItemTemplate = ItemTemplate.Login
   // 编辑态退出后是否返回预览：左滑编辑与新建直接收起半模态。
   @Trace editFromPreview: boolean = false
   // 阅读位置随预览体一同被销毁，故与预览数据同放在这里。
@@ -45,6 +47,12 @@ export class EntrySheetViewModel {
     return this.previewEntry?.fields ?? []
   }
 
+  // 预览按条目类型渲染；未标记类型按通用模板。
+  @Computed
+  get template(): ItemTemplate {
+    return this.previewEntry?.template ?? ItemTemplate.Login
+  }
+
   @Computed
   get tags(): string[] {
     return this.previewEntry?.tags ?? []
@@ -60,8 +68,9 @@ export class EntrySheetViewModel {
     return this.app.currentSource().readOnly
   }
 
-  openNew(): void {
+  openNew(template: ItemTemplate): void {
     this.entryUuid = ''
+    this.newEntryTemplate = template
     this.editFromPreview = false
     this.mode = EntrySheetMode.Edit
     this.visible = true

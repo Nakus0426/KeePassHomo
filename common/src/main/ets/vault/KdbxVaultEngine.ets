@@ -1,5 +1,8 @@
 import {
   Kdbx,
+  KdbxBinaries,
+  KdbxBinary,
+  KdbxBinaryWithHash,
   KdbxCredentials,
   KdbxCustomDataMap,
   KdbxCustomIcon,
@@ -11,8 +14,12 @@ import {
 } from 'kdbxweb'
 import { LogUtil } from '@pura/harmony-utils'
 import {
+  ItemTemplate,
+  itemTemplateFrom,
+  LAYOUT_TYPE_KEY,
   META_KEY_PREFIX,
   RESERVED_FIELD_NAMES,
+  VaultAttachmentMeta,
   VaultCredential,
   VaultDocument,
   VaultEngine,
@@ -160,6 +167,37 @@ function sameBytes(left: ArrayBuffer, right: ArrayBuffer): boolean {
   return true
 }
 
+// 附件字节在内存里是受保护值或原始 ArrayBuffer，两种形态都要能取长度与内容。
+function attachmentData(binary: KdbxBinary | KdbxBinaryWithHash): ProtectedValue | ArrayBuffer {
+  return KdbxBinaries.isKdbxBinaryWithHash(binary) ? binary.value : binary as KdbxBinary
+}
+
+function attachmentSize(binary: KdbxBinary | KdbxBinaryWithHash): number {
+  return attachmentData(binary).byteLength
+}
+
+function mapAttachments(entry: KdbxEntry): VaultAttachmentMeta[] {
+  const attachments: VaultAttachmentMeta[] = []
+  entry.binaries.forEach((binary: KdbxBinary | KdbxBinaryWithHash, name: string) => {
+    attachments.push({ name, size: attachmentSize(binary) })
+  })
+  return attachments
+}
+
+// 同条目内附件重名时加序号后缀，保证 KDBX 附件名在条目内唯一。
+function uniqueAttachmentName(entry: KdbxEntry, name: string): string {
+  let candidate: string = name
+  let suffix: number = 2
+  while (entry.binaries.has(candidate)) {
+    const dot: number = name.lastIndexOf('.')
+    candidate = dot > 0
+      ? `${name.slice(0, dot)} ${suffix}${name.slice(dot)}`
+      : `${name} ${suffix}`
+    suffix++
+  }
+  return candidate
+}
+
 function mapEntry(entry: KdbxEntry, customIcons: Map<string, KdbxCustomIcon>): VaultEntry {
   const types: Map<string, VaultFieldType> = readFieldTypes(entry)
   const fields: VaultField[] = []
@@ -178,9 +216,11 @@ function mapEntry(entry: KdbxEntry, customIcons: Map<string, KdbxCustomIcon>): V
     fields,
     historyCount: entry.history.length,
     attachmentCount: entry.binaries.size,
+    attachments: mapAttachments(entry),
     tags: entry.tags,
     favorite: entry.customData?.get(FAVORITE_KEY)?.value === 'true',
     archived: entry.customData?.get(ARCHIVED_KEY)?.value === 'true',
+    template: itemTemplateFrom(entry.customData?.get(LAYOUT_TYPE_KEY)?.value),
     hasAvatar: entry.customIcon !== undefined && customIcons.has(entry.customIcon.id),
     lastModifiedAt: entry.lastModTime,
   }
@@ -262,6 +302,7 @@ export class KdbxVaultEngine implements VaultEngine {
     }
     const entry: KdbxEntry = kdbx.createEntry(group)
     this.writeFields(entry, input)
+    this.writeLayoutType(entry, input.template)
     this.writeAvatar(entry, kdbx, input.avatar)
     const mapped: VaultEntry = mapEntry(entry, kdbx.meta.customIcons)
     const mappedGroup: VaultGroup | undefined = this.findMappedGroup(document.groups, group.uuid.id)
@@ -405,9 +446,55 @@ export class KdbxVaultEngine implements VaultEngine {
     entry.fields.delete(name)
   }
 
+  loadAttachment(document: VaultDocument, entryUuid: string, name: string): ArrayBuffer {
+    const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    const binary: KdbxBinary | KdbxBinaryWithHash | undefined = entry.binaries.get(name)
+    if (binary === undefined) {
+      throw new Error('保险库附件不存在')
+    }
+    const data: ProtectedValue | ArrayBuffer = attachmentData(binary)
+    return data instanceof ProtectedValue ? data.getBinary().buffer as ArrayBuffer : (data as ArrayBuffer).slice(0)
+  }
+
+  // 二进制必须先进入库内池：kdbxweb 写出时按内容哈希在池里找引用，池外二进制会被整批跳过。
+  async addAttachment(document: VaultDocument, entryUuid: string, name: string,
+    data: ArrayBuffer): Promise<VaultAttachmentMeta> {
+    this.requireWritable(document)
+    const kdbx: Kdbx = this.getKdbx(document)
+    const entry: KdbxEntry | undefined = this.findEntry(kdbx.groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    const uniqueName: string = uniqueAttachmentName(entry, name)
+    const binary: KdbxBinaryWithHash = await kdbx.createBinary(data)
+    entry.binaries.set(uniqueName, binary)
+    entry.times.update()
+    this.refreshMappedEntry(document, entry)
+    return { name: uniqueName, size: attachmentSize(binary) }
+  }
+
+  removeAttachment(document: VaultDocument, entryUuid: string, name: string): void {
+    this.requireWritable(document)
+    const entry: KdbxEntry | undefined = this.findEntry(this.getKdbx(document).groups, entryUuid)
+    if (entry === undefined) {
+      throw new Error('保险库条目不存在')
+    }
+    if (!entry.binaries.has(name)) {
+      throw new Error('保险库附件不存在')
+    }
+    entry.binaries.delete(name)
+    entry.times.update()
+    this.refreshMappedEntry(document, entry)
+  }
+
   async write(document: VaultDocument): Promise<ArrayBuffer> {
     this.requireWritable(document)
-    return this.getKdbx(document).save()
+    const kdbx: Kdbx = this.getKdbx(document)
+    this.removeUnreferencedBinaries(kdbx)
+    return kdbx.save()
   }
 
   async validate(data: ArrayBuffer, credential: VaultCredential): Promise<VaultDocument> {
@@ -619,6 +706,16 @@ export class KdbxVaultEngine implements VaultEngine {
     entry.customData.set(FIELD_TYPES_KEY, { value: JSON.stringify(types), lastModified: new Date() })
   }
 
+  private writeLayoutType(entry: KdbxEntry, template: ItemTemplate | undefined): void {
+    if (template === undefined) {
+      return
+    }
+    if (entry.customData === undefined) {
+      entry.customData = new Map() as KdbxCustomDataMap
+    }
+    entry.customData.set(LAYOUT_TYPE_KEY, { value: template, lastModified: new Date() })
+  }
+
   // KDBX 自定义图标存于 meta 级共享图标池，条目仅通过 entry.customIcon 指向其中一项。
   private writeAvatar(entry: KdbxEntry, kdbx: Kdbx, avatar: ArrayBuffer | null | undefined): void {
     if (avatar === undefined) {
@@ -646,6 +743,47 @@ export class KdbxVaultEngine implements VaultEngine {
     const uuid: KdbxUuid = KdbxUuid.random()
     customIcons.set(uuid.id, { data })
     return uuid
+  }
+
+  // 附件增删后刷新映射树里的条目快照，调用方才能立刻看到最新附件列表。
+  private refreshMappedEntry(document: VaultDocument, entry: KdbxEntry): void {
+    const mapped: VaultEntry = mapEntry(entry, this.getKdbx(document).meta.customIcons)
+    if (!this.replaceMappedEntry(document.groups, mapped)) {
+      throw new Error('保险库条目映射不存在')
+    }
+  }
+
+  // 只回收无人引用的附件二进制：不用 kdbx.cleanup，避免它顺带按 meta 配置裁剪历史记录。
+  private removeUnreferencedBinaries(kdbx: Kdbx): void {
+    const used: Set<string> = new Set()
+    for (const group of kdbx.groups) {
+      this.collectUsedBinaries(group, used)
+    }
+    for (const binary of kdbx.binaries.getAllWithHashes()) {
+      if (!used.has(binary.hash)) {
+        kdbx.binaries.deleteWithHash(binary.hash)
+      }
+    }
+  }
+
+  private collectUsedBinaries(group: KdbxGroup, used: Set<string>): void {
+    for (const entry of group.entries) {
+      this.collectEntryBinaries(entry, used)
+      for (const historyEntry of entry.history) {
+        this.collectEntryBinaries(historyEntry, used)
+      }
+    }
+    for (const child of group.groups) {
+      this.collectUsedBinaries(child, used)
+    }
+  }
+
+  private collectEntryBinaries(entry: KdbxEntry, used: Set<string>): void {
+    entry.binaries.forEach((binary: KdbxBinary | KdbxBinaryWithHash) => {
+      if (KdbxBinaries.isKdbxBinaryWithHash(binary)) {
+        used.add(binary.hash)
+      }
+    })
   }
 
   private setEntryFlag(document: VaultDocument, entryUuid: string, key: string, enabled: boolean): VaultEntry {

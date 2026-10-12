@@ -3,7 +3,12 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import {
   AppErrorFactory,
   AppErrorModel,
+  generateSshKeyPair,
+  ItemTemplate,
+  itemTemplateFrom,
   RESERVED_FIELD_NAMES,
+  SshKeyAlgorithm,
+  SshKeyPairText,
   VaultEngineError,
   VaultEngineErrorCategory,
   VaultEntry,
@@ -18,7 +23,7 @@ import {
   VaultSource,
 } from '@ohos/common'
 import { formatISO9075 } from '@wolfx/date-fns'
-import { AppUtil, FileUtil, LogUtil } from '@pura/harmony-utils'
+import { AppUtil, FileUtil, LogUtil, PreferencesUtil } from '@pura/harmony-utils'
 import {
   ROUTE_CREATE_VAULT,
   ROUTE_FILE_SUMMARY,
@@ -32,6 +37,7 @@ import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { WelcomeParam } from '../navigation/RouteParams'
 import { EntryEditorViewModel, EntryFieldEditor } from './EntryEditorViewModel'
+import { definitionFor, isTemplateFieldKey, ItemTemplateDefinition } from '../model/EntryTemplateCatalog'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 import { GeneratorViewModel } from './GeneratorViewModel'
 import { VaultSessionViewModel } from './VaultSessionViewModel'
@@ -39,6 +45,36 @@ import { VaultSessionViewModel } from './VaultSessionViewModel'
 const ACTION_VIEW_DATA: string = 'ohos.want.action.viewData'
 const ACTION_DIAL: string = 'ohos.want.action.dial'
 const ACTION_SEND_TO_DATA: string = 'ohos.want.action.sendToData'
+
+const TEMPLATE_PREFERENCES_NAME: string = 'entry_templates'
+const RECENT_TEMPLATES_KEY: string = 'recent_templates'
+// 最近使用只在模板卡片上标注，不改变列表顺序。
+const RECENT_TEMPLATE_LIMIT: number = 3
+const EMPTY_TEMPLATES: string[] = []
+// SSH 模板的字段名，与 EntryTemplateCatalog 的模板定义一致。
+const SSH_KEY_NAME_ED25519: string = 'id_ed25519'
+const SSH_KEY_NAME_RSA: string = 'id_rsa'
+
+function sshKeyDefaultName(algorithm: SshKeyAlgorithm): string {
+  return algorithm === SshKeyAlgorithm.Ed25519 ? SSH_KEY_NAME_ED25519 : SSH_KEY_NAME_RSA
+}
+
+function sshKeyAlgorithmLabel(algorithm: SshKeyAlgorithm): string {
+  return algorithm === SshKeyAlgorithm.Ed25519 ? 'Ed25519' : 'RSA'
+}
+
+function sshKeyBits(algorithm: SshKeyAlgorithm): number {
+  switch (algorithm) {
+    case SshKeyAlgorithm.Rsa2048:
+      return 2048
+    case SshKeyAlgorithm.Rsa3072:
+      return 3072
+    case SshKeyAlgorithm.Rsa4096:
+      return 4096
+    default:
+      return 256
+  }
+}
 
 @ObservedV2
 export class AppViewModel {
@@ -50,6 +86,7 @@ export class AppViewModel {
   @Trace unlockFailures: number = 0
   @Trace unlockBlocked: boolean = false
   @Trace revision: number = 0
+  @Trace recentTemplates: ItemTemplate[] = []
   readonly generator: GeneratorViewModel = new GeneratorViewModel()
   readonly session: VaultSessionViewModel = new VaultSessionViewModel()
 
@@ -221,7 +258,7 @@ export class AppViewModel {
         readOnly: false,
       }
       this.refreshVault()
-      this.setStatus(`已升级为 KDBX 4，备份文件：${backupName}`)
+      this.setStatus(`升级成功，备份文件：${backupName}`)
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('KDBX 3.1 升级失败', error)
@@ -230,9 +267,11 @@ export class AppViewModel {
     }
   }
 
-  loadNewEntry(editor: EntryEditorViewModel): void {
+  loadNewEntry(editor: EntryEditorViewModel, template: ItemTemplate): void {
     editor.reset()
+    editor.template = template
     editor.setGroup(this.requireGroup(stageOneVaultStore.defaultGroupUuid()))
+    this.appendMissingTemplateFields(editor, template)
     editor.initialValue = editor.currentValue()
     this.recordActivity()
   }
@@ -241,6 +280,8 @@ export class AppViewModel {
     const entry: VaultEntry = stageOneVaultStore.entry(entryUuid)
     editor.reset()
     editor.entryUuid = entry.uuid
+    // 未标记类型的条目（其他客户端创建）按通用模板编辑，保存时不回写类型。
+    editor.template = entry.template ?? ItemTemplate.Login
     editor.title = entry.title
     editor.setGroup(this.requireGroup(entry.groupUuid))
     editor.username = stageOneVaultStore.field(entry, 'UserName')
@@ -252,16 +293,31 @@ export class AppViewModel {
     editor.fields = entry.fields
       .filter((field: VaultField) => !RESERVED_FIELD_NAMES.includes(field.name))
       .map((field: VaultField): EntryFieldEditor => {
-        const edited: EntryFieldEditor = new EntryFieldEditor()
+        const edited: EntryFieldEditor = new EntryFieldEditor(isTemplateFieldKey(editor.template, field.name)
+          ? field.name : '')
         edited.name = field.name
         edited.value = field.value
         edited.type = field.type
         edited.protected = field.protected
         return edited
       })
+    this.appendMissingTemplateFields(editor, editor.template)
+    editor.syncAttachments(entry.attachments)
+    editor.loadSshKeys()
     editor.avatarData = stageOneVaultStore.loadEntryAvatar(entryUuid)
     editor.initialValue = editor.currentValue()
     this.recordActivity()
+  }
+
+  // SSH 密钥行的字段值是多条密钥的 JSON，空列表时不写入库，与模板字段空值规则一致。
+  private appendMissingTemplateFields(editor: EntryEditorViewModel, template: ItemTemplate): void {
+    const definition: ItemTemplateDefinition = definitionFor(template)
+    for (const field of definition.fields) {
+      if (field.reservedField.length > 0 || field.attachments || editor.templateField(field.key) !== undefined) {
+        continue
+      }
+      editor.appendTemplateField(field.key, field.type, field.protected)
+    }
   }
 
   // 只落盘并刷新派生数据；是否关闭编辑器由调用方决定。
@@ -283,11 +339,16 @@ export class AppViewModel {
       fields,
       tags: editor.tags,
       avatar: editor.avatarInput(),
+      // 类型新建即固定：仅在创建时写入，更新不携带。
+      template: editor.entryUuid.length === 0 ? editor.template : undefined,
     }
     try {
-      const saved: VaultEntry = await stageOneVaultStore.saveEntry(editor.entryUuid, input)
+      const saved: VaultEntry = await stageOneVaultStore.saveEntry(editor.entryUuid, input,
+        editor.attachmentChanges())
       // 采纳落盘后的条目标识：同一次编辑会话内再次保存走更新，不会重复创建条目。
       editor.entryUuid = saved.uuid
+      // 附件名可能被引擎去重改名，按落盘结果重建草稿。
+      editor.syncAttachments(saved.attachments)
       editor.markSaved()
       // 首页快照由 EntrySheet 在半模态收起后重建：列表变更放在动画上下文里才可见。
       this.revision++
@@ -296,6 +357,52 @@ export class AppViewModel {
       return true
     } catch (error) {
       this.reportBoundaryError('保存条目失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  // 最近使用是界面偏好，非敏感；读取失败按空处理不影响新建流程。
+  loadRecentTemplates(): void {
+    const stored: string[] = PreferencesUtil.getSync(
+      RECENT_TEMPLATES_KEY, EMPTY_TEMPLATES, TEMPLATE_PREFERENCES_NAME) as string[]
+    this.recentTemplates = stored
+      .map((value: string) => itemTemplateFrom(value))
+      .filter((template: ItemTemplate | undefined) => template !== undefined) as ItemTemplate[]
+  }
+
+  markTemplateUsed(template: ItemTemplate): void {
+    const next: ItemTemplate[] = [template]
+    for (const used of this.recentTemplates) {
+      if (used !== template && next.length < RECENT_TEMPLATE_LIMIT) {
+        next.push(used)
+      }
+    }
+    this.recentTemplates = next
+    PreferencesUtil.putSync(RECENT_TEMPLATES_KEY, next, TEMPLATE_PREFERENCES_NAME)
+  }
+
+  // 附件字节按需读取：只在导出时调用，列表不持有内容。
+  readAttachment(entryUuid: string, name: string): ArrayBuffer {
+    return stageOneVaultStore.loadAttachment(entryUuid, name)
+  }
+
+  // 生成结果作为一条新密钥草稿加进条目，名称按算法取默认名并自动去重。
+  async generateSshKeyPair(editor: EntryEditorViewModel, algorithm: SshKeyAlgorithm): Promise<boolean> {
+    if (this.busy) {
+      return false
+    }
+    this.busy = true
+    try {
+      const pair: SshKeyPairText = await generateSshKeyPair(algorithm)
+      editor.addSshKey(sshKeyDefaultName(algorithm), pair.privateKey, pair.publicKey,
+        sshKeyAlgorithmLabel(algorithm), sshKeyBits(algorithm))
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('生成 SSH 密钥失败', error)
       return false
     } finally {
       this.busy = false

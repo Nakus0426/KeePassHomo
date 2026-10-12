@@ -9,11 +9,14 @@ import { FormTextField, FormTextFieldStatus } from '../../components/FormTextFie
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
+import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
 import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { definitionFor, ItemTemplateDefinition, TemplateFieldDefinition } from '../../model/EntryTemplateCatalog'
 import { EntryAvatarPicker } from './EntryAvatarPicker'
+import { EntryAttachmentField } from './EntryAttachmentField'
 import { EntryCustomFields } from './EntryCustomFields'
 import { EntryGroupPicker } from './EntryGroupPicker'
+import { EntrySshKeysField } from './EntrySshKeysField'
 import { EntryTagEditor } from './EntryTagEditor'
 
 @ComponentV2
@@ -65,7 +68,17 @@ export struct EntryEditorView {
       this.viewModel.loadEntryForEdit(this.editor, this.sheet.entryUuid)
       return
     }
-    this.viewModel.loadNewEntry(this.editor)
+    this.viewModel.loadNewEntry(this.editor, this.sheet.newEntryTemplate)
+  }
+
+  @Computed
+  get definition(): ItemTemplateDefinition {
+    return definitionFor(this.editor.template)
+  }
+
+  @Computed
+  get hasOtherFields(): boolean {
+    return this.editor.customFields().length > 0
   }
 
   private releaseEditor(): void {
@@ -258,6 +271,100 @@ export struct EntryEditorView {
   }
 
   @LocalBuilder
+  private templateFieldInput(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
+    if (definition.multiline) {
+      FormTextArea({
+        placeholder: $r('app.string.text_input_placeholder'),
+        text: field.value,
+        onChange: (value: string) => this.editor.setFieldValue(field, value),
+      })
+    } else if (definition.options.length > 0) {
+      FormTextField({
+        placeholder: $r('app.string.text_input_placeholder'),
+        text: field.value,
+        onChange: (value: string) => this.editor.setFieldValue(field, value),
+      }) {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph($r('sys.symbol.chevron_down'))
+            .fontSize($r('sys.float.Title_S'))
+            .fontColor([$r('sys.color.icon_secondary')])
+        }
+        .width(this.textInputButtonSize)
+        .height(this.textInputButtonSize)
+        .backgroundColor(Color.Transparent)
+        .bindMenu(definition.options.map((option: string) => this.optionMenuItem(field, option)))
+      }
+    } else {
+      FormTextField({
+        placeholder: $r('app.string.text_input_placeholder'),
+        text: field.value,
+        onChange: (value: string) => this.editor.setFieldValue(field, value),
+      })
+    }
+  }
+
+  private optionMenuItem(field: EntryFieldEditor, option: string): MenuElement {
+    return {
+      value: option,
+      action: () => this.editor.setFieldValue(field, option),
+    }
+  }
+
+  // 模板字段的字段名与类型由模板定义，草稿行只承载取值。
+  @Builder
+  private templateFieldRow(definition: TemplateFieldDefinition) {
+    FormItem({
+      label: definition.label,
+      contentBuilder: () => {
+        this.templateFieldInput(this.editor.templateField(definition.key)!, definition)
+      },
+    })
+      .id(`field_${definition.key}`)
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+  }
+
+  // 组件必须在 @Builder 作用域内创建：直接写进 FormItem 的箭头参数里不会被编译成组件创建
+  @LocalBuilder
+  private attachmentField() {
+    EntryAttachmentField({
+      editor: this.editor,
+      entryUuid: this.sheet.entryUuid,
+      readOnly: this.readOnly,
+      active: this.sheet.mode === EntrySheetMode.Edit,
+      onActivity: () => this.viewModel.recordActivity(),
+    })
+  }
+
+  @LocalBuilder
+  private sshKeysField() {
+    EntrySshKeysField({
+      editor: this.editor,
+      readOnly: this.readOnly,
+      onActivity: () => this.viewModel.recordActivity(),
+    })
+  }
+
+  @Builder
+  private attachmentRow(definition: TemplateFieldDefinition) {
+    FormItem({
+      label: definition.label,
+      contentBuilder: this.attachmentField,
+    })
+      .id('field_attachments')
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+  }
+
+  @Builder
+  private sshKeysRow(definition: TemplateFieldDefinition) {
+    FormItem({
+      label: definition.label,
+      contentBuilder: this.sshKeysField,
+    })
+      .id(`field_${definition.key}`)
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+  }
+
+  @LocalBuilder
   customFieldsBuilder() {
     EntryCustomFields({
       editor: this.editor,
@@ -443,46 +550,56 @@ export struct EntryEditorView {
             .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
 
 
-          FormItem({
-            label: $r('app.string.username'),
-            contentBuilder: this.usernameBuilder,
-            value: this.editor.username,
-          })
-            .id('field_username')
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+          ForEach(this.definition.fields, (definition: TemplateFieldDefinition) => {
+            if (definition.reservedField === 'UserName') {
+              FormItem({
+                label: definition.label,
+                contentBuilder: this.usernameBuilder,
+                value: this.editor.username,
+              })
+                .id('field_username')
+                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+            } else if (definition.reservedField === 'Password') {
+              FormItem({
+                label: definition.label,
+                contentBuilder: this.passwordBuilder,
+                value: this.editor.password,
+              })
+                .id('field_password')
+                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
 
-          FormItem({
-            label: $r('app.string.password'),
-            contentBuilder: this.passwordBuilder,
-            value: this.editor.password,
-          })
-            .id('field_password')
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+              Row() {
+                PasswordStrengthIndicator({ password: this.editor.password })
+              }
+              .width('100%')
+              .padding({ left: $r('sys.float.padding_level16'), right: $r('sys.float.padding_level16') })
+              .margin({ bottom: $r('sys.float.padding_level12') })
+            } else if (definition.reservedField === 'URL') {
+              FormItem({
+                label: definition.label,
+                contentBuilder: this.urlBuilder,
+                value: this.editor.url,
+              })
+                .id('field_url')
+                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+            } else if (definition.reservedField === 'Notes') {
+              FormItem({
+                label: definition.label,
+                contentBuilder: this.notesBuilder,
+                value: this.editor.notes,
+              })
+                .id('field_notes')
+                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+            } else if (definition.attachments) {
+              this.attachmentRow(definition)
+            } else if (definition.sshKeys) {
+              this.sshKeysRow(definition)
+            } else {
+              this.templateFieldRow(definition)
+            }
+          }, (definition: TemplateFieldDefinition) => definition.key)
 
-          Row() {
-            PasswordStrengthIndicator({ password: this.editor.password })
-          }
-          .width('100%')
-          .padding({ left: $r('sys.float.padding_level16'), right: $r('sys.float.padding_level16') })
-          .margin({ bottom: $r('sys.float.padding_level12') })
-
-          FormItem({
-            label: $r('app.string.website'),
-            contentBuilder: this.urlBuilder,
-            value: this.editor.url,
-          })
-            .id('field_url')
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-
-          FormItem({
-            label: $r('app.string.notes'),
-            contentBuilder: this.notesBuilder,
-            value: this.editor.notes,
-          })
-            .id('field_notes')
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-
-          if (!this.readOnly || this.editor.fields.length > 0) {
+          if (!this.readOnly || this.hasOtherFields) {
             FormItem({
               labelBuilder: this.otherFieldLabel,
               contentBuilder: this.customFieldsBuilder,

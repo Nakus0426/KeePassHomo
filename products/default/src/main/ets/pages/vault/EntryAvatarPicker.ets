@@ -105,7 +105,7 @@ export struct EntryAvatarPicker {
         backgroundColor: AVATAR_BACKGROUND,
       })
     } finally {
-      await FileUtil.unlink(path)
+      FileUtil.unlinkSync(path)
     }
   }
 

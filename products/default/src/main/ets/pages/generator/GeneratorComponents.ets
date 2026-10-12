@@ -253,6 +253,13 @@ export struct GeneratorContent {
     return this.tabsWidth * GeneratorContent.TAB_TRANSITION_OFFSET_RATIO
   }
 
+  // 只写分段按钮的选中项（mode）：页签绑定的下标若在动画中途改写，会再发一次索引变更而反向抖动，
+  // 页签下标统一由 onChange 回写。
+  private selectMode(index: number): void {
+    this.viewModel.setMode(GeneratorContent.TAB_MODES[index])
+    this.tabsController.changeIndex(index)
+  }
+
   private passwordCharacterKind(character: string): PasswordCharacterKind {
     if (character >= '0' && character <= '9') {
       return PasswordCharacterKind.Number
@@ -509,7 +516,7 @@ export struct GeneratorContent {
       items: this.tabItems,
       selectedIndex: this.viewModel.mode,
       backgroundSystemMaterial: this.tabBarMaterial,
-      $selectedIndex: (index: number) => this.tabsController.changeIndex(index),
+      $selectedIndex: (index: number) => this.selectMode(index),
     })
 
     Column({ space: $r('sys.float.padding_level4') }) {
@@ -537,11 +544,6 @@ export struct GeneratorContent {
           .catch((error: BusinessError) => {
             LogUtil.error(`预加载生成器页签失败，错误码=${error.code}，错误信息=${error.message}`)
           })
-      })
-      .onAnimationStart((index: number, targetIndex: number) => {
-        if (targetIndex !== index) {
-          this.viewModel.setMode(GeneratorContent.TAB_MODES[targetIndex])
-        }
       })
       .onChange((index: number) => {
         this.currentTabIndex = index

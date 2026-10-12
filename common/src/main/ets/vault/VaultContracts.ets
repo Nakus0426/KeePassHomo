@@ -78,13 +78,37 @@ export interface SyncActivity {
   message: string;
 }
 
+// 条目模板类型无 KDBX 原生承载，存于条目 customData；取值沿用跨客户端草案拼写（PascalCase）。
 export enum ItemTemplate {
-  Login = 'login',
-  CreditCard = 'creditCard',
-  SecureNote = 'secureNote',
-  Identity = 'identity',
-  Wifi = 'wifi',
-  SoftwareLicense = 'softwareLicense'
+  Login = 'Login',
+  SecureNote = 'SecureNote',
+  CreditCard = 'CreditCard',
+  SshKey = 'SshKey',
+  Attachment = 'Attachment',
+  Password = 'Password'
+}
+
+// 条目模板类型键：跨客户端草案键名，不使用应用私有前缀。
+export const LAYOUT_TYPE_KEY: string = 'KPEX_LayoutType'
+
+// 未标记或取值非法一律返回 undefined：UI 按通用模板渲染，且不擅自回写类型。
+export function itemTemplateFrom(value: string | undefined): ItemTemplate | undefined {
+  switch (value) {
+    case ItemTemplate.Login:
+      return ItemTemplate.Login
+    case ItemTemplate.SecureNote:
+      return ItemTemplate.SecureNote
+    case ItemTemplate.CreditCard:
+      return ItemTemplate.CreditCard
+    case ItemTemplate.SshKey:
+      return ItemTemplate.SshKey
+    case ItemTemplate.Attachment:
+      return ItemTemplate.Attachment
+    case ItemTemplate.Password:
+      return ItemTemplate.Password
+    default:
+      return undefined
+  }
 }
 
 export interface AuditFinding {
@@ -129,9 +153,15 @@ export interface VaultEntry {
   fields: VaultField[];
   historyCount: number;
   attachmentCount: number;
+
+  // 附件名与字节数；字节按需通过 loadAttachment 读取。
+  attachments: VaultAttachmentMeta[];
   tags: string[];
   favorite: boolean;
   archived: boolean;
+
+  // 未标记模板类型（其他客户端创建的条目）时为空，UI 按通用模板渲染。
+  template: ItemTemplate | undefined;
 
   // 条目绑定了 KDBX 自定义图标（头像）；图标字节按需通过 loadEntryAvatar 读取。
   hasAvatar: boolean;
@@ -145,6 +175,17 @@ export interface VaultFieldInput {
   protected: boolean;
 }
 
+export interface VaultAttachmentMeta {
+  name: string;
+  size: number;
+}
+
+// 一次保存期间要应用的附件变更：data 为空表示按名字删除附件。
+export interface VaultAttachmentChange {
+  name: string;
+  data: ArrayBuffer | undefined;
+}
+
 export interface VaultEntryInput {
   groupUuid: string;
   title: string;
@@ -155,6 +196,9 @@ export interface VaultEntryInput {
   // 自定义字段：不含 5 个保留字段；未列出的既有自定义字段会被删除。
   fields: VaultFieldInput[];
   tags: string[];
+
+  // 条目模板类型：仅创建时消费，更新不接收（类型新建即固定）。
+  template?: ItemTemplate;
 
   // 头像三态：undefined 保持原有头像，null 删除头像，ArrayBuffer 写入该图片字节
   // （图标池中内容相同的项会被复用，否则新建）。
@@ -210,6 +254,16 @@ export interface VaultEngine {
     protectedValue?: boolean): void;
 
   removeEntryField(document: VaultDocument, entryUuid: string, name: string): void;
+
+  // 附件名在同一附件内唯一，重名由调用方保证；内容相同的二进制在库内按内容去重共享。
+  loadAttachment(document: VaultDocument, entryUuid: string, name: string): ArrayBuffer;
+
+  // 同条目内附件重名时自动加序号后缀，返回实际使用的附件名。
+  addAttachment(document: VaultDocument, entryUuid: string, name: string,
+    data: ArrayBuffer): Promise<VaultAttachmentMeta>;
+
+  // 只解除条目引用；未被任何条目或历史引用的二进制在写入时回收。
+  removeAttachment(document: VaultDocument, entryUuid: string, name: string): void;
 
   write(document: VaultDocument): Promise<ArrayBuffer>;
 

@@ -60,9 +60,11 @@ export struct EntrySheet {
     return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
   }
 
+  // 半模态内容底部 = 窗口安全区 + 安全间距：与 SearchPage 同档，只让出安全区时最后一项仍压在导航条上。
   @Computed
   get contentBottomOffset(): number {
-    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
+    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + gapPx)
   }
 
   @Computed

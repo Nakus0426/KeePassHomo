@@ -24,6 +24,16 @@
     "routerMap": "$profile:route_map",
     "requestPermissions": [
       {
+        "name": "ohos.permission.READ_PASTEBOARD",
+        "reason": "$string:read_pasteboard_reason",
+        "usedScene": {
+          "when": "inuse",
+          "abilities": [
+            "DefaultAbility"
+          ]
+        }
+      },
+      {
         "name": "ohos.permission.FILE_ACCESS_PERSIST"
       },
       {

@@ -22,12 +22,16 @@ export {
   SyncConflict,
   SyncActivity,
   ItemTemplate,
+  LAYOUT_TYPE_KEY,
+  itemTemplateFrom,
   AuditFinding,
   RESERVED_FIELD_NAMES,
   META_KEY_PREFIX,
   VaultFieldType,
   VaultField,
   VaultFieldInput,
+  VaultAttachmentMeta,
+  VaultAttachmentChange,
   VaultEntry,
   VaultEntryInput,
   VaultGroup,
@@ -85,6 +89,12 @@ export {
   AppErrorModel,
   AppErrorFactory,
 } from './src/main/ets/errors/AppError'
+
+export {
+  SshKeyAlgorithm, SshKeyPairText, generateSshKeyPair,
+} from './src/main/ets/ssh/SshKeyFormat'
+
+export { SshKeyInspection, inspectSshPrivateKey } from './src/main/ets/ssh/SshKeyInspect'
 
 export {
   ValidationValue,

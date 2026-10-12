@@ -1,5 +1,8 @@
 # 阶段 0 技术验证记录
 
+> 归档记录，不再更新。阶段进度与任务清单以 [keepass-harmonyos-development-plan.md](keepass-harmonyos-development-plan.md)
+> 为准；本文保留技术验证结论与待复验的平台限制。
+
 基线日期：2026-08-19  
 目标：HarmonyOS API 26，Stage 模型，Phone/Tablet
 

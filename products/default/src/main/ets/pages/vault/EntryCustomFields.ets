@@ -152,6 +152,12 @@ export struct EntryCustomFields {
     }
   }
 
+  // 模板字段由模板区渲染，这里只列用户自定义字段。
+  @Computed
+  get customFields(): EntryFieldEditor[] {
+    return this.editor.customFields()
+  }
+
   private openTypeSheet(): void {
     this.onActivity()
     this.typeSheetVisible = true
@@ -184,12 +190,12 @@ export struct EntryCustomFields {
     this.closeTypeSheet()
   }
 
-  private deleteField(field: EntryFieldEditor, index: number): void {
+  private deleteField(field: EntryFieldEditor): void {
     this.getUIContext().animateTo({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
     }, () => {
-      this.editor.removeField(index)
+      this.editor.removeField(field)
       if (field.id === this.editingFieldId) {
         this.closeCellEdit()
       }
@@ -233,8 +239,8 @@ export struct EntryCustomFields {
     return FIELD_TYPE_OPTIONS.find((preset: FieldPreset) => preset.type === type)!
   }
 
-  private renameField(field: EntryFieldEditor, index: number, name: string): void {
-    this.editor.renameField(index, name)
+  private renameField(field: EntryFieldEditor, name: string): void {
+    this.editor.renameField(field, name)
     if (field.id === this.invalidFieldId) {
       this.onInvalidCleared()
     }
@@ -242,16 +248,16 @@ export struct EntryCustomFields {
 
   // 留白放在槽位而非卡片外边距：ListItem 保持通栏，左滑才能被屏幕边缘裁切。
   @Builder
-  private fieldCardSlot(field: EntryFieldEditor, index: number) {
+  private fieldCardSlot(field: EntryFieldEditor) {
     Row() {
-      this.fieldCard(field, index)
+      this.fieldCard(field)
     }
     .width('100%')
     .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
   }
 
   @Builder
-  private fieldCard(field: EntryFieldEditor, index: number) {
+  private fieldCard(field: EntryFieldEditor) {
     Row({ space: $r('sys.float.padding_level8') }) {
       Row() {
         this.typeIcon(this.presetOf(field.type))
@@ -274,7 +280,7 @@ export struct EntryCustomFields {
             .borderRadius(0)
             .onAppear(() => this.getUIContext().getFocusController()
               .requestFocus(`custom_field_name_${field.id}`))
-            .onChange((value: string) => this.renameField(field, index, value))
+            .onChange((value: string) => this.renameField(field, value))
             .onSubmit(() => this.closeCellEdit())
             .onBlur(() => {
               if (this.isEditingName(field.id)) {
@@ -316,7 +322,7 @@ export struct EntryCustomFields {
             .clip(false)
             .onAppear(() => this.getUIContext().getFocusController()
               .requestFocus(`custom_field_value_${field.id}`))
-            .onChange((value: string) => this.editor.setFieldValue(index, value))
+            .onChange((value: string) => this.editor.setFieldValue(field, value))
             .onSubmit(() => this.closeCellEdit())
             .onBlur(() => {
               if (this.isEditingValue(field.id)) {
@@ -494,17 +500,17 @@ export struct EntryCustomFields {
 
   build() {
     Column() {
-      if (this.editor.fields.length > 0) {
+      if (this.customFields.length > 0) {
         List() {
-          ForEach(this.editor.fields, (field: EntryFieldEditor, index: number) => {
+          ForEach(this.customFields, (field: EntryFieldEditor) => {
             HdsListItem({
               customItemBuilder: () => {
-                this.fieldCardSlot(field, index)
+                this.fieldCardSlot(field)
               },
               listItemModifier: this.fieldCardItemModifier,
               swipeActionOptions: this.readOnly ? undefined : {
                 deleteIconOptions: {
-                  onAction: () => this.deleteField(field, index),
+                  onAction: () => this.deleteField(field),
                 },
               },
             })

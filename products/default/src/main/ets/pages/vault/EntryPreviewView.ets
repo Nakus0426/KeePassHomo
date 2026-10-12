@@ -14,11 +14,21 @@ import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntryS
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
-import { AppToast, VaultField, VaultFieldType } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
+import { AppToast, RESERVED_FIELD_NAMES, VaultAttachmentMeta, VaultField, VaultFieldType } from '@ohos/common'
+import { FileUtil, ResUtil } from '@pura/harmony-utils'
+import {
+  definitionFor,
+  isTemplateFieldKey,
+  ItemTemplateDefinition,
+  TemplateFieldDefinition,
+} from '../../model/EntryTemplateCatalog'
+import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
+import { EntrySshKeyList } from './EntrySshKeyList'
 
 const PREVIEW_MENU_MAX_COUNT: number = 4
 const PASSWORD_MASK: string = '••••••••'
+// 与详情页既有显示时长一致；B04 统一切换到 PASSWORD_REVEAL_SECONDS 时改这一处。
+const PREVIEW_REVEAL_SECONDS: number = 30
 
 @ComponentV2
 struct Cell {
@@ -123,10 +133,10 @@ export struct EntryPreviewView {
   @Event onEdit: () => void = () => {
   }
   @Local private session: AppSessionState = appSessionState
-  // 明文可见性是敏感状态，只在预览体存活期间有效，绝不外提。
-  @Local private passwordVisible: boolean = false
-  @Local private passwordSeconds: number = 0
-  private passwordTimer: number = -1
+  // 明文可见性是敏感状态，只在预览体存活期间有效，绝不外提；受保护字段共用一套倒计时。
+  @Local private revealedKeys: Set<string> = new Set<string>()
+  @Local private revealSeconds: number = 0
+  private revealTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly favoriteIcon: SymbolGlyphModifier =
     new SymbolGlyphModifier($r('sys.symbol.star'))
@@ -170,90 +180,95 @@ export struct EntryPreviewView {
   }
 
   @Computed
-  private get username(): string {
-    return this.fieldValue('UserName')
-  }
-
-  @Computed
-  private get password(): string {
-    return this.fieldValue('Password')
-  }
-
-  @Computed
-  private get url(): string {
-    return this.fieldValue('URL')
-  }
-
-  @Computed
   private get notes(): string {
     return this.fieldValue('Notes')
   }
 
   @Computed
+  private get definition(): ItemTemplateDefinition {
+    return definitionFor(this.sheet.template)
+  }
+
+  // 「其他」区：既不是 KDBX 保留字段，也不属于当前模板定义。
+  @Computed
   private get customFields(): VaultField[] {
     return this.sheet.fields.filter((field: VaultField) =>
-    field.name !== 'Title' && field.name !== 'UserName' && field.name !== 'Password' &&
-      field.name !== 'URL' && field.name !== 'Notes')
+    !RESERVED_FIELD_NAMES.includes(field.name) && !isTemplateFieldKey(this.sheet.template, field.name))
+  }
+
+  // 附件只展示名字与体积；增删与导出在编辑页完成。
+  @Computed
+  private get attachments(): VaultAttachmentMeta[] {
+    return this.sheet.previewEntry?.attachments ?? []
+  }
+
+  // SSH 密钥行由卡片列表渲染，不进字段行。
+  @Computed
+  private get previewFields(): TemplateFieldDefinition[] {
+    return this.definition.fields.filter((field: TemplateFieldDefinition) =>
+    !field.attachments && !field.sshKeys)
+  }
+
+  @Computed
+  private get sshKeys(): SshKeyDraft[] {
+    return parseSshKeys(this.fieldValue(SSH_KEYS_FIELD))
   }
 
   aboutToDisappear(): void {
-    this.clearPasswordTimer()
-    this.passwordVisible = false
-    this.passwordSeconds = 0
+    this.hideRevealed()
   }
 
   @Monitor('session.sensitiveEpoch')
   onSensitiveStateChanged(): void {
-    this.hidePassword()
+    this.hideRevealed()
   }
 
   private fieldValue(name: string): string {
     return this.sheet.fields.find((field: VaultField) => field.name === name)?.value ?? ''
   }
 
-  private clearPasswordTimer(): void {
-    if (this.passwordTimer >= 0) {
-      clearInterval(this.passwordTimer)
-      this.passwordTimer = -1
+  private templateValue(definition: TemplateFieldDefinition): string {
+    return this.fieldValue(definition.reservedField.length > 0 ? definition.reservedField : definition.key)
+  }
+
+  private clearRevealTimer(): void {
+    if (this.revealTimer >= 0) {
+      clearInterval(this.revealTimer)
+      this.revealTimer = -1
     }
   }
 
-  private hidePassword(): void {
-    this.clearPasswordTimer()
-    this.passwordVisible = false
-    this.passwordSeconds = 0
+  private hideRevealed(): void {
+    this.clearRevealTimer()
+    this.revealedKeys = new Set<string>()
+    this.revealSeconds = 0
   }
 
-  private startPasswordTimeout(): void {
-    this.clearPasswordTimer()
-    this.passwordVisible = true
-    this.passwordSeconds = 30
-    this.passwordTimer = setInterval(() => {
-      this.passwordSeconds--
-      if (this.passwordSeconds <= 0) {
-        this.hidePassword()
+  // Set 原地增删不触发 @Trace 通知，整体替换。
+  private startRevealTimeout(key: string): void {
+    this.clearRevealTimer()
+    const next: Set<string> = new Set(this.revealedKeys)
+    next.add(key)
+    this.revealedKeys = next
+    this.revealSeconds = PREVIEW_REVEAL_SECONDS
+    this.revealTimer = setInterval(() => {
+      this.revealSeconds--
+      if (this.revealSeconds <= 0) {
+        this.hideRevealed()
       }
     }, 1000)
   }
 
-  private togglePasswordVisibility(): void {
-    if (this.passwordVisible) {
-      this.hidePassword()
+  private toggleReveal(key: string): void {
+    if (this.revealedKeys.has(key)) {
+      this.hideRevealed()
       return
     }
-    this.startPasswordTimeout()
+    this.startRevealTimeout(key)
   }
 
-  private copyPassword(): void {
-    if (this.password.length === 0) {
-      return
-    }
-    this.viewModel.copyValue(this.password).then((copied: boolean) => {
-      if (copied) {
-        this.startPasswordTimeout()
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
+  private safeValue(value: string): string {
+    return value.length > 0 ? PASSWORD_MASK : ''
   }
 
   private copy(value: string): void {
@@ -264,12 +279,25 @@ export struct EntryPreviewView {
     })
   }
 
+  // 复制受保护字段等同一次查看：显示掩码并开始倒计时。
+  private copyProtected(key: string, value: string): void {
+    if (value.length === 0) {
+      return
+    }
+    this.viewModel.copyValue(value).then((copied: boolean) => {
+      if (copied) {
+        this.startRevealTimeout(key)
+        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+      }
+    })
+  }
+
   private openUrl(): void {
-    this.viewModel.openFieldAction(this.url, VaultFieldType.Url)
+    this.viewModel.openFieldAction(this.fieldValue('URL'), VaultFieldType.Url)
   }
 
   private countdownText(): string {
-    const time: string = `00:${this.passwordSeconds < 10 ? '0' : ''}${this.passwordSeconds}`
+    const time: string = `00:${this.revealSeconds < 10 ? '0' : ''}${this.revealSeconds}`
     return ResUtil.getStringSync($r('app.string.password_hide_countdown')).replace('%s', time)
   }
 
@@ -322,17 +350,81 @@ export struct EntryPreviewView {
   }
 
   @LocalBuilder
-  private passwordTrailing() {
+  private revealTrailing(definition: TemplateFieldDefinition) {
     PasswordVisibilityToggle({
-      visible: this.passwordVisible,
+      visible: this.revealedKeys.has(definition.key),
       exclusive: true,
-      onChange: () => this.togglePasswordVisibility(),
+      onChange: () => this.toggleReveal(definition.key),
     })
   }
 
   @LocalBuilder
+  private revealCountdown(definition: TemplateFieldDefinition) {
+    if (this.revealedKeys.has(definition.key) && this.revealSeconds > 0) {
+      Text(this.countdownText())
+        .width('100%')
+        .fontSize($r('sys.float.Caption_S'))
+        .fontColor($r('sys.color.font_tertiary'))
+        .padding({ left: $r('sys.float.padding_level16'), bottom: $r('sys.float.padding_level8') })
+    }
+  }
+
+  @Builder
+  private templateCell(definition: TemplateFieldDefinition) {
+    if (definition.reservedField === 'Notes') {
+      Cell({
+        icon: definition.icon,
+        label: definition.label,
+        value: this.sheet.notesExpanded ? this.notes : this.notes.split('\n')[0],
+        valueExpanded: this.sheet.notesExpanded,
+        clickable: this.notes.length > 0,
+        onCellClick: () => this.copy(this.notes),
+        trailingBuilder: this.notesTrailing,
+      })
+    } else if (definition.protected) {
+      Cell({
+        icon: definition.icon,
+        label: definition.label,
+        value: this.revealedKeys.has(definition.key)
+          ? this.templateValue(definition) : this.safeValue(this.templateValue(definition)),
+        clickable: this.templateValue(definition).length > 0,
+        onCellClick: () => this.copyProtected(definition.key, this.templateValue(definition)),
+        trailingBuilder: () => {
+          this.revealTrailing(definition)
+        },
+        extraBuilder: () => {
+          this.revealCountdown(definition)
+        },
+      })
+    } else if (definition.reservedField === 'URL') {
+      Cell({
+        icon: definition.icon,
+        label: definition.label,
+        value: this.templateValue(definition),
+        clickable: this.templateValue(definition).length > 0,
+        onCellClick: () => this.copy(this.templateValue(definition)),
+        trailingBuilder: this.urlTrailing,
+      })
+    } else {
+      Cell({
+        icon: definition.icon,
+        label: definition.label,
+        value: this.sheet.expandedCustomFields.has(definition.key)
+          ? this.templateValue(definition) : this.templateValue(definition).split('\n')[0],
+        valueExpanded: this.sheet.expandedCustomFields.has(definition.key),
+        clickable: this.templateValue(definition).length > 0,
+        onCellClick: () => this.copy(this.templateValue(definition)),
+        showTrailingButton: this.needsExpansion(this.templateValue(definition)),
+        trailingSymbol: this.sheet.expandedCustomFields.has(definition.key)
+          ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+        onTrailingClick: () => this.sheet.toggleCustomExpanded(definition.key),
+      })
+    }
+  }
+
+  @LocalBuilder
   private urlTrailing() {
-    if (this.url.length > 0) {
+    if (this.fieldValue('URL').length > 0) {
       IconToggleButton({
         symbol: $r('sys.symbol.arrow_up_right'),
         accessibilityLabel: $r('app.string.open_link'),
@@ -393,49 +485,9 @@ export struct EntryPreviewView {
 
           Column({ space: $r('sys.float.padding_level8') }) {
             List() {
-              Cell({
-                icon: $r('sys.symbol.person'),
-                label: $r('app.string.username'),
-                value: this.username,
-                clickable: this.username.length > 0,
-                onCellClick: () => this.copy(this.username),
-              })
-
-              Cell({
-                icon: $r('sys.symbol.lock'),
-                label: $r('app.string.password'),
-                value: this.passwordVisible || this.password.length === 0 ? this.password : PASSWORD_MASK,
-                clickable: this.password.length > 0,
-                onCellClick: () => this.copyPassword(),
-                trailingBuilder: this.passwordTrailing,
-                extraBuilder: () => {
-                  if (this.passwordSeconds > 0) {
-                    Text(this.countdownText()).width('100%').fontSize($r('sys.float.Caption_S'))
-                      .fontColor($r('sys.color.font_tertiary'))
-                      .padding({ left: $r('sys.float.padding_level16'), bottom: $r('sys.float.padding_level8') })
-                  }
-                },
-              })
-
-              Cell({
-                icon: $r('sys.symbol.link'),
-                label: $r('app.string.website'),
-                value: this.url,
-                clickable: this.url.length > 0,
-                onCellClick: () => this.copy(this.url),
-                trailingBuilder: this.urlTrailing,
-              })
-
-              Cell({
-                icon: $r('sys.symbol.doc_text'),
-                label: $r('app.string.notes'),
-                value: this.sheet.notesExpanded ? this.notes : this.notes.split('\n')[0],
-                valueExpanded: this.sheet.notesExpanded,
-                clickable: this.notes.length > 0,
-                onCellClick: () => this.copy(this.notes),
-                trailingBuilder: this.notesTrailing,
-              })
-
+              ForEach(this.previewFields, (definition: TemplateFieldDefinition) => {
+                this.templateCell(definition)
+              }, (definition: TemplateFieldDefinition) => definition.key)
             }
             .backgroundColor($r('sys.color.comp_background_primary'))
             .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
@@ -446,6 +498,37 @@ export struct EntryPreviewView {
               startMargin: $r('sys.float.padding_level8'),
               endMargin: $r('sys.float.padding_level8'),
             })
+
+            if (this.sshKeys.length > 0) {
+              EntrySshKeyList({
+                keys: this.sshKeys,
+                onActivity: () => this.viewModel.recordActivity(),
+              })
+            }
+
+            if (this.attachments.length > 0) {
+              List() {
+                ForEach(this.attachments, (attachment: VaultAttachmentMeta) => {
+                  Cell({
+                    icon: $r('sys.symbol.paperclip'),
+                    label: $r('app.string.attachment_file'),
+                    value: `${attachment.name} · ${FileUtil.getFormatFileSize(attachment.size)}`,
+                    clickable: false,
+                  })
+                }, (attachment: VaultAttachmentMeta) => attachment.name)
+              }
+              .width('100%')
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+              .borderRadius($r('sys.float.corner_radius_level10'))
+              .divider({
+                strokeWidth: 1,
+                color: $r('sys.color.grid_menu_divider_color'),
+                startMargin: $r('sys.float.padding_level8'),
+                endMargin: $r('sys.float.padding_level8'),
+              })
+              .scrollBar(BarState.Off)
+            }
 
             Row() {
               Row({ space: $r('sys.float.padding_level4') }) {

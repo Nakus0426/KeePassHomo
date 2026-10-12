@@ -5,6 +5,7 @@ import {
   DefaultVaultSession,
   FileVaultRepository,
   KdbxVaultEngine,
+  VaultAttachmentChange,
   VaultCredential,
   VaultDocument,
   VaultEntry,
@@ -327,7 +328,9 @@ export class StageOneVaultStore {
     return this.engine.loadEntryAvatar(this.session.getDocument(), entryUuid)
   }
 
-  async saveEntry(entryUuid: string, input: VaultEntryInput): Promise<VaultEntry> {
+  // 附件变更与条目写入同一次落盘：先改内存模型，再统一写入并校验。
+  async saveEntry(entryUuid: string, input: VaultEntryInput,
+    attachmentChanges: VaultAttachmentChange[] = []): Promise<VaultEntry> {
     if (this.currentSource.readOnly) {
       throw new Error('只读保险库不能保存条目')
     }
@@ -335,8 +338,20 @@ export class StageOneVaultStore {
     const saved: VaultEntry = entryUuid.length === 0
       ? this.engine.createEntry(document, input)
       : this.engine.updateEntry(document, entryUuid, input)
+    for (const change of attachmentChanges) {
+      if (change.data === undefined) {
+        this.engine.removeAttachment(document, saved.uuid, change.name)
+        continue
+      }
+      await this.engine.addAttachment(document, saved.uuid, change.name, change.data)
+    }
     await this.persistDocument(document)
-    return saved
+    return this.entry(saved.uuid)
+  }
+
+  // 附件字节按需读取：列表只带名字与体积。
+  loadAttachment(entryUuid: string, name: string): ArrayBuffer {
+    return this.engine.loadAttachment(this.session.getDocument(), entryUuid, name)
   }
 
   async deleteEntry(entryUuid: string): Promise<void> {

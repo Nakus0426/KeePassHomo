@@ -1,6 +1,6 @@
-import { curves, ListItemModifier, SymbolGlyphModifier, UIContext } from '@kit.ArkUI'
+import { curves, ListItemModifier, SymbolGlyphModifier, UIContext, uiMaterial } from '@kit.ArkUI'
 import { HdsListItem } from '@kit.UIDesignKit'
-import { AnimationTokens, AppToast, VaultEntry } from '@ohos/common'
+import { AnimationTokens, AppToast, ItemTemplate, VaultEntry } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { EntryCard } from '../../components/EntryCard'
 import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
@@ -15,6 +15,7 @@ import {
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntrySheet } from './EntrySheet'
+import { EntryTemplatePicker } from './EntryTemplatePicker'
 
 const TITLE_BAR_FILTER_ROW_HEIGHT_VP: number = 56
 
@@ -59,6 +60,12 @@ export struct VaultHomePage {
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private list: HomeEntryListViewModel = homeEntryListViewModel
   @Local private app: AppViewModel = appViewModel
+  @Local private templatePickerVisible: boolean = false
+  // 选择器未收起前不打开编辑半模态，避免两个半模态叠加。
+  private pickedTemplate: ItemTemplate | undefined = undefined
+  private readonly templatePickerMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
+    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
+  })
   // HdsListItem 不支持通用属性，增删转场只能经 ListItemModifier 下发。
   // animation 写在组合链首个效果上，按官方规则会同时作用于后面的 scale 效果。
   private readonly entryCardItemModifier: ListItemModifier = new ListItemModifier()
@@ -229,7 +236,7 @@ export struct VaultHomePage {
         .buttonStyle(ButtonStyleMode.NORMAL)
         .type(ButtonType.Capsule)
         .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
-        .onClick(() => entrySheetViewModel.openNew())
+        .onClick(() => this.templatePickerVisible = true)
       }
     }
     .alignItems(HorizontalAlign.Center)
@@ -373,7 +380,19 @@ export struct VaultHomePage {
       .animation({ curve: this.fabAppeared ? this.fabHandSwitchCurve : this.fabAppearCurve }))
     .accessibilityText($r('app.string.new_entry'))
     .onAppear(() => this.fabAppeared = true)
-    .onClick(() => entrySheetViewModel.openNew())
+    .onClick(() => this.templatePickerVisible = true)
+  }
+
+  @Builder
+  private templatePickerSheet() {
+    EntryTemplatePicker({
+      bottomOffset: this.bottomAvoidHeight,
+      onPicked: (template: ItemTemplate) => {
+        this.pickedTemplate = template
+        this.templatePickerVisible = false
+      },
+      onClose: () => this.templatePickerVisible = false,
+    })
   }
 
   build() {
@@ -395,10 +414,31 @@ export struct VaultHomePage {
           }
         }
 
+        Stack()
+          .width(0)
+          .height(0)
+          .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), {
+            dragBar: true,
+            showClose: false,
+            backgroundColor: Color.Transparent,
+            systemMaterial: this.templatePickerMaterial,
+            onDisappear: () => this.onTemplatePickerDisappeared(),
+          })
+
         EntrySheet({ sheet: entrySheetViewModel })
       }
     }
     .width('100%')
     .height('100%')
+  }
+
+  // 选择器完全收起后才打开编辑半模态，顺序固定，不并发两个半模态。
+  private onTemplatePickerDisappeared(): void {
+    const template: ItemTemplate | undefined = this.pickedTemplate
+    if (template === undefined) {
+      return
+    }
+    this.pickedTemplate = undefined
+    entrySheetViewModel.openNew(template)
   }
 }

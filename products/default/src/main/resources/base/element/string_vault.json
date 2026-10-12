@@ -22,31 +22,283 @@
     },
     {
       "name": "login_template",
-      "value": "登录"
+      "value": "登录信息"
     },
     {
       "name": "login_template_description",
-      "value": "网站或应用账号"
+      "value": "网站、应用的账号密码"
+    },
+    {
+      "name": "secure_note_template",
+      "value": "安全备注"
+    },
+    {
+      "name": "secure_note_template_description",
+      "value": "重要信息或私密备注"
     },
     {
       "name": "credit_card_template",
       "value": "银行卡"
     },
     {
-      "name": "secure_note_template",
-      "value": "安全笔记"
+      "name": "credit_card_template_description",
+      "value": "信用卡、借记卡信息"
     },
     {
-      "name": "identity_template",
-      "value": "身份信息"
+      "name": "password_template",
+      "value": "密码"
     },
     {
-      "name": "wifi_template",
-      "value": "Wi-Fi"
+      "name": "password_template_description",
+      "value": "生成或存储密码"
     },
     {
-      "name": "license_template",
-      "value": "软件许可证"
+      "name": "recent_used_template",
+      "value": "最近使用"
+    },
+    {
+      "name": "card_number",
+      "value": "卡号"
+    },
+    {
+      "name": "card_issuer",
+      "value": "发卡行"
+    },
+    {
+      "name": "card_type",
+      "value": "卡类型"
+    },
+    {
+      "name": "card_holder",
+      "value": "持卡人"
+    },
+    {
+      "name": "card_expiry",
+      "value": "有效期"
+    },
+    {
+      "name": "ssh_key_template",
+      "value": "SSH 密钥"
+    },
+    {
+      "name": "ssh_key_template_description",
+      "value": "服务器登录密钥"
+    },
+    {
+      "name": "ssh_key_add",
+      "value": "添加密钥"
+    },
+    {
+      "name": "ssh_key_pick_file",
+      "value": "上传文件"
+    },
+    {
+      "name": "ssh_key_paste",
+      "value": "粘贴"
+    },
+    {
+      "name": "ssh_key_paste_action",
+      "value": "点击完成粘贴"
+    },
+    {
+      "name": "ssh_key_paste_reason",
+      "value": "系统要求剪贴板由您点击粘贴按钮直接授权，应用不能代为读取"
+    },
+    {
+      "name": "ssh_key_paste_empty",
+      "value": "剪贴板里没有文本内容"
+    },
+    {
+      "name": "ssh_key_generate",
+      "value": "生成密钥"
+    },
+    {
+      "name": "ssh_key_badge_pending",
+      "value": "待保存"
+    },
+    {
+      "name": "ssh_key_badge_saved",
+      "value": "已添加"
+    },
+    {
+      "name": "ssh_key_copy_private",
+      "value": "复制私钥"
+    },
+    {
+      "name": "ssh_key_copy_public",
+      "value": "复制公钥"
+    },
+    {
+      "name": "ssh_key_export",
+      "value": "导出私钥"
+    },
+    {
+      "name": "ssh_key_export_success",
+      "value": "私钥导出成功"
+    },
+    {
+      "name": "ssh_key_rename",
+      "value": "重命名"
+    },
+    {
+      "name": "ssh_key_remove",
+      "value": "删除密钥"
+    },
+    {
+      "name": "ssh_key_remove_message",
+      "value": "保存后该密钥将从保险库中删除"
+    },
+    {
+      "name": "ssh_key_name_placeholder",
+      "value": "密钥名称"
+    },
+    {
+      "name": "ssh_key_name_required",
+      "value": "请输入密钥名称"
+    },
+    {
+      "name": "ssh_key_name_duplicate",
+      "value": "密钥名称已存在"
+    },
+    {
+      "name": "ssh_key_added",
+      "value": "密钥添加成功"
+    },
+    {
+      "name": "ssh_key_inspect_failed",
+      "value": "无法识别为 SSH 私钥"
+    },
+    {
+      "name": "ssh_key_paste_failed",
+      "value": "粘贴授权失败，请重试"
+    },
+    {
+      "name": "ssh_key_generated",
+      "value": "密钥生成成功"
+    },
+    {
+      "name": "ssh_algorithm_ed25519",
+      "value": "Ed25519"
+    },
+    {
+      "name": "ssh_algorithm_rsa2048",
+      "value": "RSA 2048"
+    },
+    {
+      "name": "ssh_algorithm_rsa3072",
+      "value": "RSA 3072"
+    },
+    {
+      "name": "ssh_algorithm_rsa4096",
+      "value": "RSA 4096"
+    },
+    {
+      "name": "ssh_key_algorithm_rsa",
+      "value": "RSA"
+    },
+    {
+      "name": "ssh_key_generate_type",
+      "value": "密钥类型"
+    },
+    {
+      "name": "ssh_key_generate_bits",
+      "value": "位长"
+    },
+    {
+      "name": "ssh_key_generating",
+      "value": "正在生成"
+    },
+    {
+      "name": "ssh_key_generate_failed",
+      "value": "密钥生成失败"
+    },
+    {
+      "name": "ssh_key_tip_ed25519",
+      "value": "Ed25519 是速度最快且符合最新标准的加密方式"
+    },
+    {
+      "name": "ssh_key_tip_rsa_compat",
+      "value": "RSA 密钥比 Ed25519 密钥速度慢，但是兼容旧版本的 SSH 服务器"
+    },
+    {
+      "name": "ssh_key_tip_rsa2048_prefix",
+      "value": "对于 RSA 加密算法，建议选择至少"
+    },
+    {
+      "name": "ssh_key_tip_rsa2048_suffix",
+      "value": "位的密钥长度"
+    },
+    {
+      "name": "ssh_key_pick_failed",
+      "value": "读取密钥文件失败"
+    },
+    {
+      "name": "ssh_key_limit_exceeded",
+      "value": "单条密钥不能超过 %s"
+    },
+    {
+      "name": "attachment_template",
+      "value": "附件"
+    },
+    {
+      "name": "attachment_template_description",
+      "value": "文件、图片等附件信息"
+    },
+    {
+      "name": "attachment_file",
+      "value": "文件"
+    },
+    {
+      "name": "attachment_add",
+      "value": "添加文件"
+    },
+    {
+      "name": "attachment_remove",
+      "value": "移除附件"
+    },
+    {
+      "name": "attachment_export",
+      "value": "导出附件"
+    },
+    {
+      "name": "attachment_export_saved",
+      "value": "附件导出成功"
+    },
+    {
+      "name": "attachment_limit_exceeded",
+      "value": "单个附件不能超过 %s"
+    },
+    {
+      "name": "attachment_pick_failed",
+      "value": "读取所选文件失败"
+    },
+    {
+      "name": "attachment_remove_title",
+      "value": "移除附件"
+    },
+    {
+      "name": "attachment_remove_message",
+      "value": "保存后该附件将从保险库中删除"
+    },
+    {
+      "name": "attachment_size_notice",
+      "value": "保存后保险库体积将增加约 %s"
+    },
+    {
+      "name": "reauthenticate_title",
+      "value": "导出前再次认证"
+    },
+    {
+      "name": "reauthenticate_message",
+      "value": "导出附件需要输入主密码"
+    },
+    {
+      "name": "reauthenticate_confirm",
+      "value": "认证并导出"
+    },
+    {
+      "name": "reauthenticate_failed",
+      "value": "主密码不正确"
     },
     {
       "name": "not_available",
@@ -242,7 +494,7 @@
     },
     {
       "name": "saved",
-      "value": "已保存"
+      "value": "保存成功"
     },
     {
       "name": "cancel",
@@ -279,10 +531,6 @@
     {
       "name": "upgrading",
       "value": "正在备份并升级"
-    },
-    {
-      "name": "upgrade_success",
-      "value": "已升级为 KDBX 4，备份文件：%s"
     },
     {
       "name": "search_vault",
@@ -350,7 +598,7 @@
     },
     {
       "name": "entry_moved_to_recycle_bin",
-      "value": "已放入回收站"
+      "value": "移入回收站成功"
     },
     {
       "name": "preview_placeholder",

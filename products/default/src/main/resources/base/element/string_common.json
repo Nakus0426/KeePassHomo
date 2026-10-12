@@ -1,6 +1,10 @@
 {
   "string": [
     {
+      "name": "read_pasteboard_reason",
+      "value": "用于粘贴您复制的 SSH 私钥，仅点击“粘贴”时读取一次"
+    },
+    {
       "name": "ability_desc",
       "value": "KeePassHomo 主窗口"
     },
