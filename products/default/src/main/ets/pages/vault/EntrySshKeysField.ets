@@ -1,12 +1,14 @@
 import { common } from '@kit.AbilityKit'
-import { promptAction, SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
+import { LengthMetrics, promptAction, SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit'
-import { fileIo, picker } from '@kit.CoreFileKit'
+import { picker } from '@kit.CoreFileKit'
 import { AppToast, inspectSshPrivateKey, SshKeyAlgorithm, SshKeyInspection } from '@ohos/common'
 import { FileUtil, LogUtil, ResUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
-import { SshKeyDraft, sshKeySummary } from '../../model/SshKeyPayload'
+import { SshKeyDraft } from '../../model/SshKeyPayload'
+import { exportSshPrivateKey } from '../../model/SshKeyExport'
+import { SshKeyCard } from './SshKeyCard'
 import { isPasteboardReadGranted, requestPasteboardRead } from '../../model/PasteboardAccess'
 import { SshKeyGeneratorSheet } from './SshKeyGeneratorSheet'
 
@@ -166,30 +168,6 @@ export struct EntrySshKeysField {
     }).finally(() => this.busy = false)
   }
 
-  private async exportPrivate(key: SshKeyDraft): Promise<void> {
-    try {
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions()
-      options.newFileNames = [key.name]
-      const uris: string[] = await new picker.DocumentViewPicker(context).save(options)
-      if (uris === undefined || uris.length === 0) {
-        return
-      }
-      const data: string = key.privateKey
-      const file: fileIo.File = FileUtil.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
-      try {
-        FileUtil.writeSync(file.fd, data)
-      } finally {
-        FileUtil.closeSync(file)
-      }
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_export_success'))
-    } catch (error) {
-      const failure: BusinessError = error as BusinessError
-      LogUtil.error(`导出 SSH 私钥失败，错误码=${failure.code}，错误信息=${failure.message}`)
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_pick_failed'))
-    }
-  }
-
   private openRenameDialog(key: SshKeyDraft): void {
     this.renameTarget = key
     this.renameName = key.name
@@ -247,49 +225,11 @@ export struct EntrySshKeysField {
   }
 
   @Builder
-  private keyMenu(key: SshKeyDraft) {
-    Menu() {
-      MenuItem({
-        content: $r('app.string.ssh_key_copy_private'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_text_on_doc_text')),
-      })
-        .onClick(() => this.copy(key.privateKey))
-
-      MenuItem({
-        content: $r('app.string.ssh_key_copy_public'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.key')),
-      })
-        .onClick(() => this.copy(key.publicKey))
-
-      MenuItem({
-        content: $r('app.string.ssh_key_export'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_down_to_line')),
-      })
-        .onClick(() => this.exportPrivate(key))
-
-      if (!this.readOnly) {
-        MenuItem({
-          content: $r('app.string.ssh_key_rename'),
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.square_and_pencil')),
-        })
-          .onClick(() => this.openRenameDialog(key))
-
-        MenuItem({
-          content: $r('app.string.ssh_key_remove'),
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash')).fontColor([$r('sys.color.warning')]),
-        })
-          .contentFontColor($r('sys.color.warning'))
-          .onClick(() => this.confirmRemove(key))
-      }
-    }
-  }
-
-  @Builder
   private addMenu() {
     Menu() {
       MenuItem({
         content: $r('app.string.ssh_key_pick_file'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_text')).fontSize($r('sys.float.Body_L')),
+        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_up_to_line')).fontSize($r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
         .onClick(() => this.pickKeyFile())
@@ -309,7 +249,12 @@ export struct EntrySshKeysField {
         .labelFont({ size: $r('sys.float.Body_M') })
         .onClick(() => this.generateSheetVisible = true)
     }
-    .menuItemDivider({ color: $r('sys.color.comp_divider') })
+    .menuItemDivider({
+      strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
+      color: $r('sys.color.grid_menu_divider_color'),
+      startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
+      endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
+    })
   }
 
   @Builder
@@ -354,61 +299,6 @@ export struct EntrySshKeysField {
     }
     .width('100%')
     .padding($r('sys.float.padding_level8'))
-  }
-
-  @Builder
-  private keyCard(key: SshKeyDraft) {
-    Row({ space: $r('sys.float.padding_level8') }) {
-      Stack() {
-        SymbolGlyph($r('sys.symbol.key'))
-          .fontSize($r('sys.float.Title_L'))
-          .fontColor([$r('sys.color.brand')])
-      }
-      .padding($r('sys.float.padding_level8'))
-      .borderRadius('50%')
-      .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-
-      Column({ space: $r('sys.float.padding_level2') }) {
-        Row({ space: $r('sys.float.padding_level4') }) {
-          Text(key.name)
-            .layoutWeight(1)
-            .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          Text(key.persisted ? $r('app.string.ssh_key_badge_saved') : $r('app.string.ssh_key_badge_pending'))
-            .fontSize($r('sys.float.Caption_M'))
-            .fontColor($r('sys.color.brand'))
-            .padding({
-              left: $r('sys.float.padding_level8'),
-              right: $r('sys.float.padding_level8'),
-              top: $r('sys.float.padding_level2'),
-              bottom: $r('sys.float.padding_level2'),
-            })
-            .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-            .borderRadius($r('sys.float.corner_radius_level16'))
-        }
-        .width('100%')
-
-        Text(sshKeySummary(key))
-          .width('100%')
-          .fontSize($r('sys.float.Body_S'))
-          .fontColor($r('sys.color.font_secondary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-    }
-    .width('100%')
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-    .borderRadius($r('sys.float.corner_radius_level10'))
-    .onClick(() => this.copy(key.privateKey))
-    .bindContextMenu(this.keyMenu(key), ResponseType.LongPress)
   }
 
   // 与「其他」区的新增按钮同款，复用系统点按反馈；生成期间换成加载态并禁用。
@@ -496,7 +386,15 @@ export struct EntrySshKeysField {
   build() {
     Column({ space: $r('sys.float.padding_level8') }) {
       ForEach(this.keys, (key: SshKeyDraft) => {
-        this.keyCard(key)
+        SshKeyCard({
+          sshKey: key,
+          editable: !this.readOnly,
+          onCopyPrivate: () => this.copy(key.privateKey),
+          onCopyPublic: () => this.copy(key.publicKey),
+          onExport: () => exportSshPrivateKey(this.getUIContext(), key),
+          onRename: () => this.openRenameDialog(key),
+          onRemove: () => this.confirmRemove(key),
+        })
       }, (key: SshKeyDraft) => `${key.id}`)
 
       if (!this.readOnly) {

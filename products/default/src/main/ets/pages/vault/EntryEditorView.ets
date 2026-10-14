@@ -11,7 +11,12 @@ import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityTog
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
 import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
-import { definitionFor, ItemTemplateDefinition, TemplateFieldDefinition } from '../../model/EntryTemplateCatalog'
+import {
+  definitionFor,
+  ItemTemplateDefinition,
+  TemplateFieldDefinition,
+  TemplateFieldOption,
+} from '../../model/EntryTemplateCatalog'
 import { EntryAvatarPicker } from './EntryAvatarPicker'
 import { EntryAttachmentField } from './EntryAttachmentField'
 import { EntryCustomFields } from './EntryCustomFields'
@@ -282,6 +287,8 @@ export struct EntryEditorView {
       FormTextField({
         placeholder: $r('app.string.text_input_placeholder'),
         text: field.value,
+        prefixIcon: this.matchedOptionIcon(field, definition),
+        prefixSymbol: $r('sys.symbol.bank_card'),
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       }) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
@@ -292,7 +299,7 @@ export struct EntryEditorView {
         .width(this.textInputButtonSize)
         .height(this.textInputButtonSize)
         .backgroundColor(Color.Transparent)
-        .bindMenu(definition.options.map((option: string) => this.optionMenuItem(field, option)))
+        .bindMenu(definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)))
       }
     } else {
       FormTextField({
@@ -303,10 +310,18 @@ export struct EntryEditorView {
     }
   }
 
-  private optionMenuItem(field: EntryFieldEditor, option: string): MenuElement {
+  // 取值由菜单快捷填入，也可手打：只有命中枚举才显示图标，不做兜底。
+  private matchedOptionIcon(field: EntryFieldEditor, definition: TemplateFieldDefinition): Resource | undefined {
+    const matched: TemplateFieldOption | undefined =
+      definition.options.find((option: TemplateFieldOption) => option.value === field.value)
+    return matched === undefined ? undefined : matched.icon
+  }
+
+  private optionMenuItem(field: EntryFieldEditor, option: TemplateFieldOption): MenuElement {
     return {
-      value: option,
-      action: () => this.editor.setFieldValue(field, option),
+      value: option.value,
+      icon: option.icon,
+      action: () => this.editor.setFieldValue(field, option.value),
     }
   }
 

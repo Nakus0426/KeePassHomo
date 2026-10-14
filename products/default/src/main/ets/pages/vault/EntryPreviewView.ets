@@ -484,6 +484,13 @@ export struct EntryPreviewView {
           .margin({ left: $r('sys.float.padding_level8') })
 
           Column({ space: $r('sys.float.padding_level8') }) {
+            if (this.sshKeys.length > 0) {
+              EntrySshKeyList({
+                keys: this.sshKeys,
+                onActivity: () => this.viewModel.recordActivity(),
+              })
+            }
+
             List() {
               ForEach(this.previewFields, (definition: TemplateFieldDefinition) => {
                 this.templateCell(definition)
@@ -499,13 +506,6 @@ export struct EntryPreviewView {
               endMargin: $r('sys.float.padding_level8'),
             })
 
-            if (this.sshKeys.length > 0) {
-              EntrySshKeyList({
-                keys: this.sshKeys,
-                onActivity: () => this.viewModel.recordActivity(),
-              })
-            }
-
             if (this.attachments.length > 0) {
               List() {
                 ForEach(this.attachments, (attachment: VaultAttachmentMeta) => {
@@ -516,6 +516,41 @@ export struct EntryPreviewView {
                     clickable: false,
                   })
                 }, (attachment: VaultAttachmentMeta) => attachment.name)
+              }
+              .width('100%')
+              .backgroundColor($r('sys.color.comp_background_primary'))
+              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
+              .borderRadius($r('sys.float.corner_radius_level10'))
+              .divider({
+                strokeWidth: 1,
+                color: $r('sys.color.grid_menu_divider_color'),
+                startMargin: $r('sys.float.padding_level8'),
+                endMargin: $r('sys.float.padding_level8'),
+              })
+              .scrollBar(BarState.Off)
+            }
+
+            if (this.customFields.length > 0) {
+              List() {
+                ForEach(this.customFields, (field: VaultField) => {
+                  Cell({
+                    icon: this.customFieldIcon(field.type),
+                    label: field.name,
+                    value: this.sheet.expandedCustomFields.has(field.name)
+                      ? (field.value.length > 0 &&
+                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value)
+                      : (field.value.length > 0 &&
+                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK :
+                        field.value).split('\n')[0],
+                    valueExpanded: this.sheet.expandedCustomFields.has(field.name),
+                    clickable: field.value.length > 0,
+                    onCellClick: () => this.copy(field.value),
+                    showTrailingButton: this.needsExpansion(field.value),
+                    trailingSymbol: this.sheet.expandedCustomFields.has(field.name)
+                      ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+                    onTrailingClick: () => this.sheet.toggleCustomExpanded(field.name),
+                  })
+                }, (field: VaultField) => field.name)
               }
               .width('100%')
               .backgroundColor($r('sys.color.comp_background_primary'))
@@ -561,41 +596,6 @@ export struct EntryPreviewView {
             .backgroundColor($r('sys.color.comp_background_primary'))
             .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
             .borderRadius($r('sys.float.corner_radius_level10'))
-
-            if (this.customFields.length > 0) {
-              List() {
-                ForEach(this.customFields, (field: VaultField) => {
-                  Cell({
-                    icon: this.customFieldIcon(field.type),
-                    label: field.name,
-                    value: this.sheet.expandedCustomFields.has(field.name)
-                      ? (field.value.length > 0 &&
-                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value)
-                      : (field.value.length > 0 &&
-                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK :
-                        field.value).split('\n')[0],
-                    valueExpanded: this.sheet.expandedCustomFields.has(field.name),
-                    clickable: field.value.length > 0,
-                    onCellClick: () => this.copy(field.value),
-                    showTrailingButton: this.needsExpansion(field.value),
-                    trailingSymbol: this.sheet.expandedCustomFields.has(field.name)
-                      ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
-                    onTrailingClick: () => this.sheet.toggleCustomExpanded(field.name),
-                  })
-                }, (field: VaultField) => field.name)
-              }
-              .width('100%')
-              .backgroundColor($r('sys.color.comp_background_primary'))
-              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
-              .borderRadius($r('sys.float.corner_radius_level10'))
-              .divider({
-                strokeWidth: 1,
-                color: $r('sys.color.grid_menu_divider_color'),
-                startMargin: $r('sys.float.padding_level8'),
-                endMargin: $r('sys.float.padding_level8'),
-              })
-              .scrollBar(BarState.Off)
-            }
           }
           .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
 

@@ -1,6 +1,11 @@
 import { ItemTemplate, VaultFieldType } from '@ohos/common'
 import { SSH_KEYS_FIELD } from './SshKeyPayload'
 
+export interface TemplateFieldOption {
+  value: string;
+  icon: Resource;
+}
+
 export interface TemplateFieldDefinition {
   key: string;
   label: Resource;
@@ -13,7 +18,7 @@ export interface TemplateFieldDefinition {
   reservedField: string;
 
   // 非空表示该行提供固定取值菜单。
-  options: string[];
+  options: TemplateFieldOption[];
 
   // 附件行：取值不在字段里，而是条目的 KDBX 附件。
   attachments: boolean;
@@ -47,7 +52,7 @@ function reservedField(key: string, label: Resource, icon: Resource, protectedVa
 }
 
 function customField(key: string, label: Resource, icon: Resource, protectedValue: boolean,
-  multiline: boolean = false, options: string[] = []): TemplateFieldDefinition {
+  multiline: boolean = false, options: TemplateFieldOption[] = []): TemplateFieldDefinition {
   return {
     key,
     label,
@@ -95,7 +100,15 @@ function sshKeysField(label: Resource, icon: Resource): TemplateFieldDefinition 
 }
 
 // 卡类型取值来自需求枚举；字段值仍是自由文本，菜单只是快捷填入。
-const CARD_TYPE_OPTIONS: string[] = ['银联', 'Visa', 'Mastercard', 'American Express', 'JCB', 'Discover']
+// 图标为 128x128 方画布 PNG，深色词标另在 resources/dark 同名覆盖。
+const CARD_TYPE_OPTIONS: TemplateFieldOption[] = [
+  { value: '银联', icon: $r('app.media.card_type_unionpay') },
+  { value: 'Visa', icon: $r('app.media.card_type_visa') },
+  { value: 'Mastercard', icon: $r('app.media.card_type_mastercard') },
+  { value: 'American Express', icon: $r('app.media.card_type_amex') },
+  { value: 'JCB', icon: $r('app.media.card_type_jcb') },
+  { value: 'Discover', icon: $r('app.media.card_type_discover') },
+]
 
 const LOGIN: ItemTemplateDefinition = {
   template: ItemTemplate.Login,

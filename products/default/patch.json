@@ -1,10 +1,10 @@
 {
   "app": {
     "bundleName": "com.naku.kee_pass_homo",
-    "patchVersionCode": 2001047,
+    "patchVersionCode": 2001061,
     "versionCode": 1000000,
     "versionName": "1.0.0",
-    "patchVersionName": "2001047"
+    "patchVersionName": "2001061"
   },
   "module": {
     "name": "default",
