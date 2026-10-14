@@ -280,6 +280,7 @@ export struct CreateVaultPage {
           Column() {
             Column({ space: $r('sys.float.padding_level6') }) {
               Image($r('app.media.safe'))
+                .draggable(false)
                 .width('128vp')
                 .height('128vp')
               Text($r('app.string.create_vault'))

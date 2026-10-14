@@ -56,6 +56,7 @@ export struct FormTextField {
     Row({ space: $r('sys.float.padding_level2') }) {
       if (this.prefixIcon !== undefined) {
         Image(this.prefixIcon)
+          .draggable(false)
           .width($r('sys.float.ohos_id_textfield_icon_size'))
           .height($r('sys.float.ohos_id_textfield_icon_size'))
           .objectFit(ImageFit.Contain)

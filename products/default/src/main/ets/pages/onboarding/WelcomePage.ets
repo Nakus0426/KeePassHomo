@@ -71,6 +71,7 @@ export struct WelcomePage {
         Column({ space: $r('sys.float.padding_level8') }) {
           Column({ space: $r('sys.float.padding_level2') }) {
             Image($r('app.media.launch_icon'))
+              .draggable(false)
               .width($r('app.float.welcome_icon_size'))
               .height($r('app.float.welcome_icon_size'))
             Text($r('app.string.app_title'))

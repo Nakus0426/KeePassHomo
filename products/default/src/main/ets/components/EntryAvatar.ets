@@ -58,6 +58,7 @@ export struct EntryAvatar {
     Stack() {
       if (this.avatarPixelMap !== undefined) {
         Image(this.avatarPixelMap)
+          .draggable(false)
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)

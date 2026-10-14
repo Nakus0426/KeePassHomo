@@ -237,6 +237,7 @@ export struct UnlockPage {
           })
         Stack({ alignContent: Alignment.Center }) {
           Image($r('app.media.launch_icon'))
+            .draggable(false)
             .width(LUNCH_ICON_SIZE * 256 / (256 - 30 * 2))
             .height(LUNCH_ICON_SIZE * 256 / (256 - 30 * 2))
         }

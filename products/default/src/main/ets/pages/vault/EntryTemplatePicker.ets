@@ -66,6 +66,7 @@ export struct EntryTemplatePicker {
       Stack({ alignContent: Alignment.TopEnd }) {
         Column({ space: $r('sys.float.padding_level4') }) {
           Image(definition.icon)
+            .draggable(false)
             .width($r('app.float.template_icon_size'))
             .height($r('app.float.template_icon_size'))
             .objectFit(ImageFit.Contain)

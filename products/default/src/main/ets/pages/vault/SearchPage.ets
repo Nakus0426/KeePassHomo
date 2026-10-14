@@ -188,6 +188,7 @@ export struct SearchPage {
     Scroll() {
       Column() {
         Image($r('app.media.entry_search_empty'))
+          .draggable(false)
           .width($r('app.float.vault_empty_icon_size'))
           .height($r('app.float.vault_empty_icon_size'))
       }

@@ -1,4 +1,4 @@
-import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
+import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, matrix4, SymbolGlyphModifier } from '@kit.ArkUI'
 import {
   hdsMaterial,
   HdsNavigation,
@@ -14,13 +14,23 @@ import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntryS
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
-import { AppToast, RESERVED_FIELD_NAMES, VaultAttachmentMeta, VaultField, VaultFieldType } from '@ohos/common'
+import {
+  AnimationTokens,
+  AppToast,
+  ColorUtil,
+  ItemTemplate,
+  RESERVED_FIELD_NAMES,
+  VaultAttachmentMeta,
+  VaultField,
+  VaultFieldType,
+} from '@ohos/common'
 import { FileUtil, ResUtil } from '@pura/harmony-utils'
 import {
   definitionFor,
   isTemplateFieldKey,
   ItemTemplateDefinition,
   TemplateFieldDefinition,
+  TemplateFieldOption,
 } from '../../model/EntryTemplateCatalog'
 import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
 import { EntrySshKeyList } from './EntrySshKeyList'
@@ -29,6 +39,73 @@ const PREVIEW_MENU_MAX_COUNT: number = 4
 const PASSWORD_MASK: string = '••••••••'
 // 与详情页既有显示时长一致；B04 统一切换到 PASSWORD_REVEAL_SECONDS 时改这一处。
 const PREVIEW_REVEAL_SECONDS: number = 30
+
+const CARD_NUMBER_KEY: string = 'CardNumber'
+const CARD_TYPE_KEY: string = 'CardType'
+// 真实 ID-1 卡比例 85.6 / 54。
+const CARD_ASPECT: number = 1.585
+const CARD_DIGIT_GROUP: number = 4
+// 掩码长度固定，不泄露卡号位数。
+// 用 ASCII 星号而非 U+2022：圆点在 HarmonyOS Sans 中缺失，会回退成 CJK 全宽字形（约 1em），
+// 满字号下 16 点放不进卡内宽度，触发自适应缩字并让两态行高不一致。
+const CARD_NUMBER_MASK: string = '**** **** **** ****'
+// 卡面内元素比例统一以卡宽为基准：按卡高定的比例已除 CARD_ASPECT 折算过来。
+const CARD_NUMBER_FONT_RATIO: number = 0.06
+const CARD_NUMBER_SPACING_RATIO: number = 0.009
+const CARD_NUMBER_LEFT_RATIO: number = 0.06
+// 卡高 32%，保证整串卡号位于右下角 logo 之上。
+const CARD_NUMBER_BOTTOM_RATIO: number = 0.202
+// 卡高 22% 的方画布：最宽的 Discover 词标渲染宽约卡宽 18%，与真卡相当。
+const CARD_LOGO_SIZE_RATIO: number = 0.139
+const CARD_LOGO_RIGHT_RATIO: number = 0.055
+const CARD_LOGO_BOTTOM_RATIO: number = 0.044
+// 凸印：白字之下垫一层下移的黑影，受光面在上缘。
+const CARD_EMBOSS_OFFSET_RATIO: number = 0.0035
+// 极端长卡号（如 19 位）仍在单行内自适应缩字号，不换行。
+const CARD_NUMBER_MIN_FONT_SCALE: number = 0.7
+// 显隐交叉淡化的时长；两态各占一层，只互换透明度。
+const CARD_NUMBER_FADE_DURATION: number = 200
+// 按下瞬间的压入时长；抬起回正复用 STATE_TRANSITION_DURATION。
+const CARD_PRESS_DURATION: number = 120
+
+// 3D 按压倾斜：轴取手指相对卡心方向的垂直轴，倾角随偏离卡心距离线性增大。
+const CARD_TILT_MAX_ANGLE: number = 10
+// 相机距离取卡宽的倍数：绝对 px 会随屏幕密度改变透视强度（真实距离约卡宽 4 倍，取 3 倍做视觉强化）。
+const CARD_PERSPECTIVE_WIDTHS: number = 3
+const CARD_PRESS_SCALE: number = 0.97
+// 手指侧应被压下；若真机手感相反（手指侧被抬起），改这里即可。
+const CARD_TILT_SIGN: number = 1
+const CARD_GLARE_MAX_OPACITY: number = 0.38
+// 光带峰值不透明度，再乘按压深度控制整体亮度。
+const CARD_GLARE_PEAK_ALPHA: number = 0.55
+// 光带峰值靠近翘起侧：0 位在受压侧，1 位在翘起侧。
+const CARD_GLARE_PEAK_POSITION: number = 0.72
+// 受压侧压暗的最大不透明度。
+const CARD_SHADE_MAX_ALPHA: number = 0.22
+// 非刚体形变：受压角沿 z 额外下沉（占卡宽比例），二次分布把下沉集中在受压角。
+const CARD_PRESS_SINK_RATIO: number = 0.06
+// 内容视差：浮起的卡号与 logo 相对卡面朝受压方向外移，取卡宽比例作视觉夸张。
+const CARD_PARALLAX_RATIO: number = 0.012
+const CARD_RIM_MAX_OPACITY: number = 0.45
+// ShadowOptions 的 radius / offset 单位是 px，由 vp2px 换算。
+const CARD_SHADOW_RADIUS_VP: number = 26
+const CARD_SHADOW_OFFSET_VP: number = 6
+
+interface CardFaceMetrics {
+  numberFontSize: number;
+  numberSpacing: number;
+  numberLeft: number;
+  numberBottom: number;
+  embossOffset: number;
+  logoSize: number;
+  logoRight: number;
+  logoBottom: number;
+}
+
+interface MatrixPoint {
+  x: number;
+  y: number;
+}
 
 @ComponentV2
 struct Cell {
@@ -136,6 +213,13 @@ export struct EntryPreviewView {
   // 明文可见性是敏感状态，只在预览体存活期间有效，绝不外提；受保护字段共用一套倒计时。
   @Local private revealedKeys: Set<string> = new Set<string>()
   @Local private revealSeconds: number = 0
+  // 卡面元素全部按卡宽比例定位，宽度由 onAreaChange 实测。
+  @Local private cardWidthVp: number = 0
+  // 3D 按压倾斜：手指相对卡心的归一化偏移（-1~1）与按压深度，跟手期间直接绑定。
+  @Local private cardPressed: boolean = false
+  @Local private cardTiltNx: number = 0
+  @Local private cardTiltNy: number = 0
+  @Local private cardPressDepth: number = 0
   private revealTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly favoriteIcon: SymbolGlyphModifier =
@@ -212,6 +296,215 @@ export struct EntryPreviewView {
   @Computed
   private get sshKeys(): SshKeyDraft[] {
     return parseSshKeys(this.fieldValue(SSH_KEYS_FIELD))
+  }
+
+  // 卡面只在信用卡模板出现；其它模板没有卡号与卡类型字段。
+  @Computed
+  private get showBankCard(): boolean {
+    return this.definition.template === ItemTemplate.CreditCard
+  }
+
+  @Computed
+  private get cardMetrics(): CardFaceMetrics {
+    const width: number = this.cardWidthVp
+    return {
+      numberFontSize: width * CARD_NUMBER_FONT_RATIO,
+      numberSpacing: width * CARD_NUMBER_SPACING_RATIO,
+      numberLeft: width * CARD_NUMBER_LEFT_RATIO,
+      numberBottom: width * CARD_NUMBER_BOTTOM_RATIO,
+      embossOffset: width * CARD_EMBOSS_OFFSET_RATIO,
+      logoSize: width * CARD_LOGO_SIZE_RATIO,
+      logoRight: width * CARD_LOGO_RIGHT_RATIO,
+      logoBottom: width * CARD_LOGO_BOTTOM_RATIO,
+    }
+  }
+
+  // 卡面固定浅灰，故取不随深浅色变的彩色版 cardIcon，而非菜单用的 icon。
+  @Computed
+  private get cardLogo(): Resource | undefined {
+    const cardType: string = this.fieldValue(CARD_TYPE_KEY)
+    const field: TemplateFieldDefinition | undefined =
+      this.definition.fields.find((definition: TemplateFieldDefinition) => definition.key === CARD_TYPE_KEY)
+    if (cardType.length === 0 || field === undefined) {
+      return undefined
+    }
+    const matched: TemplateFieldOption | undefined =
+      field.options.find((option: TemplateFieldOption) => option.value === cardType)
+    return matched === undefined ? undefined : matched.cardIcon
+  }
+
+  // 掩码态与明文态各占一层并同时在场，只交换透明度，避免换字时的字形跳变。
+  @Computed
+  private get cardNumberRevealed(): boolean {
+    return this.cardNumberDigits.length > 0 && this.revealedKeys.has(CARD_NUMBER_KEY)
+  }
+
+  @Computed
+  private get cardNumberDigits(): string {
+    const raw: string = this.fieldValue(CARD_NUMBER_KEY).replace(/\s+/g, '')
+    return raw.length === 0 ? '' : this.groupDigits(raw)
+  }
+
+  // 绕平面内垂直轴旋转（受压侧 z 下沉、翘起侧抬起）+ 受压角额外下沉，再按相机距离做透视投影，
+  // 四角目标点交给 setPolyToPoly 一次成型；按下缩放直接折进目标点，不另开 scale。
+  @Computed
+  private get cardTransform(): matrix4.Matrix4Transit {
+    const widthPx: number = this.getUIContext().vp2px(this.cardWidthVp)
+    const depth: number = this.cardPressDepth
+    const radius: number = Math.sqrt(this.cardTiltNx * this.cardTiltNx + this.cardTiltNy * this.cardTiltNy)
+    if (widthPx <= 0 || depth === 0 || radius === 0) {
+      return matrix4.identity()
+    }
+    const heightPx: number = widthPx / CARD_ASPECT
+    const halfWidth: number = widthPx / 2
+    const halfHeight: number = heightPx / 2
+    const perspectivePx: number = widthPx * CARD_PERSPECTIVE_WIDTHS
+    const dirX: number = this.cardTiltNx / radius
+    const dirY: number = this.cardTiltNy / radius
+    const tilt: number = CARD_TILT_MAX_ANGLE * depth * CARD_TILT_SIGN * Math.PI / 180
+    const sinTilt: number = Math.sin(tilt)
+    const cosTilt: number = Math.cos(tilt)
+    // 四角在受压方向上的最大投影，用于把"受压角下沉"归一化成二次权重。
+    const maxProjection: number = halfWidth * Math.abs(dirX) + halfHeight * Math.abs(dirY)
+    const pressScale: number = this.cardPressed ? CARD_PRESS_SCALE : 1
+    const corners: MatrixPoint[] = [
+      { x: -halfWidth, y: -halfHeight },
+      { x: halfWidth, y: -halfHeight },
+      { x: halfWidth, y: halfHeight },
+      { x: -halfWidth, y: halfHeight },
+    ]
+    const src: MatrixPoint[] = [
+      { x: 0, y: 0 },
+      { x: widthPx, y: 0 },
+      { x: widthPx, y: heightPx },
+      { x: 0, y: heightPx },
+    ]
+    const dst: MatrixPoint[] = []
+    for (const corner of corners) {
+      const projection: number = corner.x * dirX + corner.y * dirY
+      let z: number = -projection * sinTilt
+      const pressedWeight: number = maxProjection === 0 ? 0 : projection / maxProjection
+      if (pressedWeight > 0) {
+        z -= CARD_PRESS_SINK_RATIO * widthPx * depth * pressedWeight * pressedWeight
+      }
+      // 平面内分量：绕垂直轴旋转还会带一点沿轴向的平移。
+      const axial: number = -dirY * corner.x + dirX * corner.y
+      const planarX: number = corner.x * cosTilt - dirY * axial * (1 - cosTilt)
+      const planarY: number = corner.y * cosTilt + dirX * axial * (1 - cosTilt)
+      const factor: number = perspectivePx / (perspectivePx - z) * pressScale
+      dst.push({ x: halfWidth + planarX * factor, y: halfHeight + planarY * factor })
+    }
+    return matrix4.identity().setPolyToPoly({ src: src, dst: dst, pointCount: 4 })
+  }
+
+  // 光轴背离受压侧：0 位落在受压侧、1 位落在翘起侧，明暗与光带共用这根轴。
+  // linearGradient 角度约定为 0° 由下往上、顺时针为正，故屏幕向量的角度取 atan2(x, -y)。
+  @Computed
+  private get cardLightAngle(): number {
+    return Math.atan2(-this.cardTiltNx, this.cardTiltNy) * 180 / Math.PI
+  }
+
+  // 视差方向按透视投影推导：浮起的内容会被放大，故相对卡面朝受压侧外移。
+  private cardShiftScale(): number {
+    const radius: number = Math.sqrt(this.cardTiltNx * this.cardTiltNx + this.cardTiltNy * this.cardTiltNy)
+    if (radius === 0) {
+      return 0
+    }
+    return CARD_PARALLAX_RATIO * this.cardWidthVp * this.cardPressDepth / radius
+  }
+
+  @Computed
+  private get cardShiftX(): number {
+    return this.cardShiftScale() * this.cardTiltNx
+  }
+
+  @Computed
+  private get cardShiftY(): number {
+    return this.cardShiftScale() * this.cardTiltNy
+  }
+
+  @Computed
+  private get cardGlareOpacity(): number {
+    return CARD_GLARE_MAX_OPACITY * this.cardPressDepth
+  }
+
+  @Computed
+  private get cardRimOpacity(): number {
+    return CARD_RIM_MAX_OPACITY * this.cardPressDepth
+  }
+
+  @Computed
+  private get cardShadow(): ShadowOptions {
+    const depth: number = this.cardPressDepth
+    const offset: number = this.getUIContext().vp2px(CARD_SHADOW_OFFSET_VP * depth)
+    return {
+      radius: this.getUIContext().vp2px(CARD_SHADOW_RADIUS_VP * (0.5 + 0.5 * depth)),
+      color: ColorUtil.withAlpha($r('sys.color.black'), 0.12 + 0.10 * depth),
+      offsetX: -this.cardTiltNx * offset,
+      offsetY: -this.cardTiltNy * offset,
+    }
+  }
+
+  private groupDigits(raw: string): string {
+    const groups: string[] = []
+    for (let index: number = 0; index < raw.length; index += CARD_DIGIT_GROUP) {
+      groups.push(raw.substring(index, index + CARD_DIGIT_GROUP))
+    }
+    return groups.join(' ')
+  }
+
+  // TouchObject.x/y 单位是 vp、以卡面左上角为原点，这里换算成相对卡心的归一化偏移。
+  private trackCardPress(x: number, y: number): void {
+    const halfWidth: number = this.cardWidthVp / 2
+    const halfHeight: number = this.cardWidthVp / CARD_ASPECT / 2
+    if (halfWidth <= 0 || halfHeight <= 0) {
+      return
+    }
+    const nx: number = Math.max(-1, Math.min(1, (x - halfWidth) / halfWidth))
+    const ny: number = Math.max(-1, Math.min(1, (y - halfHeight) / halfHeight))
+    this.cardTiltNx = nx
+    this.cardTiltNy = ny
+    this.cardPressDepth = Math.min(1, Math.sqrt(nx * nx + ny * ny))
+  }
+
+  // 跟手期间不加过渡动画：Move 直接改状态，只有按下与抬起两段用 animateTo 包裹。
+  private onCardTouch(event: TouchEvent): void {
+    const touch: TouchObject | undefined = event.touches[0]
+    if (touch === undefined) {
+      return
+    }
+    switch (event.type) {
+      case TouchType.Down:
+        this.getUIContext().animateTo({
+          duration: CARD_PRESS_DURATION,
+          curve: AnimationTokens.STATE_TRANSITION_CURVE,
+        }, () => {
+          this.cardPressed = true
+          this.trackCardPress(touch.x, touch.y)
+        })
+        break
+      case TouchType.Move:
+        this.trackCardPress(touch.x, touch.y)
+        break
+      case TouchType.Up:
+      case TouchType.Cancel:
+        this.releaseCard()
+        break
+      default:
+        break
+    }
+  }
+
+  private releaseCard(): void {
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+    }, () => {
+      this.cardPressed = false
+      this.cardTiltNx = 0
+      this.cardTiltNy = 0
+      this.cardPressDepth = 0
+    })
   }
 
   aboutToDisappear(): void {
@@ -358,6 +651,158 @@ export struct EntryPreviewView {
     })
   }
 
+  // 卡面元素一律直接写在本 builder 内：带参数的子 @Builder 只在首次渲染取值，
+  // 实测卡宽到来后不会刷新，字号会停在初始的 0。
+  @Builder
+  private bankCard() {
+    Stack({ alignContent: Alignment.BottomStart }) {
+      Image($r('app.media.credit_card_face'))
+        .draggable(false)
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+
+      Row() {
+        Stack({ alignContent: Alignment.BottomStart }) {
+          // 掩码态：与明文态各占一层并同时在场，只交换透明度做交叉淡化。
+          Stack({ alignContent: Alignment.BottomStart }) {
+            Text(CARD_NUMBER_MASK)
+              .fontSize(this.cardMetrics.numberFontSize)
+              .maxFontSize(this.cardMetrics.numberFontSize)
+              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
+              .maxLines(1)
+              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.black'))
+              .letterSpacing(this.cardMetrics.numberSpacing)
+              .offset({ y: this.cardMetrics.embossOffset })
+
+            Text(CARD_NUMBER_MASK)
+              .fontSize(this.cardMetrics.numberFontSize)
+              .maxFontSize(this.cardMetrics.numberFontSize)
+              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
+              .maxLines(1)
+              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.white'))
+              .letterSpacing(this.cardMetrics.numberSpacing)
+          }
+          .opacity(this.cardNumberRevealed ? 0 : 1)
+          .animation({
+            duration: CARD_NUMBER_FADE_DURATION,
+            curve: AnimationTokens.STATE_TRANSITION_CURVE,
+          })
+
+          Stack({ alignContent: Alignment.BottomStart }) {
+            Text(this.cardNumberDigits)
+              .fontSize(this.cardMetrics.numberFontSize)
+              .maxFontSize(this.cardMetrics.numberFontSize)
+              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
+              .maxLines(1)
+              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.black'))
+              .letterSpacing(this.cardMetrics.numberSpacing)
+              .offset({ y: this.cardMetrics.embossOffset })
+
+            Text(this.cardNumberDigits)
+              .fontSize(this.cardMetrics.numberFontSize)
+              .maxFontSize(this.cardMetrics.numberFontSize)
+              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
+              .maxLines(1)
+              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.white'))
+              .letterSpacing(this.cardMetrics.numberSpacing)
+          }
+          .opacity(this.cardNumberRevealed ? 1 : 0)
+          .animation({
+            duration: CARD_NUMBER_FADE_DURATION,
+            curve: AnimationTokens.STATE_TRANSITION_CURVE,
+          })
+        }
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+      .padding({ left: this.cardMetrics.numberLeft })
+      .margin({ bottom: this.cardMetrics.numberBottom })
+      .translate({ x: this.cardShiftX, y: this.cardShiftY })
+
+      if (this.cardLogo !== undefined) {
+        Row() {
+          Image(this.cardLogo)
+            .draggable(false)
+            .width(this.cardMetrics.logoSize)
+            .height(this.cardMetrics.logoSize)
+            .objectFit(ImageFit.Contain)
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.End)
+        .padding({ right: this.cardMetrics.logoRight })
+        .margin({ bottom: this.cardMetrics.logoBottom })
+        .translate({ x: this.cardShiftX, y: this.cardShiftY })
+      }
+
+      // 棱边提亮：按压越深越亮，抬手由 animateTo 收回。
+      Column()
+        .width('100%')
+        .height('100%')
+        .borderRadius($r('sys.float.corner_radius_level10'))
+        .border({ width: 1, color: ColorUtil.withAlphaHex($r('sys.color.white'), this.cardRimOpacity) })
+        .hitTestBehavior(HitTestMode.None)
+
+      // 移动光带：峰值落在翘起侧，亮度随按压深度；跟手期间不做插值。
+      Column()
+        .width('100%')
+        .height('100%')
+        .linearGradient({
+          angle: this.cardLightAngle,
+          colors: [
+            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 0],
+            [ColorUtil.withAlphaHex($r('sys.color.white'), CARD_GLARE_PEAK_ALPHA), CARD_GLARE_PEAK_POSITION],
+            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 1],
+          ],
+        })
+        .opacity(this.cardGlareOpacity)
+        .hitTestBehavior(HitTestMode.None)
+
+      // 受压侧压暗：与光带共用一根光轴，0 位为受压侧。
+      Column()
+        .width('100%')
+        .height('100%')
+        .linearGradient({
+          angle: this.cardLightAngle,
+          colors: [
+            [ColorUtil.withAlphaHex($r('sys.color.black'), CARD_SHADE_MAX_ALPHA), 0],
+            [ColorUtil.withAlphaHex($r('sys.color.black'), 0), 1],
+          ],
+        })
+        .opacity(this.cardPressDepth)
+        .hitTestBehavior(HitTestMode.None)
+    }
+    .width('100%')
+    .aspectRatio(CARD_ASPECT)
+    .borderRadius($r('sys.float.corner_radius_level10'))
+    .clip(true)
+    .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .transform(this.cardTransform)
+    // setPolyToPoly 的映射以组件中心点为基准，官方要求把变换中心搬回左上角。
+    .scale({
+      x: 1,
+      y: 1,
+      centerX: 0,
+      centerY: 0,
+    })
+    .shadow(this.cardShadow)
+    .onTouch((event: TouchEvent) => this.onCardTouch(event))
+    // 卡面自身消费拖动：父级 Scroll 不参与命中测试，跟手倾斜与页面滚动不会互相打架。
+    .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
+      // Area 的宽高单位已是 vp，不能再过 px2vp。
+      this.cardWidthVp = newValue.width as number
+    })
+  }
+
   @LocalBuilder
   private revealCountdown(definition: TemplateFieldDefinition) {
     if (this.revealedKeys.has(definition.key) && this.revealSeconds > 0) {
@@ -482,6 +927,10 @@ export struct EntryPreviewView {
             .layoutWeight(1).alignItems(HorizontalAlign.Start)
           }
           .margin({ left: $r('sys.float.padding_level8') })
+
+          if (this.showBankCard) {
+            this.bankCard()
+          }
 
           Column({ space: $r('sys.float.padding_level8') }) {
             if (this.sshKeys.length > 0) {

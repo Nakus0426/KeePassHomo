@@ -3,7 +3,12 @@ import { SSH_KEYS_FIELD } from './SshKeyPayload'
 
 export interface TemplateFieldOption {
   value: string;
+
+  // 菜单与输入框用：深色模式下由 resources/dark 覆盖为白色版。
   icon: Resource;
+
+  // 卡面预览用：卡面是固定浅灰图，只能用不随深浅色变的彩色版。
+  cardIcon: Resource;
 }
 
 export interface TemplateFieldDefinition {
@@ -102,12 +107,36 @@ function sshKeysField(label: Resource, icon: Resource): TemplateFieldDefinition 
 // 卡类型取值来自需求枚举；字段值仍是自由文本，菜单只是快捷填入。
 // 图标为 128x128 方画布 PNG，深色词标另在 resources/dark 同名覆盖。
 const CARD_TYPE_OPTIONS: TemplateFieldOption[] = [
-  { value: '银联', icon: $r('app.media.card_type_unionpay') },
-  { value: 'Visa', icon: $r('app.media.card_type_visa') },
-  { value: 'Mastercard', icon: $r('app.media.card_type_mastercard') },
-  { value: 'American Express', icon: $r('app.media.card_type_amex') },
-  { value: 'JCB', icon: $r('app.media.card_type_jcb') },
-  { value: 'Discover', icon: $r('app.media.card_type_discover') },
+  {
+    value: '银联',
+    icon: $r('app.media.card_type_unionpay'),
+    cardIcon: $r('app.media.card_logo_unionpay'),
+  },
+  {
+    value: 'Visa',
+    icon: $r('app.media.card_type_visa'),
+    cardIcon: $r('app.media.card_logo_visa'),
+  },
+  {
+    value: 'Mastercard',
+    icon: $r('app.media.card_type_mastercard'),
+    cardIcon: $r('app.media.card_logo_mastercard'),
+  },
+  {
+    value: 'American Express',
+    icon: $r('app.media.card_type_amex'),
+    cardIcon: $r('app.media.card_logo_amex'),
+  },
+  {
+    value: 'JCB',
+    icon: $r('app.media.card_type_jcb'),
+    cardIcon: $r('app.media.card_logo_jcb'),
+  },
+  {
+    value: 'Discover',
+    icon: $r('app.media.card_type_discover'),
+    cardIcon: $r('app.media.card_logo_discover'),
+  },
 ]
 
 const LOGIN: ItemTemplateDefinition = {

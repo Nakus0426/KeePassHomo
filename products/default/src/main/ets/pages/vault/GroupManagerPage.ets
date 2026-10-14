@@ -573,6 +573,7 @@ export struct GroupManagerPage {
     Column() {
       // 浏览态无子分组与搜索无结果各有专属占位图，两态都是无文案的纯图形空态。
       Image(this.searching ? $r('app.media.group_search_empty') : $r('app.media.group_empty'))
+        .draggable(false)
         .width($r('app.float.vault_empty_icon_size'))
         .height($r('app.float.vault_empty_icon_size'))
     }

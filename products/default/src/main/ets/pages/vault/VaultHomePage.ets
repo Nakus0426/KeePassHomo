@@ -217,6 +217,7 @@ export struct VaultHomePage {
   private emptyBuilder() {
     Column({ space: $r('sys.float.padding_level6') }) {
       Image($r('app.media.entry_empty'))
+        .draggable(false)
         .width($r('app.float.vault_empty_icon_size'))
         .height($r('app.float.vault_empty_icon_size'))
 
@@ -246,6 +247,7 @@ export struct VaultHomePage {
   @Builder
   private noResultBuilder() {
     Image($r('app.media.entry_search_empty'))
+      .draggable(false)
       .width($r('app.float.vault_empty_icon_size'))
       .height($r('app.float.vault_empty_icon_size'))
   }

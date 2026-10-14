@@ -14,6 +14,7 @@ export struct SplashContent {
   build() {
     Column({ space: 16 }) {
       Image($r('app.media.launch_icon'))
+        .draggable(false)
         .width($r('app.float.icon_large'))
         .height($r('app.float.icon_large'))
       Text($r('app.string.app_title'))
