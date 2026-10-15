@@ -32,6 +32,7 @@ import {
   TemplateFieldDefinition,
   TemplateFieldOption,
 } from '../../model/EntryTemplateCatalog'
+import { fieldTypeDefinition } from '../../model/FieldTypeCatalog'
 import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
 import { EntrySshKeyList } from './EntrySshKeyList'
 
@@ -109,7 +110,9 @@ interface MatrixPoint {
 
 @ComponentV2
 struct Cell {
-  @Require @Param icon: Resource
+  // 命中枚举的取值可传银行图标或字段类型图标；两者都缺省时无图标位。
+  @Param iconImage: Resource | undefined = undefined
+  @Param icon: Resource | undefined = undefined
   @Require @Param label: ResourceStr
   @Param value: string = ''
   @Param valueExpanded: boolean = false
@@ -129,10 +132,19 @@ struct Cell {
     ListItem() {
       Column() {
         Row({ space: $r('sys.float.padding_level4') }) {
-          SymbolGlyph(this.icon)
-            .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
-            .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-            .fontColor([$r('sys.color.brand')])
+          if (this.iconImage !== undefined) {
+            Image(this.iconImage)
+              .draggable(false)
+              .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
+              .height($r('sys.float.ohos_id_min_circle_button_icon_size'))
+              .objectFit(ImageFit.Contain)
+              .flexShrink(0)
+          } else if (this.icon !== undefined) {
+            SymbolGlyph(this.icon)
+              .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
+              .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
+              .fontColor([$r('sys.color.brand')])
+          }
 
           Column({ space: $r('sys.float.padding_level4') }) {
             Text(this.label)
@@ -242,27 +254,6 @@ export struct EntryPreviewView {
     return value.includes('\n') || value.length > 48
   }
 
-  private customFieldIcon(type: VaultFieldType): Resource {
-    switch (type) {
-      case VaultFieldType.Url:
-        return $r('sys.symbol.link')
-      case VaultFieldType.Email:
-        return $r('sys.symbol.envelope')
-      case VaultFieldType.Phone:
-        return $r('sys.symbol.phone')
-      case VaultFieldType.Address:
-        return $r('sys.symbol.map')
-      case VaultFieldType.Date:
-        return $r('sys.symbol.calendar')
-      case VaultFieldType.Password:
-        return $r('sys.symbol.key')
-      case VaultFieldType.Text:
-        return $r('sys.symbol.textformat')
-      default:
-        return $r('sys.symbol.circle_grid_2x2')
-    }
-  }
-
   @Computed
   private get notes(): string {
     return this.fieldValue('Notes')
@@ -320,6 +311,7 @@ export struct EntryPreviewView {
   }
 
   // 卡面固定浅灰，故取不随深浅色变的彩色版 cardIcon，而非菜单用的 icon。
+  // 自定义卡类型无银行 logo，字段行保持系统符号；卡面右下角同样不放图。
   @Computed
   private get cardLogo(): Resource | undefined {
     const cardType: string = this.fieldValue(CARD_TYPE_KEY)
@@ -330,7 +322,21 @@ export struct EntryPreviewView {
     }
     const matched: TemplateFieldOption | undefined =
       field.options.find((option: TemplateFieldOption) => option.value === cardType)
-    return matched === undefined ? undefined : matched.cardIcon
+    return matched?.cardIcon
+  }
+
+  // 列表行底色随深浅色变化，用主题切换版图标；卡面固定浅灰才用彩色版。
+  @Computed
+  private get cardTypeIcon(): Resource | undefined {
+    const cardType: string = this.fieldValue(CARD_TYPE_KEY)
+    const field: TemplateFieldDefinition | undefined =
+      this.definition.fields.find((definition: TemplateFieldDefinition) => definition.key === CARD_TYPE_KEY)
+    if (cardType.length === 0 || field === undefined) {
+      return undefined
+    }
+    const matched: TemplateFieldOption | undefined =
+      field.options.find((option: TemplateFieldOption) => option.value === cardType)
+    return matched?.icon
   }
 
   // 掩码态与明文态各占一层并同时在场，只交换透明度，避免换字时的字形跳变。
@@ -808,9 +814,9 @@ export struct EntryPreviewView {
     if (this.revealedKeys.has(definition.key) && this.revealSeconds > 0) {
       Text(this.countdownText())
         .width('100%')
-        .fontSize($r('sys.float.Caption_S'))
+        .fontSize($r('sys.float.Body_S'))
         .fontColor($r('sys.color.font_tertiary'))
-        .padding({ left: $r('sys.float.padding_level16'), bottom: $r('sys.float.padding_level8') })
+        .padding({ top: $r('sys.float.padding_level4'), left: $r('sys.float.padding_level16') })
     }
   }
 
@@ -849,6 +855,15 @@ export struct EntryPreviewView {
         clickable: this.templateValue(definition).length > 0,
         onCellClick: () => this.copy(this.templateValue(definition)),
         trailingBuilder: this.urlTrailing,
+      })
+    } else if (definition.key === CARD_TYPE_KEY) {
+      Cell({
+        iconImage: this.cardTypeIcon,
+        icon: definition.icon,
+        label: definition.label,
+        value: this.templateValue(definition),
+        clickable: this.templateValue(definition).length > 0,
+        onCellClick: () => this.copy(this.templateValue(definition)),
       })
     } else {
       Cell({
@@ -916,9 +931,11 @@ export struct EntryPreviewView {
               Row({ space: $r('sys.float.padding_level4') }) {
                 SymbolGlyph($r('sys.symbol.folder')).fontSize($r('sys.float.Body_M'))
                   .fontColor([$r('sys.color.font_secondary')])
-                Text(this.sheet.groupPath).fontSize($r('sys.float.Body_M'))
+                Text(this.sheet.groupPath)
+                  .fontSize($r('sys.float.Body_M'))
                   .fontColor($r('sys.color.font_secondary'))
-                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
                   .ellipsisMode(EllipsisMode.CENTER)
                   .layoutWeight(1)
               }
@@ -983,7 +1000,7 @@ export struct EntryPreviewView {
               List() {
                 ForEach(this.customFields, (field: VaultField) => {
                   Cell({
-                    icon: this.customFieldIcon(field.type),
+                    iconImage: fieldTypeDefinition(field.type).icon,
                     label: field.name,
                     value: this.sheet.expandedCustomFields.has(field.name)
                       ? (field.value.length > 0 &&

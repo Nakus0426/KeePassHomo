@@ -386,7 +386,6 @@ export struct EntryEditorView {
       readOnly: this.readOnly,
       invalidFieldId: this.invalidFieldId,
       active: this.sheet.mode === EntrySheetMode.Edit,
-      topOffset: this.topOffset,
       bottomOffset: this.bottomOffset,
       onInvalidCleared: () => this.invalidFieldId = -1,
       onActivity: () => this.viewModel.recordActivity(),

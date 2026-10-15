@@ -64,7 +64,7 @@ export struct FormTextField {
       } else if (this.prefixSymbol !== undefined) {
         SymbolGlyph(this.prefixSymbol)
           .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-          .fontColor([$r('sys.color.icon_secondary')])
+          .fontColor([$r('sys.color.icon_primary')])
           .flexShrink(0)
       }
 

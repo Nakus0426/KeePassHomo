@@ -457,6 +457,38 @@
       "value": "自定义"
     },
     {
+      "name": "field_type_text_desc",
+      "value": "任意文字，如证件号、备注"
+    },
+    {
+      "name": "field_type_url_desc",
+      "value": "长链接自动折行显示"
+    },
+    {
+      "name": "field_type_email_desc",
+      "value": "保存邮箱地址"
+    },
+    {
+      "name": "field_type_phone_desc",
+      "value": "保存电话号码"
+    },
+    {
+      "name": "field_type_address_desc",
+      "value": "保存地址文本"
+    },
+    {
+      "name": "field_type_date_desc",
+      "value": "记录日期文本"
+    },
+    {
+      "name": "field_type_password_desc",
+      "value": "加密保存，列表与预览中打码"
+    },
+    {
+      "name": "field_type_custom_desc",
+      "value": "自己命名，适合上面都不合适的内容"
+    },
+    {
       "name": "field_pick_date",
       "value": "选择日期"
     },

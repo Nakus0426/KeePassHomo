@@ -57,6 +57,18 @@
       "value": "144vp"
     },
     {
+      "name": "field_type_icon_size",
+      "value": "48vp"
+    },
+    {
+      "name": "field_type_card_height",
+      "value": "144vp"
+    },
+    {
+      "name": "field_row_icon_size",
+      "value": "32vp"
+    },
+    {
       "name": "text_area_min_height",
       "value": "96vp"
     },
