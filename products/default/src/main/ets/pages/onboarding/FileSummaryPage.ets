@@ -124,7 +124,6 @@ export struct FileSummaryPage {
                 bottom: 0,
               })
               .borderRadius($r('sys.float.corner_radius_level10'))
-              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
               .alignItems(HorizontalAlign.Start)
 
             }

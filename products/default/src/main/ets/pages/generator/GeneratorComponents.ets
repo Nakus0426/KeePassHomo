@@ -403,7 +403,6 @@ export struct GeneratorContent {
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[0] })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -447,7 +446,6 @@ export struct GeneratorContent {
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[1] })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -473,7 +471,6 @@ export struct GeneratorContent {
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[2] })
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   @LocalBuilder
@@ -506,7 +503,6 @@ export struct GeneratorContent {
     }
     .enabled(this.hasValue)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .onClick(() => this.viewModel.regenerate())
   }
 

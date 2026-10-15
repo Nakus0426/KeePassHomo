@@ -258,7 +258,6 @@ export struct EntryAttachmentField {
     .padding($r('sys.float.padding_level8'))
     .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
   }
 
   build() {

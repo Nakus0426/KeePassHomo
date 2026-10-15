@@ -19,7 +19,7 @@ export function formFieldBorderColor(status: FormTextFieldStatus | undefined, fo
     case FormTextFieldStatus.Warning:
       return $r('sys.color.warning')
   }
-  return focused ? $r('sys.color.brand') : $r('sys.color.comp_background_secondary')
+  return focused ? $r('sys.color.brand') : Color.Transparent
 }
 
 @ComponentV2

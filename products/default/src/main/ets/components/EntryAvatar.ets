@@ -74,7 +74,6 @@ export struct EntryAvatar {
     .aspectRatio(1)
     .borderRadius('50%')
     .backgroundColor($r('sys.color.background_emphasize'))
-    .border({ width: $r('sys.float.border_medium'), color: $r('sys.color.comp_background_secondary') })
     .clip(true)
   }
 }
