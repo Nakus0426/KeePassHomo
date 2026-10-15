@@ -298,7 +298,7 @@ export struct EntryCustomFields {
     .border({
       width: $r('sys.float.border_width'),
       color: field.id === this.invalidFieldId
-        ? $r('sys.color.warning') : $r('sys.color.comp_background_secondary'),
+        ? $r('sys.color.warning') : Color.Transparent,
     })
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -364,7 +364,6 @@ export struct EntryCustomFields {
     .height($r('app.float.field_type_card_height'))
     .padding($r('sys.float.padding_level8'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.pickType(definition))
   }

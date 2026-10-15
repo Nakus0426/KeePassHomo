@@ -183,7 +183,6 @@ export struct EntryAvatarPicker {
       .height('100%')
       .borderRadius('50%')
       .backgroundColor($r('sys.color.background_emphasize'))
-      .border({ width: $r('sys.float.border_medium'), color: $r('sys.color.comp_background_secondary') })
       .clip(true)
 
       Button() {
@@ -201,7 +200,6 @@ export struct EntryAvatarPicker {
       .padding($r('sys.float.padding_level2'))
       .type(ButtonType.Circle)
       .backgroundColor($r('sys.color.comp_background_primary'))
-      .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
       .position({ right: 0, bottom: 0 })
       .shadow(ShadowStyle.OUTER_FLOATING_SM)
       .enabled(!this.avatarBusy && !this.readOnly)

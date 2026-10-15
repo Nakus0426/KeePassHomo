@@ -134,7 +134,7 @@ export struct EntryTagEditor {
         .borderRadius($r('sys.float.chip_border_radius_normal'))
         .border({
           width: $r('sys.float.border_width'),
-          color: this.warning ? $r('sys.color.warning') : $r('sys.color.brand'),
+          color: this.warning ? $r('sys.color.warning') : Color.Transparent,
         })
         .animation({
           duration: AnimationTokens.STATE_TRANSITION_DURATION,

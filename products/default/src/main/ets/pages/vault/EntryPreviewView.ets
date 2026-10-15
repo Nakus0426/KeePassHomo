@@ -963,7 +963,6 @@ export struct EntryPreviewView {
               }, (definition: TemplateFieldDefinition) => definition.key)
             }
             .backgroundColor($r('sys.color.comp_background_primary'))
-            .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
             .borderRadius($r('sys.float.corner_radius_level10'))
             .divider({
               strokeWidth: 1,
@@ -985,7 +984,6 @@ export struct EntryPreviewView {
               }
               .width('100%')
               .backgroundColor($r('sys.color.comp_background_primary'))
-              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
               .borderRadius($r('sys.float.corner_radius_level10'))
               .divider({
                 strokeWidth: 1,
@@ -1020,7 +1018,6 @@ export struct EntryPreviewView {
               }
               .width('100%')
               .backgroundColor($r('sys.color.comp_background_primary'))
-              .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
               .borderRadius($r('sys.float.corner_radius_level10'))
               .divider({
                 strokeWidth: 1,
@@ -1060,7 +1057,6 @@ export struct EntryPreviewView {
             }
             .width('100%')
             .backgroundColor($r('sys.color.comp_background_primary'))
-            .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
             .borderRadius($r('sys.float.corner_radius_level10'))
           }
           .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })

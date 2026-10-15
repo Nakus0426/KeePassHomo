@@ -95,6 +95,8 @@
 - 优先降低重复遍历和不必要的状态更新，避免在高频 UI 生命周期中创建临时对象
 - `TabSegmentButtonV2` 与 `Tabs` 联动的切换动画有固定接线约束（状态拆分、`changeIndex`、位移挂点），动手前先读
   `docs/arkui-segment-tabs-animation.md`
+- 卡片、输入框等容器禁止用 `sys.color.comp_background_secondary` 描边做与背景的分层，层次由底色差表达；聚焦与错误态描边、
+  分隔线与卡面皮肤例外，动手前先读 `docs/arkui-borderless-ui.md`
 
 ### 注释规范
 

@@ -69,7 +69,6 @@ export struct EntryCard {
     .width('100%')
     .padding(0)
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onEntryClick())
   }

@@ -47,7 +47,6 @@ export struct DataSourceCard {
     .width('100%')
     .padding($r('sys.float.padding_level8'))
     .backgroundColor($r('sys.color.comp_background_primary'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .enabled(this.selectable)
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onSelect())

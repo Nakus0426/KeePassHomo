@@ -220,7 +220,6 @@ export struct CreateVaultPage {
     }
     .width('100%')
     .height($r('app.float.control_height'))
-    .border({ width: $r('sys.float.border_width'), color: $r('sys.color.comp_background_secondary') })
     .backgroundColor($r('sys.color.comp_background_primary'))
     .onClick(() => this.viewModel?.chooseKeyFile())
   }
