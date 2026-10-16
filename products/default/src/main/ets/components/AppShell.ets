@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { SymbolGlyphModifier, UIObserver } from '@kit.ArkUI'
+import { UIObserver } from '@kit.ArkUI'
 import {
   CustomTransitionDelegate,
   hdsMaterial,
@@ -13,7 +13,12 @@ import {
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
-import { TAB_BAR_FLOAT_BOTTOM_MARGIN_VP } from '../constants/TabBarMetrics'
+import {
+  TAB_BAR_FLOAT_BOTTOM_MARGIN_VP,
+  TAB_ICON_LABEL_GAP_VP,
+  TAB_ICON_SIZE_VP,
+  TAB_LABEL_FONT_SIZE_FP,
+} from '../constants/TabBarMetrics'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { fadeNavTransition } from '../navigation/NavFadeTransition'
@@ -26,11 +31,12 @@ import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
 import { generatorTabChrome } from '../pages/generator/GeneratorTabChrome'
 
-// 数组顺序即 HdsTabs 页签顺序。
+// 数组顺序即 HdsTabs 页签顺序。自定义页签内容用两套位图表达选中态，HDS 不为 CustomBuilder 注入选中视效。
 interface ModuleTabDescriptor {
   route: string
   label: Resource
-  symbol: Resource
+  icon: Resource
+  selectedIcon: Resource
   chrome?: ModuleTabChrome
 }
 
@@ -38,17 +44,29 @@ const MODULES: readonly ModuleTabDescriptor[] = [
   {
     route: ROUTE_VAULT,
     label: $r('app.string.vault_home'),
-    symbol: $r('sys.symbol.folder_fill'),
+    icon: $r('app.media.nav_vault_normal'),
+    selectedIcon: $r('app.media.nav_vault_selected'),
     chrome: vaultTabChrome,
   },
-  { route: ROUTE_SECURITY, label: $r('app.string.security_center'), symbol: $r('sys.symbol.shield_checkered') },
+  {
+    route: ROUTE_SECURITY,
+    label: $r('app.string.security_center'),
+    icon: $r('app.media.nav_security_normal'),
+    selectedIcon: $r('app.media.nav_security_selected'),
+  },
   {
     route: ROUTE_GENERATOR,
     label: $r('app.string.password_generator'),
-    symbol: $r('sys.symbol.wand_and_stars_fill'),
+    icon: $r('app.media.nav_generator_normal'),
+    selectedIcon: $r('app.media.nav_generator_selected'),
     chrome: generatorTabChrome,
   },
-  { route: ROUTE_SETTINGS, label: $r('app.string.settings'), symbol: $r('sys.symbol.gearshape_fill') },
+  {
+    route: ROUTE_SETTINGS,
+    label: $r('app.string.settings'),
+    icon: $r('app.media.nav_settings_normal'),
+    selectedIcon: $r('app.media.nav_settings_selected'),
+  },
 ]
 
 @ComponentV2
@@ -118,15 +136,22 @@ export struct AppShell {
     return MODULES[this.moduleIndex]
   }
 
-  private tabBar(module: ModuleTabDescriptor): BottomTabBarStyle {
-    return new BottomTabBarStyle({
-      normal: new SymbolGlyphModifier(module.symbol)
-        .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
-        .fontColor([$r('sys.color.icon_tertiary'), $r('sys.color.icon_secondary')]),
-      selected: new SymbolGlyphModifier(module.symbol)
-        .renderingStrategy(SymbolRenderingStrategy.MULTIPLE_COLOR)
-        .fontColor([$r('sys.color.icon_emphasize'), $r('sys.color.icon_sub_emphasize')]),
-    }, module.label)
+  // 内容须铺满页签，否则点击热区只覆盖墨迹；选中态在 Builder 内读状态，切换时才会刷新。
+  @Builder
+  private tabBar(module: ModuleTabDescriptor, index: number) {
+    Column({ space: TAB_ICON_LABEL_GAP_VP }) {
+      Image(this.moduleIndex === index ? module.selectedIcon : module.icon)
+        .width(TAB_ICON_SIZE_VP)
+        .height(TAB_ICON_SIZE_VP)
+        .interpolation(ImageInterpolation.High)
+      Text(module.label)
+        .fontSize(TAB_LABEL_FONT_SIZE_FP)
+        .fontColor(this.moduleIndex === index ? $r('sys.color.font_emphasize') : $r('sys.color.font_secondary'))
+        .maxLines(1)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
   }
 
   // 须在组件上下文内调用契约供给的 WrappedBuilder：直接传全局 @Builder 引用会丢失渲染上下文。
@@ -191,22 +216,22 @@ export struct AppShell {
           TabContent() {
             VaultHomePage()
           }
-          .tabBar(this.tabBar(MODULES[0]))
+          .tabBar(this.tabBar(MODULES[0], 0))
 
           TabContent() {
             ModulePendingContent()
           }
-          .tabBar(this.tabBar(MODULES[1]))
+          .tabBar(this.tabBar(MODULES[1], 1))
 
           TabContent() {
             GeneratorPage()
           }
-          .tabBar(this.tabBar(MODULES[2]))
+          .tabBar(this.tabBar(MODULES[2], 2))
 
           TabContent() {
             ModulePendingContent()
           }
-          .tabBar(this.tabBar(MODULES[3]))
+          .tabBar(this.tabBar(MODULES[3], 3))
         }
         .barPosition(BarPosition.End)
         .barOverlap(true)

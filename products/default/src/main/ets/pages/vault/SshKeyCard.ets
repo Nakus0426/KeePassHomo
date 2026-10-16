@@ -75,42 +75,39 @@ export struct SshKeyCard {
 
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Stack({ alignContent: Alignment.TopEnd }) {
-        Row({ space: $r('sys.float.padding_level8') }) {
-          Stack() {
-            SymbolGlyph($r('sys.symbol.key'))
-              .fontSize($r('sys.float.Title_L'))
-              .fontColor([$r('sys.color.brand')])
-          }
-          .padding($r('sys.float.padding_level4'))
-          .borderRadius('50%')
-          .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+      Row({ space: $r('sys.float.padding_level8') }) {
+        Image($r('app.media.ssh_key_file'))
+          .width($r('app.float.file_icon_size'))
+          .height($r('app.float.file_icon_size'))
+          .objectFit(ImageFit.Contain)
+          // Image 默认开启长按拖拽，会抢掉卡片的长按菜单。
+          .draggable(false)
 
-          Column({ space: $r('sys.float.padding_level2') }) {
-            Text(this.sshKey.name)
-              .width('100%')
-              .fontSize($r('sys.float.Body_L'))
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_primary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Column({ space: $r('sys.float.padding_level2') }) {
+          Text(this.sshKey.name)
+            .width('100%')
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('sys.color.font_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-            Text(sshKeySummary(this.sshKey))
-              .width('100%')
-              .fontSize($r('sys.float.Body_S'))
-              .fontColor($r('sys.color.font_secondary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
+          Text(sshKeySummary(this.sshKey))
+            .width('100%')
+            .fontSize($r('sys.float.Body_S'))
+            .fontColor($r('sys.color.font_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .width('100%')
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
 
+        // 标签作为行内兄弟节点占位：名称只在剩余宽度里省略，不会压到标签上。
         if (this.showBadge) {
-          Text(this.sshKey.persisted ? $r('app.string.ssh_key_badge_saved') : $r('app.string.ssh_key_badge_pending'))
+          Text(this.sshKey.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'))
             .fontSize($r('sys.float.Caption_M'))
             .fontColor($r('sys.color.brand'))
+            .alignSelf(ItemAlign.Start)
             .padding({
               left: $r('sys.float.padding_level4'),
               right: $r('sys.float.padding_level4'),

@@ -77,6 +77,22 @@
       "value": "有效期"
     },
     {
+      "name": "entry_card_ssh_key_count",
+      "value": "%s 个密钥"
+    },
+    {
+      "name": "entry_card_attachment_count",
+      "value": "%s 个附件"
+    },
+    {
+      "name": "entry_card_card_last_four",
+      "value": "尾号 %s"
+    },
+    {
+      "name": "entry_card_password_length",
+      "value": "· %s 位"
+    },
+    {
       "name": "ssh_key_template",
       "value": "SSH 密钥"
     },
@@ -111,14 +127,6 @@
     {
       "name": "ssh_key_generate",
       "value": "生成密钥"
-    },
-    {
-      "name": "ssh_key_badge_pending",
-      "value": "待保存"
-    },
-    {
-      "name": "ssh_key_badge_saved",
-      "value": "已添加"
     },
     {
       "name": "ssh_key_copy_private",
@@ -249,6 +257,10 @@
       "value": "文件"
     },
     {
+      "name": "attachment_format_unknown",
+      "value": "未知类型"
+    },
+    {
       "name": "attachment_add",
       "value": "添加文件"
     },
@@ -263,6 +275,18 @@
     {
       "name": "attachment_export_saved",
       "value": "附件导出成功"
+    },
+    {
+      "name": "attachment_export_failed",
+      "value": "附件导出失败"
+    },
+    {
+      "name": "attachment_preview_unsupported",
+      "value": "该文件类型不支持预览"
+    },
+    {
+      "name": "attachment_preview_failed",
+      "value": "打开预览失败"
     },
     {
       "name": "attachment_limit_exceeded",
@@ -286,11 +310,11 @@
     },
     {
       "name": "reauthenticate_title",
-      "value": "导出前再次认证"
+      "value": "二次认证"
     },
     {
       "name": "reauthenticate_message",
-      "value": "导出附件需要输入主密码"
+      "value": "请输入主密码以导出附件"
     },
     {
       "name": "reauthenticate_confirm",
@@ -299,6 +323,14 @@
     {
       "name": "reauthenticate_failed",
       "value": "主密码不正确"
+    },
+    {
+      "name": "preview_reauth_message",
+      "value": "请输入主密码以预览附件"
+    },
+    {
+      "name": "preview_reauth_confirm",
+      "value": "认证并预览"
     },
     {
       "name": "not_available",

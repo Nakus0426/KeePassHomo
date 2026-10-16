@@ -69,6 +69,10 @@
       "value": "32vp"
     },
     {
+      "name": "file_icon_size",
+      "value": "48vp"
+    },
+    {
       "name": "text_area_min_height",
       "value": "96vp"
     },

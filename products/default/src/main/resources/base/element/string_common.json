@@ -151,6 +151,14 @@
     {
       "name": "all",
       "value": "全部"
+    },
+    {
+      "name": "badge_pending",
+      "value": "待保存"
+    },
+    {
+      "name": "badge_saved",
+      "value": "已添加"
     }
   ]
 }

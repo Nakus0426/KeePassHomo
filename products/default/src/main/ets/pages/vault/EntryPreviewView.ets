@@ -24,7 +24,7 @@ import {
   VaultField,
   VaultFieldType,
 } from '@ohos/common'
-import { FileUtil, ResUtil } from '@pura/harmony-utils'
+import { ResUtil } from '@pura/harmony-utils'
 import {
   definitionFor,
   isTemplateFieldKey,
@@ -34,6 +34,7 @@ import {
 } from '../../model/EntryTemplateCatalog'
 import { fieldTypeDefinition } from '../../model/FieldTypeCatalog'
 import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
+import { EntryAttachmentList } from './EntryAttachmentList'
 import { EntrySshKeyList } from './EntrySshKeyList'
 
 const PREVIEW_MENU_MAX_COUNT: number = 4
@@ -972,26 +973,10 @@ export struct EntryPreviewView {
             })
 
             if (this.attachments.length > 0) {
-              List() {
-                ForEach(this.attachments, (attachment: VaultAttachmentMeta) => {
-                  Cell({
-                    icon: $r('sys.symbol.paperclip'),
-                    label: $r('app.string.attachment_file'),
-                    value: `${attachment.name} · ${FileUtil.getFormatFileSize(attachment.size)}`,
-                    clickable: false,
-                  })
-                }, (attachment: VaultAttachmentMeta) => attachment.name)
-              }
-              .width('100%')
-              .backgroundColor($r('sys.color.comp_background_primary'))
-              .borderRadius($r('sys.float.corner_radius_level10'))
-              .divider({
-                strokeWidth: 1,
-                color: $r('sys.color.grid_menu_divider_color'),
-                startMargin: $r('sys.float.padding_level8'),
-                endMargin: $r('sys.float.padding_level8'),
+              EntryAttachmentList({
+                entryUuid: this.sheet.entryUuid,
+                attachments: this.attachments,
               })
-              .scrollBar(BarState.Off)
             }
 
             if (this.customFields.length > 0) {

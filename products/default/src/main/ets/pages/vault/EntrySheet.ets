@@ -14,6 +14,8 @@ export struct EntrySheet {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Local private session: AppSessionState = appSessionState
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
+  // 由 onHeightDidChange 回传的面板高度（vp），未回调前为 0。
+  @Local private sheetHeightVp: number = 0
   // 草稿归编辑体所有，宿主只能在收起前问它；形态或条目变化时必须重置以免回调残留。
   private childHandler: (() => void) | undefined = undefined
   private readonly viewModel: AppViewModel = appViewModel
@@ -103,24 +105,30 @@ export struct EntrySheet {
 
   @Builder
   private sheetContent() {
-    if (this.sheet.mode === EntrySheetMode.Preview) {
-      EntryPreviewView({
-        sheet: this.sheet,
-        topOffset: this.contentTopOffset,
-        bottomOffset: this.contentBottomOffset,
-        onClose: () => this.sheet.close(),
-        onEdit: () => this.sheet.beginEdit(),
-      }).transition(this.contentTransition)
-    } else {
-      EntryEditorView({
-        sheet: this.sheet,
-        topOffset: this.sheetTopAvoidAreaHeight,
-        bottomOffset: this.contentBottomOffset,
-        onWillDismissCheck: (handler: () => void) => this.childHandler = handler,
-        onCancel: () => this.sheet.exitEditor(),
-        onSaved: () => this.sheet.exitEditor(),
-      }).transition(this.contentTransition)
+    // 半模态自身的内容层按整屏高度布局（HdsNavigation 内部的 100% 在无界 Scroll 内按窗口解析），
+    // 比面板高出面板顶部内缩量，拖拽标题栏时整页会跟着滑走；按面板高度定高后该层没有可滚动余量。
+    Column() {
+      if (this.sheet.mode === EntrySheetMode.Preview) {
+        EntryPreviewView({
+          sheet: this.sheet,
+          topOffset: this.contentTopOffset,
+          bottomOffset: this.contentBottomOffset,
+          onClose: () => this.sheet.close(),
+          onEdit: () => this.sheet.beginEdit(),
+        }).transition(this.contentTransition)
+      } else {
+        EntryEditorView({
+          sheet: this.sheet,
+          topOffset: this.sheetTopAvoidAreaHeight,
+          bottomOffset: this.contentBottomOffset,
+          onWillDismissCheck: (handler: () => void) => this.childHandler = handler,
+          onCancel: () => this.sheet.exitEditor(),
+          onSaved: () => this.sheet.exitEditor(),
+        }).transition(this.contentTransition)
+      }
     }
+    .width('100%')
+    .height(this.sheetHeightVp > 0 ? this.sheetHeightVp : '100%')
   }
 
   build() {
@@ -134,6 +142,9 @@ export struct EntrySheet {
         systemMaterial: new uiMaterial.ImmersiveMaterial({
           style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
         }),
+        onHeightDidChange: (heightPx: number) => {
+          this.sheetHeightVp = this.getUIContext().px2vp(heightPx)
+        },
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
         onDisappear: () => this.sheet.onDismissed(),
       })

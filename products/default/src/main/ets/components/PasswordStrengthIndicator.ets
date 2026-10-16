@@ -1,5 +1,23 @@
 import { PasswordStrengthCalculator, StrengthLevel } from '@ohos/common'
 
+// 强度等级文案：Invalid 无对应文案，返回空串。
+export function strengthLabel(level: StrengthLevel): ResourceStr {
+  switch (level) {
+    case StrengthLevel.VeryWeak:
+      return $r('app.string.password_strength_very_weak')
+    case StrengthLevel.Weak:
+      return $r('app.string.password_strength_weak')
+    case StrengthLevel.Medium:
+      return $r('app.string.password_strength_medium')
+    case StrengthLevel.Strong:
+      return $r('app.string.password_strength_strong')
+    case StrengthLevel.VeryStrong:
+      return $r('app.string.password_strength_very_strong')
+    default:
+      return ''
+  }
+}
+
 @ComponentV2
 export struct PasswordStrengthIndicator {
   @Param password: string = ''
@@ -25,20 +43,7 @@ export struct PasswordStrengthIndicator {
   }
 
   private levelLabel(): ResourceStr {
-    switch (this.level) {
-      case StrengthLevel.VeryWeak:
-        return $r('app.string.password_strength_very_weak')
-      case StrengthLevel.Weak:
-        return $r('app.string.password_strength_weak')
-      case StrengthLevel.Medium:
-        return $r('app.string.password_strength_medium')
-      case StrengthLevel.Strong:
-        return $r('app.string.password_strength_strong')
-      case StrengthLevel.VeryStrong:
-        return $r('app.string.password_strength_very_strong')
-      default:
-        return ''
-    }
+    return strengthLabel(this.level)
   }
 
   build() {
