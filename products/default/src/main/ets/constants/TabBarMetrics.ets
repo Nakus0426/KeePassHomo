@@ -1,9 +1,9 @@
-// 悬浮底部页签几何：页签由 AppShell 的 barFloatingStyle 悬浮在窗口底之上，页面据此推算底部内容让位
+// 悬浮底部页签几何：页签由 AppShell 自绘并覆盖在内容区之上，页面据此推算底部内容让位
 
-// 对应 AppShell barFloatingStyle.barBottomMargin
+// 页签栏与窗口底部的间距
 export const TAB_BAR_FLOAT_BOTTOM_MARGIN_VP: number = 28
 
-// HDS 页签行 48vp 加玻璃上下内边距各 4vp
+// 页签栏行高，取自设计稿前沿用 HDS 页签行 48vp 加玻璃上下内边距各 4vp
 export const TAB_BAR_FLOAT_HEIGHT_VP: number = 56
 
 // 页面内容底部须让开的高度

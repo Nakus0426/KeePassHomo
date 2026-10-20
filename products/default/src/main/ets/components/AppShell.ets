@@ -7,14 +7,13 @@ import {
   HdsNavigationMenuItemOptions,
   HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
-  HdsTabs,
-  HdsTabsController,
   IconStyleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
 import {
   TAB_BAR_FLOAT_BOTTOM_MARGIN_VP,
+  TAB_BAR_FLOAT_HEIGHT_VP,
   TAB_ICON_LABEL_GAP_VP,
   TAB_ICON_SIZE_VP,
   TAB_LABEL_FONT_SIZE_FP,
@@ -31,7 +30,7 @@ import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
 import { generatorTabChrome } from '../pages/generator/GeneratorTabChrome'
 
-// 数组顺序即 HdsTabs 页签顺序。自定义页签内容用两套位图表达选中态，HDS 不为 CustomBuilder 注入选中视效。
+// 数组顺序即页签顺序。选中态用两套位图表达，矩形选中底由自绘页签给出。
 interface ModuleTabDescriptor {
   route: string
   label: Resource
@@ -40,7 +39,7 @@ interface ModuleTabDescriptor {
   chrome?: ModuleTabChrome
 }
 
-const MODULES: readonly ModuleTabDescriptor[] = [
+const MODULES: ModuleTabDescriptor[] = [
   {
     route: ROUTE_VAULT,
     label: $r('app.string.vault_home'),
@@ -72,7 +71,7 @@ const MODULES: readonly ModuleTabDescriptor[] = [
 @ComponentV2
 export struct AppShell {
   @Local private session: AppSessionState = appSessionState
-  private readonly tabsController: HdsTabsController = new HdsTabsController()
+  private readonly tabsController: TabsController = new TabsController()
   private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
@@ -138,7 +137,7 @@ export struct AppShell {
 
   // 内容须铺满页签，否则点击热区只覆盖墨迹；选中态在 Builder 内读状态，切换时才会刷新。
   @Builder
-  private tabBar(module: ModuleTabDescriptor, index: number) {
+  private tabItem(module: ModuleTabDescriptor, index: number) {
     Column({ space: TAB_ICON_LABEL_GAP_VP }) {
       Image(this.moduleIndex === index ? module.selectedIcon : module.icon)
         .width(TAB_ICON_SIZE_VP)
@@ -149,9 +148,31 @@ export struct AppShell {
         .fontColor(this.moduleIndex === index ? $r('sys.color.font_emphasize') : $r('sys.color.font_secondary'))
         .maxLines(1)
     }
-    .width('100%')
+    .layoutWeight(1)
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .backgroundColor(this.moduleIndex === index ? $r('sys.color.comp_background_tertiary') : Color.Transparent)
+    .onClick(() => {
+      this.tabsController.changeIndex(index)
+      appViewModel.switchModule(module.route)
+    })
+  }
+
+  @Builder
+  private floatingTabBar() {
+    Column() {
+      Row() {
+        ForEach(MODULES, (module: ModuleTabDescriptor, index: number) => {
+          this.tabItem(module, index)
+        }, (module: ModuleTabDescriptor) => module.route)
+      }
+      .width('100%')
+      .height(TAB_BAR_FLOAT_HEIGHT_VP)
+      .backgroundColor($r('sys.color.comp_background_primary'))
+    }
+    .width('100%')
+    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .margin({ bottom: TAB_BAR_FLOAT_BOTTOM_MARGIN_VP })
   }
 
   // 须在组件上下文内调用契约供给的 WrappedBuilder：直接传全局 @Builder 引用会丢失渲染上下文。
@@ -212,37 +233,33 @@ export struct AppShell {
   build() {
     Stack() {
       HdsNavigation(appRouter.stack) {
-        HdsTabs({ controller: this.tabsController, index: this.moduleIndex }) {
-          TabContent() {
-            VaultHomePage()
-          }
-          .tabBar(this.tabBar(MODULES[0], 0))
+        Stack({ alignContent: Alignment.Bottom }) {
+          Tabs({ controller: this.tabsController, index: this.moduleIndex }) {
+            TabContent() {
+              VaultHomePage()
+            }
 
-          TabContent() {
-            ModulePendingContent()
-          }
-          .tabBar(this.tabBar(MODULES[1], 1))
+            TabContent() {
+              ModulePendingContent()
+            }
 
-          TabContent() {
-            GeneratorPage()
-          }
-          .tabBar(this.tabBar(MODULES[2], 2))
+            TabContent() {
+              GeneratorPage()
+            }
 
-          TabContent() {
-            ModulePendingContent()
+            TabContent() {
+              ModulePendingContent()
+            }
           }
-          .tabBar(this.tabBar(MODULES[3], 3))
+          .barHeight(0)
+          .barBackgroundColor(Color.Transparent)
+          .scrollable(false)
+          .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
+          .width('100%')
+          .height('100%')
+
+          this.floatingTabBar()
         }
-        .barPosition(BarPosition.End)
-        .barOverlap(true)
-        .barFloatingStyle({
-          barBottomMargin: TAB_BAR_FLOAT_BOTTOM_MARGIN_VP,
-          systemMaterialEffect: {
-            materialType: hdsMaterial.MaterialType.IMMERSIVE,
-          },
-        })
-        .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
-        .scrollable(false)
         .width('100%')
         .height('100%')
       }
