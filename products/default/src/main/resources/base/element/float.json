@@ -79,6 +79,106 @@
     {
       "name": "text_area_max_height",
       "value": "160vp"
+    },
+    {
+      "name": "ds_space_xs",
+      "value": "4vp"
+    },
+    {
+      "name": "ds_space_sm",
+      "value": "8vp"
+    },
+    {
+      "name": "ds_space_md",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_space_lg",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_space_xl",
+      "value": "32vp"
+    },
+    {
+      "name": "ds_gutter",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_radius_none",
+      "value": "0vp"
+    },
+    {
+      "name": "ds_radius_badge",
+      "value": "4vp"
+    },
+    {
+      "name": "ds_font_display",
+      "value": "26fp"
+    },
+    {
+      "name": "ds_font_headline",
+      "value": "22fp"
+    },
+    {
+      "name": "ds_font_title",
+      "value": "15fp"
+    },
+    {
+      "name": "ds_font_body",
+      "value": "13fp"
+    },
+    {
+      "name": "ds_font_body_sm",
+      "value": "12fp"
+    },
+    {
+      "name": "ds_font_label_sm",
+      "value": "11fp"
+    },
+    {
+      "name": "ds_icon_md",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_icon_sm",
+      "value": "18vp"
+    },
+    {
+      "name": "ds_icon_tiny",
+      "value": "14vp"
+    },
+    {
+      "name": "ds_input_height",
+      "value": "48vp"
+    },
+    {
+      "name": "ds_button_height",
+      "value": "44vp"
+    },
+    {
+      "name": "ds_button_small_height",
+      "value": "32vp"
+    },
+    {
+      "name": "ds_cta_height",
+      "value": "56vp"
+    },
+    {
+      "name": "ds_header_height",
+      "value": "76vp"
+    },
+    {
+      "name": "ds_logo_size",
+      "value": "64vp"
+    },
+    {
+      "name": "ds_meter_height",
+      "value": "4vp"
+    },
+    {
+      "name": "ds_segment_height",
+      "value": "34vp"
     }
   ]
 }

@@ -30,6 +30,7 @@ import {
   ROUTE_GENERATOR,
   ROUTE_UNLOCK,
   ROUTE_VAULT,
+  ROUTE_WEBDAV,
   ROUTE_WELCOME,
 } from '../constants/RouteConstants'
 import { stageOneVaultStore, UserCancelledError, VaultFileSummary } from '../model/StageOneVaultStore'
@@ -174,8 +175,14 @@ export class AppViewModel {
     this.setStatus('')
   }
 
-  showWebDavPending(): void {
-    this.setStatus('此来源将在 WebDAV 阶段开放')
+  openWebDav(): void {
+    appRouter.push(ROUTE_WEBDAV)
+    this.setStatus('')
+  }
+
+  clearKeyFile(): void {
+    stageOneVaultStore.clearKeyFile()
+    this.refreshVault()
   }
 
   chooseAnotherVault(): void {

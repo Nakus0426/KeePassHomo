@@ -1,192 +1,164 @@
-import { hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
+import { bundleManager } from '@kit.AbilityKit'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
 import { appRouter } from '../../navigation/AppRouter'
 import { WelcomeParam } from '../../navigation/RouteParams'
 import { appViewModel, AppViewModel } from '../../viewmodel/AppViewModel'
 
 @ComponentV2
-export struct DataSourceCard {
-  @Param icon: Resource = $r('sys.symbol.folder_fill')
-  @Param title: Resource = $r('app.string.open_local_vault')
-  @Param description: Resource = $r('app.string.open_local_vault_description')
-  @Param selectable: boolean = true
-  @Event onSelect: () => void = () => {
-  }
-
-  build() {
-    Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('sys.float.padding_level8') }) {
-        Stack() {
-          SymbolGlyph(this.icon)
-            .fontSize($r('sys.float.Title_L'))
-            .fontColor([$r('sys.color.brand')])
-        }
-        .padding($r('sys.float.padding_level4'))
-        .borderRadius('50%')
-        .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-
-        Column({ space: $r('sys.float.padding_level2') }) {
-          Text(this.title)
-            .fontSize($r('sys.float.Subtitle_L'))
-            .fontColor($r('sys.color.font_primary'))
-            .fontWeight(FontWeight.Medium)
-          Text(this.description)
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        SymbolGlyph($r('sys.symbol.chevron_forward'))
-          .fontSize($r('sys.float.Title_S'))
-          .fontColor([$r('sys.color.font_secondary')])
-          .fontWeight(FontWeight.Medium)
-      }
-      .width('100%')
-    }
-    .width('100%')
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .enabled(this.selectable)
-    .borderRadius($r('sys.float.corner_radius_level10'))
-    .onClick(() => this.onSelect())
-  }
-}
-
-
-@ComponentV2
 export struct WelcomePage {
   private readonly viewModel: AppViewModel = appViewModel
   @Local private showBack: boolean = false
+  @Local private version: string = ''
 
   aboutToAppear(): void {
     const param: WelcomeParam | undefined = appRouter.topParam() as WelcomeParam | undefined
     this.showBack = param?.showBack ?? false
+    const info: bundleManager.BundleInfo =
+      bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
+    this.version = `v${info.versionName}`
+  }
+
+  @Builder
+  private actionCard(title: ResourceStr, description: ResourceStr, footer: ResourceStr, icon: Resource,
+    filled: boolean, action: () => void) {
+    Column() {
+      Row({ space: $r('app.float.ds_space_sm') }) {
+        SymbolGlyph(icon)
+          .fontSize($r('app.float.ds_icon_md'))
+          .fontColor([filled ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_primary')])
+        Column({ space: $r('app.float.ds_space_sm') }) {
+          Text(title)
+            .fontSize($r('app.float.ds_font_title'))
+            .fontWeight(600)
+            .fontColor(filled ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_primary'))
+          Text(description)
+            .fontSize($r('app.float.ds_font_body_sm'))
+            .fontColor(filled ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_secondary'))
+            .opacity(filled ? 0.78 : 1)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        Text(footer)
+          .fontSize($r('app.float.ds_font_body_sm'))
+          .fontWeight(600)
+          .fontColor(filled ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_primary'))
+        SymbolGlyph($r('sys.symbol.chevron_forward'))
+          .fontSize($r('app.float.ds_icon_tiny'))
+          .fontColor([filled ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_primary')])
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.End)
+    }
+    .width('100%')
+    .height(110)
+    .padding($r('app.float.ds_gutter'))
+    .justifyContent(FlexAlign.SpaceBetween)
+    .backgroundColor(filled ? $r('app.color.ds_primary') : $r('app.color.ds_surface_low'))
+    .onClick(action)
   }
 
   build() {
-    HdsNavDestination() {
-      Scroll() {
-        Column({ space: $r('sys.float.padding_level8') }) {
-          Column({ space: $r('sys.float.padding_level2') }) {
-            Image($r('app.media.launch_icon'))
-              .draggable(false)
-              .width($r('app.float.welcome_icon_size'))
-              .height($r('app.float.welcome_icon_size'))
-            Text($r('app.string.app_title'))
-              .fontSize($r('sys.float.Title_L'))
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('sys.color.font_primary'))
-            Text($r('app.string.welcome_description'))
-              .fontSize($r('sys.float.Subtitle_M'))
-              .fontColor($r('sys.color.font_secondary'))
-              .textAlign(TextAlign.Center)
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Center)
-          .margin({ top: $r('sys.float.padding_level16') })
+    NavDestination() {
+      Column() {
+        Column() {
+          Column({ space: $r('app.float.ds_space_lg') }) {
+            Row().width('100%').height($r('app.float.ds_space_xl'))
+            if (this.showBack) {
+              Row() {
+                SymbolGlyph($r('sys.symbol.arrow_left'))
+                  .fontSize($r('app.float.ds_icon_md'))
+                  .fontColor([$r('app.color.ds_text_primary')])
+              }
+              .width($r('app.float.ds_button_height'))
+              .height($r('app.float.ds_button_height'))
+              .justifyContent(FlexAlign.Center)
+              .onClick(() => appRouter.pop())
+            }
 
-          Row({ space: $r('sys.float.padding_level8') }) {
             Stack() {
-              SymbolGlyph($r('sys.symbol.shield_checkered'))
-                .fontSize($r('sys.float.Title_L'))
-                .fontColor([$r('sys.color.brand')])
+              SymbolGlyph($r('sys.symbol.lock'))
+                .fontSize($r('app.float.ds_space_xl'))
+                .fontColor([$r('app.color.ds_on_primary')])
             }
-            .padding($r('sys.float.padding_level4'))
-            .borderRadius('50%')
-            .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+            .width($r('app.float.ds_logo_size'))
+            .height($r('app.float.ds_logo_size'))
+            .backgroundColor($r('app.color.ds_primary'))
 
-            Column({ space: $r('sys.float.padding_level2') }) {
-              Text($r('app.string.local_storage_title'))
-                .fontSize($r('sys.float.Subtitle_L'))
-                .fontColor($r('sys.color.font_primary'))
-                .fontWeight(FontWeight.Medium)
-              Text($r('app.string.local_storage_description'))
-                .fontSize($r('sys.float.Body_S'))
-                .fontColor($r('sys.color.font_secondary'))
+            Column({ space: $r('app.float.ds_space_sm') }) {
+              Text($r('app.string.app_brand_name'))
+                .fontSize($r('app.float.ds_font_display'))
+                .fontWeight(600)
+                .fontColor($r('app.color.ds_text_primary'))
+              Text($r('app.string.welcome_tagline'))
+                .fontSize($r('app.float.ds_font_body'))
+                .fontColor($r('app.color.ds_text_secondary'))
             }
-            .layoutWeight(1)
+            .width('100%')
             .alignItems(HorizontalAlign.Start)
           }
           .width('100%')
-          .padding($r('sys.float.padding_level8'))
-          .margin({ top: $r('sys.float.padding_level8') })
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .borderRadius($r('sys.float.corner_radius_level10'))
+          .padding({
+            bottom: 32,
+            left: $r('app.float.ds_space_lg'),
+            right: $r('app.float.ds_space_lg'),
+          })
+          .backgroundColor($r('app.color.ds_surface_low'))
+          .alignItems(HorizontalAlign.Start)
 
-          Text($r('app.string.choose_data_source'))
-            .fontSize($r('sys.float.Subtitle_L'))
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_secondary'))
-            .alignSelf(ItemAlign.Start)
-            .padding({ left: $r('sys.float.padding_level8'), top: $r('sys.float.padding_level8') })
+          Column({ space: $r('app.float.ds_space_md') }) {
+            this.actionCard(
+              $r('app.string.create_vault'),
+              $r('app.string.action_create_vault_desc'),
+              $r('app.string.action_create_vault_footer'),
+              $r('sys.symbol.plus'),
+              true,
+              () => this.viewModel.openCreateVault(),
+            )
+            this.actionCard(
+              $r('app.string.action_open_local_title'),
+              $r('app.string.action_open_local_desc'),
+              $r('app.string.action_open_local_footer'),
+              $r('sys.symbol.folder'),
+              false,
+              () => this.viewModel.chooseLocalVault(),
+            )
+            this.actionCard(
+              $r('app.string.action_webdav_title'),
+              $r('app.string.action_webdav_desc'),
+              $r('app.string.action_webdav_footer'),
+              $r('sys.symbol.icloud'),
+              false,
+              () => this.viewModel.openWebDav(),
+            )
 
-          Column({ space: $r('sys.float.padding_level6') }) {
-            DataSourceCard({
-              icon: $r('sys.symbol.plus'),
-              title: $r('app.string.create_vault'),
-              description: $r('app.string.create_vault_source_description'),
-              onSelect: () => this.viewModel.openCreateVault(),
-            })
-            DataSourceCard({
-              icon: $r('sys.symbol.folder_badge_plus'),
-              title: $r('app.string.open_local_vault'),
-              description: $r('app.string.open_local_vault_description'),
-              selectable: !this.viewModel.busy,
-              onSelect: () => this.viewModel.chooseLocalVault(),
-            })
-            DataSourceCard({
-              icon: $r('sys.symbol.icloud'),
-              title: $r('app.string.connect_webdav'),
-              description: $r('app.string.connect_webdav_description'),
-              onSelect: () => this.viewModel.showWebDavPending(),
-            })
+            Text(this.version)
+              .fontSize($r('app.float.ds_font_body_sm'))
+              .fontColor($r('app.color.ds_text_disabled'))
+              .alignSelf(ItemAlign.Start)
+              .margin({ top: $r('app.float.ds_space_lg') })
           }
           .width('100%')
-
-          Column({ space: $r('sys.float.padding_level2') }) {
-            Text() {
-              SymbolSpan($r('sys.symbol.lock_fill'))
-              Span(' ')
-              Span($r('app.string.privacy_statement'))
-            }
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
-
-            Text($r('app.string.privacy_statement_secondary'))
-              .fontSize($r('sys.float.Body_S'))
-              .fontColor($r('sys.color.font_secondary'))
-          }
-          .alignItems(HorizontalAlign.Center)
+          .padding({
+            top: $r('app.float.ds_space_lg'),
+            bottom: $r('app.float.ds_space_lg'),
+            left: $r('app.float.ds_space_lg'),
+            right: $r('app.float.ds_space_lg'),
+          })
         }
         .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding($r('sys.float.padding_level8'))
-        .alignItems(HorizontalAlign.Center)
+        .alignItems(HorizontalAlign.Start)
       }
       .width('100%')
       .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .justifyContent(FlexAlign.Start)
     }
-    .hideTitleBar(!this.showBack)
-    .titleBar({
-      avoidLayoutSafeArea: true,
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        backIcon: {},
-      },
-    })
-    .backgroundColor($r('sys.color.background_secondary'))
+    .hideTitleBar(true)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
     .onBackPressed(() => {
       if (this.showBack) {
         appRouter.pop()

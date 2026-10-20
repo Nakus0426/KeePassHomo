@@ -1,0 +1,72 @@
+{
+  "string": [
+    {
+      "name": "webdav_connect_title",
+      "value": "连接服务器"
+    },
+    {
+      "name": "webdav_connect_subtitle",
+      "value": "填写 WebDAV 地址与账号。"
+    },
+    {
+      "name": "webdav_server_url",
+      "value": "服务器地址"
+    },
+    {
+      "name": "webdav_username_label",
+      "value": "用户名"
+    },
+    {
+      "name": "webdav_password_label",
+      "value": "密码"
+    },
+    {
+      "name": "webdav_test_connection",
+      "value": "测试连接"
+    },
+    {
+      "name": "webdav_testing",
+      "value": "正在连接…"
+    },
+    {
+      "name": "webdav_status_success",
+      "value": "连接成功"
+    },
+    {
+      "name": "webdav_error_invalid_input",
+      "value": "地址无效：须以 https:// 开头并指向具体的 .kdbx 文件。"
+    },
+    {
+      "name": "webdav_error_authentication",
+      "value": "认证失败：账号或应用密码不正确。"
+    },
+    {
+      "name": "webdav_error_not_found",
+      "value": "资源不存在：请检查地址与文件路径。"
+    },
+    {
+      "name": "webdav_error_unsupported",
+      "value": "服务器不支持 WebDAV 的 PROPFIND 或 HEAD 方法。"
+    },
+    {
+      "name": "webdav_error_tls",
+      "value": "TLS 校验失败：服务器证书不受信任。"
+    },
+    {
+      "name": "webdav_error_network",
+      "value": "网络不可达：请检查网络与服务器状态。"
+    },
+    {
+      "name": "webdav_error_server",
+      "value": "服务器内部错误，请稍后重试。"
+    },
+    {
+      "name": "webdav_error_missing_version",
+      "value": "服务器未提供 ETag 或 Last-Modified 版本标识。"
+    },
+    {
+      "name": "webdav_error_other",
+      "value": "连接失败，请检查地址与账号。"
+    }
+  ]
+}

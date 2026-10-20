@@ -7,6 +7,8 @@ export const ROUTE_WELCOME: string = 'welcome'
 
 export const ROUTE_CREATE_VAULT: string = 'createVault'
 
+export const ROUTE_WEBDAV: string = 'webdavConnect'
+
 export const ROUTE_FILE_SUMMARY: string = 'fileSummary'
 
 export const ROUTE_UNLOCK: string = 'unlock'

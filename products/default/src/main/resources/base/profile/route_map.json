@@ -11,6 +11,11 @@
       "buildFunction": "createVaultPageBuilder"
     },
     {
+      "name": "webdavConnect",
+      "pageSourceFile": "src/main/ets/pages/onboarding/WebDavConnectPage.ets",
+      "buildFunction": "webDavConnectPageBuilder"
+    },
+    {
       "name": "fileSummary",
       "pageSourceFile": "src/main/ets/pages/onboarding/FileSummaryPage.ets",
       "buildFunction": "fileSummaryPageBuilder"
