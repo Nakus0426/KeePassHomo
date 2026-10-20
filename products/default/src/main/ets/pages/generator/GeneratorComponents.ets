@@ -154,6 +154,8 @@ export struct GeneratorContent {
   @Param controller: GeneratorContentController = new GeneratorContentController()
   @Param topOffset: number = 0
   @Param bottomOffset: number = 0
+  // 半模态内容浮在材质上，面底需比页面内抬一档才与容器分层
+  @Param onSheet: boolean = false
   @Event onActivity: () => void = () => {
   }
   @Local private currentTabIndex: number = GeneratorMode.Random
@@ -402,7 +404,9 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[0] })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(this.onSheet
+      ? $r('sys.color.comp_background_tertiary')
+      : $r('sys.color.comp_background_primary'))
   }
 
   @LocalBuilder
@@ -445,7 +449,9 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[1] })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(this.onSheet
+      ? $r('sys.color.comp_background_tertiary')
+      : $r('sys.color.comp_background_primary'))
   }
 
   @LocalBuilder
@@ -470,7 +476,9 @@ export struct GeneratorContent {
     }
     .borderRadius($r('sys.float.corner_radius_level10'))
     .translate({ x: this.tabOffsetX[2] })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(this.onSheet
+      ? $r('sys.color.comp_background_tertiary')
+      : $r('sys.color.comp_background_primary'))
   }
 
   @LocalBuilder
@@ -502,7 +510,9 @@ export struct GeneratorContent {
       .borderRadius($r('sys.float.corner_radius_level10'))
     }
     .enabled(this.hasValue)
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(this.onSheet
+      ? $r('sys.color.comp_background_tertiary')
+      : $r('sys.color.comp_background_primary'))
     .onClick(() => this.viewModel.regenerate())
   }
 

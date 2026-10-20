@@ -34,6 +34,8 @@ export struct FormTextField {
   // 无匹配取值时的前置占位图标（系统 Symbol），仅在 prefixIcon 缺省时渲染
   @Param prefixSymbol: Resource | undefined = undefined
   @Param status: FormTextFieldStatus | undefined = undefined
+  // 半模态内容浮在材质上，面底需比页面内抬一档才与容器分层
+  @Param onSheet: boolean = false
   @Event onChange: (value: string) => void = () => { }
   @Event onFocusChange: (focused: boolean) => void = () => {
   }
@@ -96,7 +98,9 @@ export struct FormTextField {
       left: this.hasPrefix ? $r('sys.float.padding_level4') : 0,
       right: this.suffixBuilder !== undefined ? $r('sys.float.padding_level4') : 0,
     })
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor(this.onSheet
+      ? $r('sys.color.comp_background_tertiary')
+      : $r('sys.color.comp_background_primary'))
     .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
     .border({
       width: $r('sys.float.border_width'),

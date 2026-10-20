@@ -212,6 +212,7 @@ export struct EntryEditorView {
       text: this.editor.title,
       status: this.editor.titleController.status === Status.Invalid
         ? FormTextFieldStatus.Warning : undefined,
+      onSheet: true,
       onChange: (value: string) => this.editor.setTitle(value),
     })
   }
@@ -221,6 +222,7 @@ export struct EntryEditorView {
     FormTextField({
       placeholder: $r('app.string.text_input_placeholder'),
       text: this.editor.username,
+      onSheet: true,
       onChange: (value: string) => this.editor.setUsername(value),
     })
   }
@@ -232,6 +234,7 @@ export struct EntryEditorView {
       text: this.editor.password,
       type: InputType.Password,
       showPassword: this.passwordVisible,
+      onSheet: true,
       onChange: (value: string) => this.editor.setPassword(value),
     }) {
       PasswordVisibilityToggle({
@@ -262,6 +265,7 @@ export struct EntryEditorView {
     FormTextField({
       placeholder: $r('app.string.text_input_placeholder'),
       text: this.editor.url,
+      onSheet: true,
       onChange: (value: string) => this.editor.setUrl(value),
     })
   }
@@ -271,6 +275,7 @@ export struct EntryEditorView {
     FormTextArea({
       placeholder: $r('app.string.text_input_placeholder'),
       text: this.editor.notes,
+      onSheet: true,
       onChange: (value: string) => this.editor.setNotes(value),
     })
   }
@@ -281,12 +286,14 @@ export struct EntryEditorView {
       FormTextArea({
         placeholder: $r('app.string.text_input_placeholder'),
         text: field.value,
+        onSheet: true,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     } else if (definition.options.length > 0) {
       FormTextField({
         placeholder: $r('app.string.text_input_placeholder'),
         text: field.value,
+        onSheet: true,
         prefixIcon: this.matchedOptionIcon(field, definition),
         prefixSymbol: $r('sys.symbol.bank_card'),
         onChange: (value: string) => this.editor.setFieldValue(field, value),
@@ -305,6 +312,7 @@ export struct EntryEditorView {
       FormTextField({
         placeholder: $r('app.string.text_input_placeholder'),
         text: field.value,
+        onSheet: true,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     }
@@ -421,6 +429,7 @@ export struct EntryEditorView {
         controller: this.generatorController,
         topOffset: this.topOffset,
         bottomOffset: this.bottomOffset,
+        onSheet: true,
         onActivity: () => this.viewModel.recordActivity(),
       })
     }
@@ -499,7 +508,7 @@ export struct EntryEditorView {
       .width('100%')
     }
     .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .enabled(!this.readOnly)
     .onClick(() => this.groupPickerVisible = true)

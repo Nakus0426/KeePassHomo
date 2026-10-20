@@ -29,19 +29,22 @@ export struct AttachmentReauthDialog {
   }
 
   build() {
-    Column({ space: $r('sys.float.padding_level6') }) {
+    Column() {
       Text($r('app.string.reauthenticate_title'))
-        .fontSize($r('sys.float.Title_M'))
+        .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
         .fontColor($r('sys.color.font_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
+        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
 
       Text(this.message)
-        .fontSize($r('sys.float.Body_M'))
-        .fontColor($r('sys.color.font_secondary'))
+        .fontSize($r('sys.float.Body_L'))
+        .fontColor($r('sys.color.font_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
+        .margin({ top: $r('sys.float.padding_level4') })
+        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
 
       TextInput({ placeholder: $r('app.string.password'), text: this.password })
         .type(InputType.Password)
@@ -49,21 +52,27 @@ export struct AttachmentReauthDialog {
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .margin({
+          top: $r('sys.float.padding_level6'),
+          left: $r('sys.float.padding_level12'),
+          right: $r('sys.float.padding_level12'),
+        })
         .onChange((value: string) => this.password = value)
 
-      Row({ space: $r('sys.float.padding_level6') }) {
+      Row({ space: $r('sys.float.padding_level2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('sys.color.brand'))
           .layoutWeight(1)
           .onClick(() => this.controller.close())
 
         Divider()
           .vertical(true)
+          .strokeWidth(1)
           .color($r('sys.color.comp_divider'))
-          .height($r('sys.float.Title_S'))
+          .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button(this.confirmLabel)
           .buttonStyle(ButtonStyleMode.TEXTUAL)
@@ -73,8 +82,10 @@ export struct AttachmentReauthDialog {
           .onClick(() => this.submit())
       }
       .width('100%')
+      .margin({ top: $r('sys.float.padding_level2') })
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
+    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
   }
 }

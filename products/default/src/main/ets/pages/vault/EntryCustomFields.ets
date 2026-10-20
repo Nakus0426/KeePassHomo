@@ -293,7 +293,7 @@ export struct EntryCustomFields {
     .id(`field_${field.id}`)
     .alignItems(VerticalAlign.Top)
     .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
     .border({
       width: $r('sys.float.border_width'),
@@ -363,7 +363,7 @@ export struct EntryCustomFields {
     .width('100%')
     .height($r('app.float.field_type_card_height'))
     .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.pickType(definition))
   }

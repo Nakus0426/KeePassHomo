@@ -174,8 +174,6 @@ export struct EntrySshKeysField {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.renameDialog(), this.dialogController, {
-        width: '96%',
-        cornerRadius: $r('sys.float.ohos_id_corner_radius_dialog'),
         backgroundColor: $r('sys.color.comp_background_primary'),
       })
       .catch((error: BusinessError) => {
@@ -259,34 +257,41 @@ export struct EntrySshKeysField {
 
   @Builder
   private renameDialog() {
-    Column({ space: $r('sys.float.padding_level6') }) {
+    Column() {
       Text($r('app.string.ssh_key_rename'))
-        .fontSize($r('sys.float.Title_M'))
+        .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
         .fontColor($r('sys.color.font_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
+        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
 
       TextInput({ placeholder: $r('app.string.ssh_key_name_placeholder'), text: this.renameName })
         .fontSize($r('sys.float.Body_L'))
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .margin({
+          top: $r('sys.float.padding_level6'),
+          left: $r('sys.float.padding_level12'),
+          right: $r('sys.float.padding_level12'),
+        })
         .onChange((value: string) => this.renameName = value)
 
-      Row({ space: $r('sys.float.padding_level6') }) {
+      Row({ space: $r('sys.float.padding_level2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('sys.color.brand'))
           .layoutWeight(1)
           .onClick(() => this.dialogController.close())
 
         Divider()
           .vertical(true)
+          .strokeWidth(1)
           .color($r('sys.color.comp_divider'))
-          .height($r('sys.float.Title_S'))
+          .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button($r('app.string.confirm'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
@@ -296,9 +301,11 @@ export struct EntrySshKeysField {
           .onClick(() => this.submitRename())
       }
       .width('100%')
+      .margin({ top: $r('sys.float.padding_level2') })
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
+    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
   }
 
   // 与「其他」区的新增按钮同款，复用系统点按反馈；生成期间换成加载态并禁用。

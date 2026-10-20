@@ -130,7 +130,7 @@ export struct EntryTagEditor {
           left: $r('sys.float.chip_normal_text_padding'),
           right: $r('sys.float.chip_normal_text_padding'),
         })
-        .backgroundColor($r('sys.color.comp_background_primary'))
+        .backgroundColor($r('sys.color.comp_background_tertiary'))
         .borderRadius($r('sys.float.chip_border_radius_normal'))
         .border({
           width: $r('sys.float.border_width'),

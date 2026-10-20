@@ -109,7 +109,7 @@ export struct EntryTemplatePicker {
     .width('100%')
     .height($r('app.float.template_card_height'))
     .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onPicked(definition.template))
   }

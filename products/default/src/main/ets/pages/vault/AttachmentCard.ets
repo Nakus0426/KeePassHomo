@@ -108,7 +108,7 @@ export struct AttachmentCard {
     }
     .width('100%')
     .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_primary'))
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onPreview())
     .bindContextMenu(this.cardMenu(), ResponseType.LongPress, { preview: MenuPreviewMode.IMAGE })

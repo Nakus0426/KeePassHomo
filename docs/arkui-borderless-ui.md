@@ -23,9 +23,15 @@
 |---|---|
 | 页面底 | `sys.color.background_secondary` |
 | 卡片与输入底 | `sys.color.comp_background_primary` |
-| 半模态内卡片底 | `sys.color.comp_background_tertiary` |
+| 半模态内卡片与输入底 | `sys.color.comp_background_tertiary` |
 
 去掉描边后卡片仍可辨，前提是容器底与页底用不同资源；新增页面时不要把两者取成同一个值。圆形头像靠 `sys.color.background_emphasize` 底色与页底区分，不再补圆环。
+
+## 半模态内的面底
+
+半模态容器是 `ULTRA_THICK` 材质，深色下实测约 `#1F1F20`，与 `comp_background_primary`（深色 `#202224`）几乎同色，卡片会看不到边界（实测 1.03:1）。半模态内的卡面与输入底一律用 `comp_background_tertiary`：深色是 10% 白叠出约 `#353536`（1.34:1），浅色是 5% 黑，两种模式都随容器自适应。
+
+跨「半模态」与「整页」复用的组件（`FormTextField`、`FormTextArea`、`GeneratorContent`）用 `onSheet: true` 切换面底；整页调用点不传，保持 `comp_background_primary`，否则整页对比度会被拉低。对话框容器（`presentCustomDialog` 的 `backgroundColor`）是独立不透明面，不属于本规范，保持 `comp_background_primary`。
 
 ## 状态描边保留
 

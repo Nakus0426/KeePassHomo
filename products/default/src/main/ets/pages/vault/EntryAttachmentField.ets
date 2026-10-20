@@ -136,8 +136,6 @@ export struct EntryAttachmentField {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.reauthDialog(), this.dialogController, {
-        width: '96%',
-        cornerRadius: $r('sys.float.ohos_id_corner_radius_dialog'),
         backgroundColor: $r('sys.color.comp_background_primary'),
       })
       .catch((error: BusinessError) => {

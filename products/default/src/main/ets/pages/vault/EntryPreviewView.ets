@@ -958,12 +958,19 @@ export struct EntryPreviewView {
               })
             }
 
+            if (this.attachments.length > 0) {
+              EntryAttachmentList({
+                entryUuid: this.sheet.entryUuid,
+                attachments: this.attachments,
+              })
+            }
+
             List() {
               ForEach(this.previewFields, (definition: TemplateFieldDefinition) => {
                 this.templateCell(definition)
               }, (definition: TemplateFieldDefinition) => definition.key)
             }
-            .backgroundColor($r('sys.color.comp_background_primary'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
             .borderRadius($r('sys.float.corner_radius_level10'))
             .divider({
               strokeWidth: 1,
@@ -971,13 +978,6 @@ export struct EntryPreviewView {
               startMargin: $r('sys.float.padding_level8'),
               endMargin: $r('sys.float.padding_level8'),
             })
-
-            if (this.attachments.length > 0) {
-              EntryAttachmentList({
-                entryUuid: this.sheet.entryUuid,
-                attachments: this.attachments,
-              })
-            }
 
             if (this.customFields.length > 0) {
               List() {
@@ -1002,7 +1002,7 @@ export struct EntryPreviewView {
                 }, (field: VaultField) => field.name)
               }
               .width('100%')
-              .backgroundColor($r('sys.color.comp_background_primary'))
+              .backgroundColor($r('sys.color.comp_background_tertiary'))
               .borderRadius($r('sys.float.corner_radius_level10'))
               .divider({
                 strokeWidth: 1,
@@ -1041,7 +1041,7 @@ export struct EntryPreviewView {
               .padding($r('sys.float.padding_level8'))
             }
             .width('100%')
-            .backgroundColor($r('sys.color.comp_background_primary'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
             .borderRadius($r('sys.float.corner_radius_level10'))
           }
           .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })

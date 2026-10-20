@@ -300,13 +300,14 @@ export struct EntryGroupPicker {
 
   @Builder
   private newGroupDialog() {
-    Column({ space: $r('sys.float.padding_level6') }) {
+    Column() {
       Text($r('app.string.new_group'))
-        .fontSize($r('sys.float.Title_M'))
+        .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
         .fontColor($r('sys.color.font_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
+        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
 
       TextInput({ placeholder: $r('app.string.group_name_placeholder'), text: this.newGroupName })
         .fontSize($r('sys.float.Body_L'))
@@ -314,21 +315,27 @@ export struct EntryGroupPicker {
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .margin({
+          top: $r('sys.float.padding_level6'),
+          left: $r('sys.float.padding_level12'),
+          right: $r('sys.float.padding_level12'),
+        })
         .onChange((value: string) => this.newGroupName = value)
 
-      Row({ space: $r('sys.float.padding_level6') }) {
+      Row({ space: $r('sys.float.padding_level2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('sys.color.brand'))
           .layoutWeight(1)
           .onClick(() => this.closeNewGroupDialog())
 
         Divider()
           .vertical(true)
+          .strokeWidth(1)
           .color($r('sys.color.comp_divider'))
-          .height($r('sys.float.Title_S'))
+          .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button($r('app.string.confirm'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
@@ -338,9 +345,11 @@ export struct EntryGroupPicker {
           .onClick(() => this.submitNewGroup())
       }
       .width('100%')
+      .margin({ top: $r('sys.float.padding_level2') })
+      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
+    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
   }
 
   private openNewGroupDialog(): void {
@@ -352,8 +361,6 @@ export struct EntryGroupPicker {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.newGroupDialog(), this.dialogController, {
-        width: '96%',
-        cornerRadius: $r('sys.float.ohos_id_corner_radius_dialog'),
         backgroundColor: $r('sys.color.comp_background_primary'),
       })
       .catch((error: BusinessError) => {

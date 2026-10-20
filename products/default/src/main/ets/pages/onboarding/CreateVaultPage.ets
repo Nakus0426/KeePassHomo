@@ -232,6 +232,7 @@ export struct CreateVaultPage {
         controller: this.generatorController,
         topOffset: this.sheetTopAvoidAreaHeight,
         bottomOffset: this.bottomSafeAreaHeight,
+        onSheet: true,
         onActivity: () => this.viewModel.recordActivity(),
       })
     }
