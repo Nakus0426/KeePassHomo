@@ -1,11 +1,14 @@
 import { common } from '@kit.AbilityKit'
-import { picker } from '@kit.CoreFileKit'
-import { FileUtil, PreferencesUtil } from '@pura/harmony-utils'
+import { fileIo, picker } from '@kit.CoreFileKit'
+import { FileUtil, LogUtil, PreferencesUtil } from '@pura/harmony-utils'
 import {
   DefaultVaultSession,
   FileVaultRepository,
+  generateRandomKeyFile,
   KdbxVaultEngine,
+  keyFileFingerprint,
   VaultAttachmentChange,
+  VaultAuthMode,
   VaultCredential,
   VaultDocument,
   VaultEntry,
@@ -22,17 +25,38 @@ import {
 const PREFERENCES_NAME: string = 'vault_source'
 const SOURCE_URI: string = 'source_uri'
 const SOURCE_NAME: string = 'source_name'
-const SOURCE_READ_ONLY: string = 'source_read_only'
 const SOURCE_FORMAT: string = 'source_format'
+const SOURCE_MTIME: string = 'source_mtime'
 const KEY_FILE_URI: string = 'key_file_uri'
 const KEY_FILE_NAME: string = 'key_file_name'
+
+export enum VaultAccess {
+  ReadWrite = 'readWrite',
+  // KDBX 3.1 只能读；备份并升级到 4.x 后恢复写入。
+  ReadOnlyFormat = 'readOnlyFormat',
+  // 缺少持久写授权；重新选择同一文件即可获得新的临时写授权。
+  ReadOnlyPermission = 'readOnlyPermission',
+  // 文件系统只读；换位置另存才能写入。
+  ReadOnlyFileSystem = 'readOnlyFileSystem',
+  // 文件内容不可用：无法读取，或不是受支持的 KDBX。
+  Unreadable = 'unreadable',
+}
+
+export enum VaultUnreadableReason {
+  // 不是 KDBX 3.1 / 4.x：重新选择才有意义。
+  NotKdbx = 'notKdbx',
+  // 文件读不到：被移动、已被删除或授权失效，重试有意义。
+  CannotOpen = 'cannotOpen',
+}
 
 export interface VaultFileSummary {
   name: string;
   format: VaultFormat;
   size: number;
   modifiedAt: number;
-  readOnly: boolean;
+  access: VaultAccess;
+  // 仅 access 为 Unreadable 时有值。
+  unreadableReason?: VaultUnreadableReason;
 }
 
 export enum VaultBrowseMode {
@@ -53,10 +77,19 @@ export class StageOneVaultStore {
   private repository: FileVaultRepository | undefined
   private source: VaultSource | undefined
   private keyFileSource: VaultSource | undefined
+  private keyFileFingerprint: string = ''
+  private keyFileSize: number = 0
   private format: VaultFormat = VaultFormat.Unsupported
+  private sourceModifiedAt: number = 0
   private credential: VaultCredential | undefined
   private engine: KdbxVaultEngine = new KdbxVaultEngine()
   private readonly session: DefaultVaultSession = new DefaultVaultSession()
+  // 打开失败时保留来源，供摘要页「重试」重新探测同一个文件。
+  private lastAttemptedSource: VaultSource | undefined
+
+  get failedSource(): VaultSource | undefined {
+    return this.lastAttemptedSource
+  }
 
   get hasRecentVault(): boolean {
     return this.source !== undefined
@@ -81,8 +114,20 @@ export class StageOneVaultStore {
     return this.keyFileSource?.uri ?? ''
   }
 
+  get currentKeyFileFingerprint(): string {
+    return this.keyFileFingerprint
+  }
+
+  get currentKeyFileSize(): number {
+    return this.keyFileSize
+  }
+
   get currentFormat(): VaultFormat {
     return this.format
+  }
+
+  get currentModifiedAt(): number {
+    return this.sourceModifiedAt
   }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
@@ -93,11 +138,12 @@ export class StageOneVaultStore {
       if (uri.length === 0) {
         return
       }
+      // 权限不落盘：先按可读打开，写权限在解锁时现场探测。
       this.source = {
         type: VaultSourceType.LocalFile,
         uri,
         displayName: PreferencesUtil.getSync(SOURCE_NAME, '', PREFERENCES_NAME) as string,
-        readOnly: PreferencesUtil.getSync(SOURCE_READ_ONLY, false, PREFERENCES_NAME) as boolean,
+        readOnly: true,
       }
       const keyFileUri: string = PreferencesUtil.getSync(KEY_FILE_URI, '', PREFERENCES_NAME) as string
       if (keyFileUri.length > 0) {
@@ -109,12 +155,15 @@ export class StageOneVaultStore {
         }
       }
       this.format = PreferencesUtil.getSync(SOURCE_FORMAT, VaultFormat.Unsupported, PREFERENCES_NAME) as VaultFormat
+      this.sourceModifiedAt = PreferencesUtil.getSync(SOURCE_MTIME, 0, PREFERENCES_NAME) as number
     } catch (error) {
       throw new Error((error as Error).message)
     }
   }
 
   async inspect(source: VaultSource): Promise<VaultFileSummary> {
+    // 失败时保留来源，摘要页的重试据此重新探测同一文件。
+    this.lastAttemptedSource = source
     const repository: FileVaultRepository = this.requireRepository()
     const readableSource: VaultSource = {
       type: source.type,
@@ -122,47 +171,107 @@ export class StageOneVaultStore {
       displayName: source.displayName,
       readOnly: true,
     }
-    await repository.persistAccess(readableSource)
-    const data: ArrayBuffer = await repository.read(readableSource)
+    // picker 的临时授权足以完成识别，持久授权留到模式确定后一次性写入。
+    let data: ArrayBuffer
+    try {
+      data = await repository.read(readableSource)
+    } catch (error) {
+      // 读不到文件时仍要能展示文件名与体积，错误页据此说明是哪个文件出的问题。
+      const failure: Error = error as Error
+      LogUtil.error(`读取保险库文件失败，文件名=${source.displayName}，错误=${failure.message}`)
+      return this.unreadableSummary(source, VaultUnreadableReason.CannotOpen)
+    }
     const format: VaultFormat = this.engine.identify(data)
     if (format === VaultFormat.Unsupported) {
-      throw new Error('文件不是受支持的 KDBX 3.1 或 KDBX 4.x')
+      return this.unreadableSummary(source, VaultUnreadableReason.NotKdbx)
     }
-    let readOnly: boolean = format === VaultFormat.Kdbx31
-    if (!readOnly) {
-      try {
-        repository.isWritable(source)
-        await repository.persistAccess(source)
-      } catch (error) {
-        const failure: VaultRepositoryError = error as VaultRepositoryError
-        if (failure.category !== VaultRepositoryErrorCategory.ReadOnly
-          && failure.category !== VaultRepositoryErrorCategory.PermissionDenied) {
-          throw failure
-        }
-        readOnly = true
-      }
-    }
+    const access: VaultAccess = await this.resolveAccess(source, format)
     const selectedSource: VaultSource = {
       type: source.type,
       uri: source.uri,
       displayName: source.displayName,
-      readOnly,
+      readOnly: access !== VaultAccess.ReadWrite,
     }
     this.source = selectedSource
     this.format = format
     await this.persistRecentSource()
     try {
       const stat = FileUtil.statSync(source.uri)
+      this.sourceModifiedAt = stat.mtime
+      PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
       return {
         name: source.displayName,
         format,
         size: stat.size,
         modifiedAt: stat.mtime,
-        readOnly,
+        access,
       }
     } catch (error) {
       throw new Error((error as Error).message)
     }
+  }
+
+  // 不可读文件也要给出可展示的摘要：错误页需要说明是哪个文件出的问题。
+  private unreadableSummary(source: VaultSource, reason: VaultUnreadableReason): VaultFileSummary {
+    let size: number = 0
+    let modifiedAt: number = 0
+    try {
+      const stat = FileUtil.statSync(source.uri)
+      size = stat.size
+      modifiedAt = stat.mtime
+    } catch (error) {
+      // 文件不存在时无法取体积与时间，保持 0，由页面按未知展示。
+      const failure: Error = error as Error
+      LogUtil.warn(`读取不可用保险库元信息失败，文件名=${source.displayName}，错误=${failure.message}`)
+    }
+    return {
+      name: source.displayName,
+      format: VaultFormat.Unsupported,
+      size,
+      modifiedAt,
+      access: VaultAccess.Unreadable,
+      unreadableReason: reason,
+    }
+  }
+
+  // 写权限必须现场探测：临时授权随进程退出清除，持久授权也须激活后才生效。
+  private async resolveAccess(source: VaultSource, format: VaultFormat): Promise<VaultAccess> {
+    const repository: FileVaultRepository = this.requireRepository()
+    const writableSource: VaultSource = {
+      type: source.type,
+      uri: source.uri,
+      displayName: source.displayName,
+      readOnly: false,
+    }
+    if (format !== VaultFormat.Kdbx31) {
+      try {
+        repository.isWritable(writableSource)
+        await repository.persistAccess(writableSource)
+        return VaultAccess.ReadWrite
+      } catch (error) {
+        const failure: VaultRepositoryError = error as VaultRepositoryError
+        if (failure.category !== VaultRepositoryErrorCategory.ReadOnly
+          && failure.category !== VaultRepositoryErrorCategory.PermissionDenied) {
+          throw failure
+        }
+        await repository.persistAccess({
+          type: source.type,
+          uri: source.uri,
+          displayName: source.displayName,
+          readOnly: true,
+        })
+        return failure.category === VaultRepositoryErrorCategory.ReadOnly
+          ? VaultAccess.ReadOnlyFileSystem
+          : VaultAccess.ReadOnlyPermission
+      }
+    }
+    await repository.persistAccess({
+      type: source.type,
+      uri: source.uri,
+      displayName: source.displayName,
+      readOnly: true,
+    })
+    return VaultAccess.ReadOnlyFormat
   }
 
   async chooseLocalVault(): Promise<VaultFileSummary> {
@@ -178,6 +287,14 @@ export class StageOneVaultStore {
       displayName: FileUtil.getFileName(uris[0]),
       readOnly: false,
     })
+  }
+
+  // 重试沿用上次失败的来源，不再拉起选择器。
+  async retryFailedSource(): Promise<VaultFileSummary> {
+    if (this.lastAttemptedSource === undefined) {
+      throw new Error('没有可重试的文件')
+    }
+    return this.inspect(this.lastAttemptedSource)
   }
 
   async chooseKeyFile(): Promise<void> {
@@ -203,18 +320,50 @@ export class StageOneVaultStore {
       displayName: source.displayName,
       readOnly: true,
     }
-    await this.requireRepository().persistAccess(selected)
+    const repository: FileVaultRepository = this.requireRepository()
+    await repository.persistAccess(selected)
+    // 指纹与体积来自绑定文件本身；读取失败即绑定失败，不保留半绑定状态。
+    const data: ArrayBuffer = await repository.read(selected)
+    this.keyFileFingerprint = keyFileFingerprint(new Uint8Array(data))
+    this.keyFileSize = data.byteLength
     this.keyFileSource = selected
     if (this.source !== undefined) {
       await this.persistRecentSource()
     }
   }
 
-  clearKeyFile(): void {
-    this.keyFileSource = undefined
+  // 生成物归用户所有：写入用户选定的位置，读回核对后再绑定；取消保存即视为未生成。
+  async generateKeyFile(fileName: string): Promise<void> {
+    const options = new picker.DocumentSaveOptions()
+    options.newFileNames = [fileName]
+    options.fileSuffixChoices = ['KeePass 密钥文件|.keyx']
+    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
+    if (uris === undefined || uris.length === 0) {
+      throw new UserCancelledError()
+    }
+    const data: Uint8Array = await generateRandomKeyFile()
+    const file: fileIo.File = FileUtil.openSync(uris[0],
+      fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
+    try {
+      FileUtil.writeSync(file.fd, data.buffer as ArrayBuffer)
+    } finally {
+      FileUtil.closeSync(file)
+    }
+    await this.selectKeyFile({
+      type: VaultSourceType.LocalFile,
+      uri: uris[0],
+      displayName: FileUtil.getFileName(uris[0]),
+      readOnly: true,
+    })
   }
 
-  async createVault(name: string, password: string): Promise<void> {
+  clearKeyFile(): void {
+    this.keyFileSource = undefined
+    this.keyFileFingerprint = ''
+    this.keyFileSize = 0
+  }
+
+  async createVault(name: string, password: string, authMode: VaultAuthMode): Promise<void> {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`${name}.kdbx`]
     options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
@@ -229,7 +378,7 @@ export class StageOneVaultStore {
       readOnly: false,
     }
     const repository: FileVaultRepository = this.requireRepository()
-    const credential: VaultCredential = await this.readCredential(password)
+    const credential: VaultCredential = await this.readCredentialForMode(password, authMode)
     this.engine = new KdbxVaultEngine()
     const document: VaultDocument = await this.engine.create(name, credential)
     const data: ArrayBuffer = await this.engine.write(document)
@@ -238,23 +387,57 @@ export class StageOneVaultStore {
     })
     await repository.persistAccess(source)
     this.source = source
+    this.sourceModifiedAt = Date.now() / 1000
     this.format = document.format
     this.credential = credential
     this.session.unlock(document)
+    // 纯密码库不带密钥文件：残留绑定会被下次解锁混进凭据，导致校验失败。
+    if (authMode === VaultAuthMode.PasswordOnly) {
+      this.clearKeyFile()
+    }
     await this.persistRecentSource()
   }
 
   async unlock(password: string): Promise<void> {
     const repository: FileVaultRepository = this.requireRepository()
     const source: VaultSource = this.currentSource
-    await repository.activateAccess(source)
+    await this.activateStoredAccess(source)
     const data: ArrayBuffer = await repository.read(source)
     const credential: VaultCredential = await this.readCredential(password)
     this.engine = new KdbxVaultEngine()
     const document: VaultDocument = await this.engine.unlock(data, credential)
+    const access: VaultAccess = await this.resolveAccess(source, document.format)
+    this.source = {
+      type: source.type,
+      uri: source.uri,
+      displayName: source.displayName,
+      readOnly: access !== VaultAccess.ReadWrite,
+    }
+    await this.persistRecentSource()
     this.credential = credential
     this.format = document.format
     this.session.unlock(document)
+  }
+
+  // 激活必须与持久化时的模式一致，否则系统按未持久化拒绝。
+  private async activateStoredAccess(source: VaultSource): Promise<void> {
+    const repository: FileVaultRepository = this.requireRepository()
+    const writableSource: VaultSource = {
+      type: source.type,
+      uri: source.uri,
+      displayName: source.displayName,
+      readOnly: false,
+    }
+    if (await repository.hasPersistentAccess(writableSource)) {
+      await repository.activateAccess(writableSource)
+      return
+    }
+    await repository.activateAccess({
+      type: source.type,
+      uri: source.uri,
+      displayName: source.displayName,
+      readOnly: true,
+    })
   }
 
   // 全部条目：不含回收站子树。
@@ -449,10 +632,47 @@ export class StageOneVaultStore {
     this.engine = upgradeEngine
     this.session.unlock(upgradeDocument)
     this.source = writableSource
+    this.sourceModifiedAt = Date.now() / 1000
     this.format = upgradeDocument.format
     await this.persistRecentSource()
     this.session.touch()
     return backupSource.displayName
+  }
+
+  // 只读文件系统的唯一出路：把当前内容另存到用户新选的位置并切换来源。
+  async saveAsLocalVault(): Promise<VaultFileSummary> {
+    const source: VaultSource = this.currentSource
+    const repository: FileVaultRepository = this.requireRepository()
+    const options = new picker.DocumentSaveOptions()
+    options.newFileNames = [source.displayName]
+    options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
+    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
+    if (uris === undefined || uris.length === 0) {
+      throw new UserCancelledError()
+    }
+    const relocated: VaultSource = await repository.relocate(source, uris[0])
+    await repository.persistAccess(relocated)
+    const format: VaultFormat = this.locked
+      ? this.format
+      : this.session.getDocument().format
+    const access: VaultAccess = await this.resolveAccess(relocated, format)
+    this.source = {
+      type: relocated.type,
+      uri: relocated.uri,
+      displayName: relocated.displayName,
+      readOnly: access !== VaultAccess.ReadWrite,
+    }
+    await this.persistRecentSource()
+    const stat = FileUtil.statSync(relocated.uri)
+    this.sourceModifiedAt = stat.mtime
+    PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
+    return {
+      name: relocated.displayName,
+      format,
+      size: stat.size,
+      modifiedAt: stat.mtime,
+      access,
+    }
   }
 
   touch(): void {
@@ -490,12 +710,31 @@ export class StageOneVaultStore {
     }
   }
 
+  // 创建按所选鉴权方式取材：纯密码不读密钥文件，纯密钥不贡献密码组件。
+  private async readCredentialForMode(password: string, authMode: VaultAuthMode): Promise<VaultCredential> {
+    if (authMode === VaultAuthMode.PasswordOnly) {
+      return { password }
+    }
+    if (authMode === VaultAuthMode.KeyOnly) {
+      return { password: '', keyFile: await this.readBoundKeyFile() }
+    }
+    // 声明「密码 + 密钥」时必须已绑定密钥文件，避免静默建成纯密码库（与 KeyOnly 对称）。
+    return { password, keyFile: await this.readBoundKeyFile() }
+  }
+
+  private async readBoundKeyFile(): Promise<Uint8Array> {
+    if (this.keyFileSource === undefined) {
+      throw new Error('请先绑定密钥文件')
+    }
+    const data: ArrayBuffer = await this.requireRepository().read(this.keyFileSource)
+    return new Uint8Array(data)
+  }
+
   private async readCredential(password: string): Promise<VaultCredential> {
     if (this.keyFileSource === undefined) {
       return { password }
     }
-    const data: ArrayBuffer = await this.requireRepository().read(this.keyFileSource)
-    return { password, keyFile: new Uint8Array(data) }
+    return { password, keyFile: await this.readBoundKeyFile() }
   }
 
   private async persistRecentSource(): Promise<void> {
@@ -505,8 +744,8 @@ export class StageOneVaultStore {
     try {
       PreferencesUtil.putSync(SOURCE_URI, this.source.uri, PREFERENCES_NAME)
       PreferencesUtil.putSync(SOURCE_NAME, this.source.displayName, PREFERENCES_NAME)
-      PreferencesUtil.putSync(SOURCE_READ_ONLY, this.source.readOnly, PREFERENCES_NAME)
       PreferencesUtil.putSync(SOURCE_FORMAT, this.format, PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
       PreferencesUtil.putSync(KEY_FILE_URI, this.keyFileSource?.uri ?? '', PREFERENCES_NAME)
       PreferencesUtil.putSync(KEY_FILE_NAME, this.keyFileSource?.displayName ?? '', PREFERENCES_NAME)
     } catch (error) {
@@ -605,6 +844,8 @@ export class StageOneVaultStore {
       this.session.unlock(restoredDocument)
       throw error as Error
     }
+    this.sourceModifiedAt = Date.now() / 1000
+    PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
     this.session.touch()
   }
 }

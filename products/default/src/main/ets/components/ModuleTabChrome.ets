@@ -1,4 +1,5 @@
 import { HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
+import { DsPageHeaderAction } from './DsPageHeader'
 
 // 各模块在自己的 *TabChrome.ets 中实现，由 AppShell 聚合渲染
 export interface ModuleTabChrome {
@@ -12,4 +13,6 @@ export interface ModuleTabChrome {
   bottomRowBuilder?: WrappedBuilder<[]>
   // 追加在全局锁定项之后
   menuItems?: () => HdsNavigationMenuItemOptions[]
+  // 非保险库 tab 的页头操作项，排在全局锁定项之前
+  headerActions?: () => DsPageHeaderAction[]
 }

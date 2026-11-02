@@ -1,39 +1,18 @@
 import { BusinessError } from '@kit.BasicServicesKit'
-import { LengthMetrics, promptAction, SymbolGlyphModifier, UIContext, uiMaterial, UIUtils } from '@kit.ArkUI'
-import {
-  hdsMaterial,
-  HdsNavDestination,
-  HdsNavigationIconOptions,
-  HdsNavigationMenuItemOptions,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
+import { LengthMetrics, promptAction, UIContext, UIUtils } from '@kit.ArkUI'
+import { HdsNavDestination } from '@kit.UIDesignKit'
 import { AnimationTokens, AppToast, VaultGroup } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { DsPageHeader, DsPageHeaderAction } from '../../components/DsPageHeader'
+import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/GroupRow'
+import { appRouter } from '../../navigation/AppRouter'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from './GroupPickerShared'
 
 // 分组名的长度上限：与分组选择器同规则，防异常输入，KDBX 组名本身无硬性限制。
 const GROUP_NAME_MAX_LENGTH: number = 64
-
-// 横移自身宽度的 20%，与分组选择器同参。
-const LEVEL_TRANSITION_OFFSET_RATIO: number = 0.2
-
-// 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。
-function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | undefined {
-  if (group.uuid === targetUuid) {
-    return [group]
-  }
-  for (const child of group.groups) {
-    const chain: VaultGroup[] | undefined = findGroupChain(child, targetUuid)
-    if (chain !== undefined) {
-      chain.unshift(group)
-      return chain
-    }
-  }
-  return undefined
-}
 
 // 子树规模：子分组数与条目数，不含自身分组。
 interface GroupSubtreeStat {
@@ -50,11 +29,6 @@ function subtreeStat(group: VaultGroup): GroupSubtreeStat {
     entries += childStat.entries
   }
   return { groups, entries }
-}
-
-function sameOrder(previous: string[], next: string[]): boolean {
-  return previous.length === next.length
-    && previous.every((uuid: string, index: number) => uuid === next[index])
 }
 
 // 分组管理页：面包屑 + 分组列表 + 全库搜索，行内左滑重命名与删除；入口暂未接线，路由已注册（groupManager）。
@@ -82,9 +56,6 @@ export struct GroupManagerPage {
   private readonly breadcrumbScroller: Scroller = new Scroller()
   private readonly viewModel: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
-  private readonly createIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus'))
-      .fontColor([$r('sys.color.titlebar_icon_color')])
   // 纯淡入淡出：面包屑搜索态淡出、列表与空态互换共用；缩放交给行自身。
   private readonly fadeTransition: TransitionEffect = TransitionEffect.OPACITY
     .animation({
@@ -160,13 +131,14 @@ export struct GroupManagerPage {
     return this.viewModel.rootGroup().uuid
   }
 
-  // 内容顶部避让：沉浸式标题栏之下，状态栏与标题栏高度都要让开。
   @Computed
-  private get contentTopOffset(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const paddingPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
-    return this.getUIContext()
-      .px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarHeightPx + paddingPx)
+  private get headerActions(): DsPageHeaderAction[] {
+    return [{
+      icon: $r('app.string.symbol_create_folder'),
+      label: $r('app.string.new_group'),
+      enabled: !this.viewModel.busy && !this.readOnly,
+      onTap: (): void => this.openCreateDialog(),
+    }]
   }
 
   @Computed
@@ -177,9 +149,9 @@ export struct GroupManagerPage {
   // 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。
   @Computed
   private get dividerStartMargin(): number {
-    const padding8Px = ResUtil.getNumber($r('sys.float.padding_level8').id) * 2
+    const padding8Px = ResUtil.getNumber($r('app.float.ds_space_sm').id) * 2
     const iconSizePx = ResUtil.getNumber($r('sys.float.Title_L').id)
-    const padding4Px = ResUtil.getNumber($r('sys.float.padding_level4').id) * 2
+    const padding4Px = ResUtil.getNumber($r('app.float.ds_space_xs').id) * 2
     return this.getUIContext().px2vp(padding8Px + iconSizePx + padding4Px)
   }
 
@@ -287,10 +259,10 @@ export struct GroupManagerPage {
       Text(this.renameGroupUuid.length === 0 ? $r('app.string.new_group') : $r('app.string.rename_group'))
         .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
+        .fontColor($r('app.color.ds_text_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
-        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
+        .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
 
       TextInput({ placeholder: $r('app.string.group_name_placeholder'), text: this.groupNameDraft })
         .fontSize($r('sys.float.Body_L'))
@@ -298,41 +270,41 @@ export struct GroupManagerPage {
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('app.color.ds_outline_variant'), typing: $r('app.color.ds_primary') })
         .margin({
-          top: $r('sys.float.padding_level6'),
-          left: $r('sys.float.padding_level12'),
-          right: $r('sys.float.padding_level12'),
+          top: $r('app.float.ds_space_6'),
+          left: $r('app.float.ds_space_md'),
+          right: $r('app.float.ds_space_md'),
         })
         .onChange((value: string) => this.groupNameDraft = value)
 
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.closeGroupDialog())
 
         Divider()
           .vertical(true)
           .strokeWidth(1)
-          .color($r('sys.color.comp_divider'))
+          .color($r('app.color.ds_outline_variant'))
           .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button($r('app.string.confirm'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.submitGroupName())
       }
       .width('100%')
-      .margin({ top: $r('sys.float.padding_level2') })
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .margin({ top: $r('app.float.ds_space_2') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     }
     .width('100%')
-    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
+    .padding({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_sm') })
   }
 
   // 新建落在当前浏览层；重命名沿用同一弹窗，只换标题并回填当前名称。
@@ -352,7 +324,7 @@ export struct GroupManagerPage {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.groupNameDialog(), this.dialogController, {
-        backgroundColor: $r('sys.color.comp_background_primary'),
+        backgroundColor: $r('app.color.ds_surface_low'),
       })
       .catch((error: BusinessError) => {
         LogUtil.error(`打开分组弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
@@ -408,7 +380,7 @@ export struct GroupManagerPage {
       },
       secondaryButton: {
         value: $r('app.string.delete_group'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => this.deleteGroup(group),
       },
     }
@@ -446,21 +418,14 @@ export struct GroupManagerPage {
     AppToast.show(this.getUIContext(), this.viewModel.status)
   }
 
-  private menuItem(icon: SymbolGlyphModifier, label: Resource, action: () => void,
-    enabled: boolean = true): HdsNavigationMenuItemOptions {
-    const content: HdsNavigationIconOptions = {
-      icon: icon,
-      type: IconStyleMode.SMALL,
-      label: label,
-      isEnabled: enabled,
-      action: action,
-    }
-    return { content: content }
-  }
-
-  private menuItems(): HdsNavigationMenuItemOptions[] {
-    const enabled: boolean = !this.viewModel.busy && !this.readOnly
-    return [this.menuItem(this.createIcon, $r('app.string.new_group'), () => this.openCreateDialog(), enabled)]
+  @Builder
+  private pageHeaderBuilder() {
+    DsPageHeader({
+      title: $r('app.string.group_manager'),
+      showBack: true,
+      actions: this.headerActions,
+      onBack: () => appRouter.pop(),
+    })
   }
 
   @Builder
@@ -469,15 +434,12 @@ export struct GroupManagerPage {
       Search({ placeholder: $r('app.string.search_groups'), value: this.searchDraft })
         .height($r('sys.float.titlebar_icon_background_width'))
         .searchButton($r('app.string.search'))
-        .systemMaterial(new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-          interactive: true,
-        }))
+        .backgroundColor($r('app.color.ds_surface_low'))
         .onChange((value: string) => this.applyQuery(value))
         .onSubmit(() => this.viewModel.recordActivity())
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   private applyQuery(value: string): void {
@@ -494,27 +456,27 @@ export struct GroupManagerPage {
   @LocalBuilder
   breadcrumb() {
     Scroll(this.breadcrumbScroller) {
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Button(this.rootName)
           .height($r('sys.float.Title_L'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('sys.color.font_secondary'))
-          .padding({ left: $r('sys.float.padding_level4'), right: $r('sys.float.padding_level4') })
+          .fontColor($r('app.color.ds_text_secondary'))
+          .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_xs') })
           .onClick(() => this.jumpTo(0))
 
         ForEach(this.pathGroups, (group: VaultGroup, index: number) => {
-          Row({ space: $r('sys.float.padding_level2') }) {
-            SymbolGlyph($r('sys.symbol.chevron_forward'))
+          Row({ space: $r('app.float.ds_space_2') }) {
+            SymbolGlyph($r('app.string.symbol_chevron_right'))
               .fontSize($r('sys.float.Body_S'))
-              .fontColor([$r('sys.color.font_tertiary')])
+              .fontColor([$r('app.color.ds_text_tertiary')])
             Button(group.name)
               .height($r('sys.float.Title_L'))
               .buttonStyle(ButtonStyleMode.TEXTUAL)
               .fontSize($r('sys.float.Body_M'))
               .fontColor(index === this.pathGroups.length - 1
-                ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
-              .padding({ left: $r('sys.float.padding_level4'), right: $r('sys.float.padding_level4') })
+                ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_secondary'))
+              .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_xs') })
               .onClick(() => this.jumpTo(index + 1))
           }
         }, (group: VaultGroup) => group.uuid)
@@ -522,15 +484,15 @@ export struct GroupManagerPage {
       // 内容尺寸一变就把当前层级带回视野：当前层级恒为末项，滚到末端即可。
       .onAreaChange((_oldArea: Area, _newArea: Area) => this.breadcrumbScroller.scrollEdge(Edge.End))
       // 内边距放在内容上让滚动视口贴边；与渐隐长度取同一 token，两端末项不被压暗。
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     }
     .width('100%')
-    .margin({ bottom: $r('sys.float.padding_level6') })
+    .margin({ bottom: $r('app.float.ds_space_6') })
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
     .align(Alignment.Start)
     // 溢出侧渐隐：内容在哪一侧被裁掉，哪一侧淡出。
-    .fadingEdge(true, { fadingEdgeLength: LengthMetrics.resource($r('sys.float.padding_level8')) })
+    .fadingEdge(true, { fadingEdgeLength: LengthMetrics.resource($r('app.float.ds_space_sm')) })
     .transition(this.fadeTransition)
   }
 
@@ -563,9 +525,9 @@ export struct GroupManagerPage {
     .scrollBar(BarState.Off)
     .divider({
       strokeWidth: 1,
-      color: $r('sys.color.grid_menu_divider_color'),
+      color: $r('app.color.ds_outline_variant'),
       startMargin: this.dividerStartMargin,
-      endMargin: $r('sys.float.padding_level8'),
+      endMargin: $r('app.float.ds_space_sm'),
     })
     .translate({ x: this.levelOffsetX })
     .opacity(this.levelOpacity)
@@ -621,32 +583,13 @@ export struct GroupManagerPage {
       .height('100%')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
-      .padding({ top: this.contentTopOffset, bottom: this.contentBottomOffset })
+      .padding({ top: $r('app.float.ds_space_lg'), bottom: this.contentBottomOffset })
       .align(Alignment.Top)
+      .clip(false)
     }
-    .titleBar({
-      avoidLayoutSafeArea: true,
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        backIcon: {},
-        title: {
-          mainTitle: $r('app.string.group_manager'),
-        },
-        menu: {
-          value: this.menuItems(),
-        },
-      },
-    })
-    .backgroundColor($r('sys.color.background_secondary'))
+    .titleBar(dsNavPageTitleBarOptions((): void => this.pageHeaderBuilder()))
+    .hideBackButton(true)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
   }
 }
 

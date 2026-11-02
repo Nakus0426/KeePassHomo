@@ -5,10 +5,6 @@
       "value": "连接服务器"
     },
     {
-      "name": "webdav_connect_subtitle",
-      "value": "填写 WebDAV 地址与账号。"
-    },
-    {
       "name": "webdav_server_url",
       "value": "服务器地址"
     },
@@ -31,6 +27,14 @@
     {
       "name": "webdav_status_success",
       "value": "连接成功"
+    },
+    {
+      "name": "webdav_status_success_body",
+      "value": "服务器地址与账号密码已通过校验。"
+    },
+    {
+      "name": "webdav_status_failure_title",
+      "value": "连接失败"
     },
     {
       "name": "webdav_error_invalid_input",

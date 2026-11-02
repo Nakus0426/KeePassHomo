@@ -4,9 +4,11 @@
 
 当前使用该模式的实现：
 
-- `products/default/src/main/ets/pages/generator/GeneratorComponents.ets`（密码生成器，`parameterTabs()` / `selectMode()`）
 - `products/default/src/main/ets/pages/vault/SshKeyGeneratorSheet.ets`（SSH 密钥生成半模态，`typeSelector()` /
-  `selectType()`）
+  `selectType()`），指示块用 `DsSegmentedSwitch`（实色面底，无系统材质）。
+
+密码生成器已改用 `DsTabs`（`GeneratorComponents.parameterTabs()`）；两者都不使用 `TabSegmentButtonV2`。上述 `Tabs` 内容转场仍遵循本文的状态分离与
+`tabsController.changeIndex()` 约束。`Tabs` 不绑定 `index`，转场沿用 `TAB_TRANSITION_START_FRAME_DELAY` 起始帧延迟与 100ms 超时余量。
 
 ## 正确接线
 
@@ -27,11 +29,10 @@
 
   @LocalBuilder
   private typeSelector() {
-    TabSegmentButtonV2({
+    DsSegmentedSwitch({
       items: this.typeItems,
       selectedIndex: this.segmentIndex,
-      backgroundSystemMaterial: this.typeBarMaterial,
-      $selectedIndex: (index: number) => this.selectType(index),
+      onSelect: (index: number) => this.selectType(index),
     })
   }
 
@@ -69,7 +70,7 @@
 
 ## 约束
 
-1. **指示块状态与页签下标必须是两个状态。** 指示块绑 `TabSegmentButtonV2.selectedIndex`，页签绑 `Tabs.index`，两者不要共用一个变量。
+1. **指示块状态与页签下标必须是两个状态。** 指示块绑 `DsSegmentedSwitch.selectedIndex`，页签绑 `Tabs.index`，两者不要共用一个变量。
 2. **点击回调里不要写 `Tabs.index` 绑定的状态。** 在切换动画进行中改写它，页签会把它当成一次新的索引请求，重新执行转场的初始位移，表现为一次反方向抖动（首次切换最明显）。
 3. **点击回调里必须调 `tabsController.changeIndex(index)`。** 只写状态、不调 `changeIndex`，页签按无动画跳转处理，
    `customContentTransition` 落到 `from === to` 分支直接返回，没人把新页签的 `tabOpacity` 置 1，而它的初始值是 0 ——
@@ -80,8 +81,8 @@
 6. **`clip(true)` 收住溢出。** 密码生成器是历史写法 `clip(false)`，新页面统一用 `true`，否则滑动的页签内容会渲染到界面之外。
 7. **指示块状态的写入只能有一处。** 若该写入带副作用（生成器的 `setMode` 会重生成密码），不要同时在 `onAnimationStart`
    里再写一次，否则一次点击执行两遍。
-8. **`$selectedIndex` 是 @Event 回调，不是双向绑定**；`selectedIndex` 是只读 @Param。回调里必须自己写状态，组件才会按新的
-   `selectedIndex` 播指示块动画。详见 SegmentButtonV2 组件文档。
+8. **`onSelect` 是 @Event 回调，不是双向绑定**；`selectedIndex` 是只读 @Param。回调里必须自己写状态，组件才会按新的
+   `selectedIndex` 播指示块动画。
 
 ## 症状速查
 

@@ -1,4 +1,4 @@
-import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
+import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { HdsNavigationMenuItemOptions, IconStyleMode } from '@kit.UIDesignKit'
 import { AnimationTokens, VaultGroup } from '@ohos/common'
 import { appRouter } from '../../navigation/AppRouter'
@@ -53,12 +53,12 @@ struct VaultSwitchButton {
 
   @Computed
   get contentColor(): ResourceColor {
-    return this.pressed ? $r('sys.color.brand_font') : $r('sys.color.font_secondary')
+    return this.pressed ? $r('app.color.ds_primary') : $r('app.color.ds_text_secondary')
   }
 
   build() {
     Button() {
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Text(appViewModel.currentSource().displayName)
           .fontSize($r('sys.float.Body_M'))
           .fontColor(this.contentColor)
@@ -68,7 +68,7 @@ struct VaultSwitchButton {
             duration: AnimationTokens.STATE_TRANSITION_DURATION,
             curve: AnimationTokens.STATE_TRANSITION_CURVE,
           })
-        SymbolGlyph($r('sys.symbol.chevron_forward'))
+        SymbolGlyph($r('app.string.symbol_chevron_right'))
           .fontSize($r('sys.float.Body_M'))
           .fontColor([this.contentColor])
           .animation({
@@ -93,11 +93,11 @@ struct VaultSwitchButton {
 
 @Builder
 function vaultTitleRowBuilder() {
-  Column({ space: $r('sys.float.padding_level2') }) {
+  Column({ space: $r('app.float.ds_space_2') }) {
     Text($r('app.string.vault_home'))
       .fontSize($r('sys.float.Title_M'))
       .fontWeight(FontWeight.Bold)
-      .fontColor($r('sys.color.font_primary'))
+      .fontColor($r('app.color.ds_text_primary'))
       .maxLines(1)
 
     if (appViewModel.hasRecentVault()) {
@@ -123,28 +123,25 @@ struct VaultFilter {
   // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
   private readonly viewModel: AppViewModel = appViewModel
-  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
 
   private generateModeOptionIcon(mode: VaultBrowseMode, activated: boolean): SymbolGlyphModifier {
     const modeIconMap = new Map([
-      [VaultBrowseMode.All, $r('sys.symbol.square_grid_2x2')],
-      [VaultBrowseMode.Favorites, $r('sys.symbol.star')],
-      [VaultBrowseMode.Archived, $r('sys.symbol.archivebox')],
+      [VaultBrowseMode.All, $r('app.string.symbol_grid')],
+      [VaultBrowseMode.Favorites, $r('app.string.symbol_star')],
+      [VaultBrowseMode.Archived, $r('app.string.symbol_archive')],
     ])
     const modeIconActivedMap = new Map([
-      [VaultBrowseMode.All, $r('sys.symbol.square_fill_grid_2x2')],
-      [VaultBrowseMode.Favorites, $r('sys.symbol.star_fill')],
-      [VaultBrowseMode.Archived, $r('sys.symbol.archivebox_fill')],
+      [VaultBrowseMode.All, $r('app.string.symbol_grid_filled')],
+      [VaultBrowseMode.Favorites, $r('app.string.symbol_star_filled')],
+      [VaultBrowseMode.Archived, $r('app.string.symbol_archive_filled')],
     ])
     const icon = activated ? modeIconActivedMap.get(mode) : modeIconMap.get(mode)
 
     return new SymbolGlyphModifier(icon)
       .fontSize($r('sys.float.Subtitle_L'))
       .fontColor([activated
-        ? $r('sys.color.ohos_id_color_text_primary_activated')
-        : $r('sys.color.ohos_id_color_text_primary')])
+        ? $r('app.color.ds_primary')
+        : $r('app.color.ds_text_primary')])
   }
 
   @Computed
@@ -220,14 +217,9 @@ struct VaultFilter {
         .value(this.groupFilterLabel)
         .font({ size: $r('sys.float.Body_M'), weight: FontWeight.Regular })
         .optionFont({ size: $r('sys.float.Body_M') })
-        .fontColor($r('sys.color.font_primary'))
+        .fontColor($r('app.color.ds_text_primary'))
         .controlSize(ControlSize.SMALL)
-        .systemMaterial(new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-          interactive: true,
-          applyShadow: false,
-        }))
-        .menuSystemMaterial(new uiMaterial.ImmersiveMaterial({ style: uiMaterial.ImmersiveStyle.THICK }))
+        .backgroundColor($r('app.color.ds_surface_low'))
         .constraintSize({ maxWidth: this.groupLabelMaxWidth })
         .focusable(false)
         .accessibilityLevel('no')
@@ -256,14 +248,9 @@ struct VaultFilter {
       .value(browseModeLabel(this.home.browseMode))
       .font({ size: $r('sys.float.Body_M'), weight: FontWeight.Regular })
       .optionFont({ size: $r('sys.float.Body_M') })
-      .fontColor($r('sys.color.font_primary'))
+      .fontColor($r('app.color.ds_text_primary'))
       .controlSize(ControlSize.SMALL)
-      .systemMaterial(new uiMaterial.ImmersiveMaterial({
-        style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-        interactive: true,
-        applyShadow: false,
-      }))
-      .menuSystemMaterial(new uiMaterial.ImmersiveMaterial({ style: uiMaterial.ImmersiveStyle.THICK }))
+      .backgroundColor($r('app.color.ds_surface_low'))
       .onSelect((index: number) => this.home.setBrowseMode(browseModeAtIndex(index)))
   }
 
@@ -281,7 +268,7 @@ struct VaultFilter {
   }
 
   build() {
-    Row({ space: $r('sys.float.padding_level4') }) {
+    Row({ space: $r('app.float.ds_space_xs') }) {
       this.groupFilterButton()
       this.browseModeSelect()
     }
@@ -294,8 +281,7 @@ struct VaultFilter {
     })
     .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
       dragBar: true,
-      backgroundColor: Color.Transparent,
-      systemMaterial: this.sheetMaterial,
+      backgroundColor: $r('app.color.ds_surface_lowest'),
       showClose: false,
       onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
       onDisappear: () => {
@@ -316,7 +302,7 @@ export const vaultTabChrome: ModuleTabChrome = {
   bottomRowBuilder: wrapBuilder(vaultFilterRowBuilder),
   menuItems: (): HdsNavigationMenuItemOptions[] => [{
     content: {
-      icon: $r('sys.symbol.magnifyingglass'),
+      icon: $r('app.string.symbol_search'),
       type: IconStyleMode.SMALL,
       label: $r('app.string.search'),
       action: (): void => {

@@ -23,6 +23,7 @@ export class AppRouter {
   private lastBackRoute: string = ''
   private homeTransitionPending: boolean = false
   private lockEnterPending: boolean = false
+  private lockedStack: Array<NavPathInfo> = []
 
   attach(observer: UIObserver): void {
     observer.on('navDestinationUpdate', this.onNavDestinationUpdate)
@@ -32,21 +33,23 @@ export class AppRouter {
     observer.off('navDestinationUpdate', this.onNavDestinationUpdate)
   }
 
-  push(route: string, param?: Object): void {
-    this.stack.pushPathByName(route, param)
+  push(route: string, param?: Object, options?: NavigationOptions): void {
+    this.stack.pushPath(new NavPathInfo(route, param), options)
   }
 
   pop(): void {
     this.stack.pop()
   }
 
+  // 仅供不播动画的整栈重建；同帧清栈+入栈会被系统折叠成净结果（栈变浅），用于跳转必然得到反向动画
   resetTo(route: string, param?: Object, animated: boolean = false): void {
-    this.stack.clear()
+    this.stack.clear(false)
     this.stack.pushPathByName(route, param, animated)
   }
 
   // 首页不是 NavDestination，uiObserver 收不到事件，需手动标记 currentRoute
   clearToHome(): void {
+    this.lockedStack = []
     this.stack.clear()
     this.currentRoute = ROUTE_HOME
     this.homeTransitionPending = true
@@ -62,8 +65,25 @@ export class AppRouter {
   }
 
   lockToUnlock(): void {
+    // 快照必须早于清栈：解锁成功后要还原到锁定前的页面，而不是回首页
+    this.lockedStack = this.stack.getPathStack()
     this.lockEnterPending = true
     this.resetTo(ROUTE_UNLOCK)
+  }
+
+  // 解锁成功后还原锁定前的栈。这是还原而非返回，用户不能靠返回键回到锁定前的页面
+  restoreAfterUnlock(): void {
+    const snapshot: Array<NavPathInfo> = this.lockedStack
+    this.lockedStack = []
+    if (snapshot.length === 0) {
+      this.clearToHome()
+      return
+    }
+    const restored: Array<NavPathInfo> = []
+    for (const info of snapshot) {
+      restored.push(new NavPathInfo(info.name, info.param))
+    }
+    this.stack.setPathStack(restored, false)
   }
 
   consumeLockEnter(): boolean {

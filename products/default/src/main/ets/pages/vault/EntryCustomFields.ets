@@ -1,16 +1,11 @@
-import { ListItemModifier, SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
-import {
-  HdsListItem,
-  hdsMaterial,
-  HdsNavigation,
-  HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
+import { ListItemModifier } from '@kit.ArkUI'
+import { HdsListItem } from '@kit.UIDesignKit'
 import { AnimationTokens, VaultFieldType } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { FIELD_TYPE_DEFINITIONS, FieldTypeDefinition, fieldTypeDefinition } from '../../model/FieldTypeCatalog'
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPageHeaderAction } from '../../components/DsPageHeader'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；与模板选择器同档，按组件宽度切档，宽度由列数均分。
 const FIELD_TYPE_CARD_COLUMNS: GridRowColumnOption = {
@@ -44,7 +39,7 @@ export struct EntryCustomFields {
   // HdsListItem 不支持通用属性，间距与增删转场经 ListItemModifier 下发。
   // animation 必须挂在组合链首个效果上，否则不会作用于后面的 scale。
   private readonly fieldCardItemModifier: ListItemModifier = new ListItemModifier()
-    .margin({ bottom: $r('sys.float.padding_level8') })
+    .margin({ bottom: $r('app.float.ds_space_sm') })
     .transition(TransitionEffect.asymmetric(
       TransitionEffect.OPACITY
         .animation({
@@ -65,11 +60,6 @@ export struct EntryCustomFields {
           y: AnimationTokens.CARD_EXIT_SCALE,
         })),
     ))
-  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
-  private readonly cancelIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontColor([$r('sys.color.titlebar_icon_color')])
 
   @Monitor('active')
   onActiveChanged(): void {
@@ -78,14 +68,6 @@ export struct EntryCustomFields {
       this.pendingDefinition = undefined
       this.closeCellEdit()
     }
-  }
-
-  // 单行标题栏实测高度才是内容避让量，titlebar_default_height 含材质余量，直接用会空出一大截。
-  @Computed
-  private get titleBarOffset(): number {
-    const titlebarHeightPx: number = ResUtil.getNumber($r('sys.float.single_line_titlebar_height').id)
-    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level16').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
   }
 
   // 模板字段由模板区渲染，这里只列用户自定义字段。
@@ -184,12 +166,12 @@ export struct EntryCustomFields {
       this.fieldCard(field)
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   @Builder
   private fieldCard(field: EntryFieldEditor) {
-    Row({ space: $r('sys.float.padding_level8') }) {
+    Row({ space: $r('app.float.ds_space_sm') }) {
       Image(fieldTypeDefinition(field.type).icon)
         .draggable(false)
         .width($r('app.float.field_row_icon_size'))
@@ -197,7 +179,7 @@ export struct EntryCustomFields {
         .objectFit(ImageFit.Contain)
         .alignSelf(ItemAlign.Start)
 
-      Column({ space: $r('sys.float.padding_level2') }) {
+      Column({ space: $r('app.float.ds_space_2') }) {
         if (this.isEditingName(field.id)) {
           TextInput({ text: field.name })
             .id(`custom_field_name_${field.id}`)
@@ -206,7 +188,7 @@ export struct EntryCustomFields {
             .enterKeyType(EnterKeyType.Done)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .padding(0)
             .backgroundColor(Color.Transparent)
             .clip(false)
@@ -226,7 +208,7 @@ export struct EntryCustomFields {
               .width('100%')
               .fontSize($r('sys.float.Body_L'))
               .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_primary'))
+              .fontColor($r('app.color.ds_text_primary'))
               .textAlign(TextAlign.Start)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -247,7 +229,7 @@ export struct EntryCustomFields {
             .constraintSize({ minHeight: $r('sys.float.ohos_id_textfield_content_height') })
             .enterKeyType(EnterKeyType.Done)
             .fontSize($r('sys.float.Body_M'))
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .wordBreak(fieldTypeDefinition(field.type).wordBreak)
             .padding(0)
             .backgroundColor(Color.Transparent)
@@ -267,7 +249,7 @@ export struct EntryCustomFields {
             Text(this.displayValue(field))
               .width('100%')
               .fontSize($r('sys.float.Body_M'))
-              .fontColor($r('sys.color.font_primary'))
+              .fontColor($r('app.color.ds_text_primary'))
               .textAlign(TextAlign.Start)
               .wordBreak(fieldTypeDefinition(field.type).wordBreak)
           }
@@ -283,22 +265,22 @@ export struct EntryCustomFields {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
 
-      SymbolGlyph($r('sys.symbol.chevron_forward'))
+      SymbolGlyph($r('app.string.symbol_chevron_right'))
         .fontSize($r('sys.float.Title_S'))
-        .fontColor([$r('sys.color.font_secondary')])
+        .fontColor([$r('app.color.ds_text_secondary')])
         .fontWeight(FontWeight.Medium)
         .alignSelf(ItemAlign.Center)
     }
     .width('100%')
     .id(`field_${field.id}`)
     .alignItems(VerticalAlign.Top)
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
     .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
     .border({
       width: $r('sys.float.border_width'),
       color: field.id === this.invalidFieldId
-        ? $r('sys.color.warning') : Color.Transparent,
+        ? $r('app.color.ds_warning') : Color.Transparent,
     })
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
@@ -310,14 +292,14 @@ export struct EntryCustomFields {
   private addFieldBuilder() {
     Row() {
       Button() {
-        Row({ space: $r('sys.float.padding_level4') }) {
-          SymbolGlyph($r('sys.symbol.plus'))
+        Row({ space: $r('app.float.ds_space_xs') }) {
+          SymbolGlyph($r('app.string.symbol_add'))
             .fontSize($r('sys.float.chip_normal_icon_size'))
-            .fontColor([$r('sys.color.font_emphasize')])
+            .fontColor([$r('app.color.ds_text_primary')])
 
           Text($r('app.string.add'))
             .fontSize($r('sys.float.chip_normal_font_size'))
-            .fontColor($r('sys.color.font_emphasize'))
+            .fontColor($r('app.color.ds_text_primary'))
         }
       }
       .width('100%')
@@ -328,14 +310,14 @@ export struct EntryCustomFields {
       .onClick(() => this.openTypeSheet())
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     .justifyContent(FlexAlign.Center)
   }
 
   @Builder
   private fieldTypeCard(definition: FieldTypeDefinition) {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Column({ space: $r('sys.float.padding_level4') }) {
+      Column({ space: $r('app.float.ds_space_xs') }) {
         Image(definition.icon)
           .draggable(false)
           .width($r('app.float.field_type_icon_size'))
@@ -346,14 +328,14 @@ export struct EntryCustomFields {
           .width('100%')
           .fontSize($r('sys.float.Body_L'))
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font_primary'))
+          .fontColor($r('app.color.ds_text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(definition.description)
           .width('100%')
           .fontSize($r('sys.float.Body_S'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('app.color.ds_text_secondary'))
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -362,77 +344,61 @@ export struct EntryCustomFields {
     }
     .width('100%')
     .height($r('app.float.field_type_card_height'))
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .onClick(() => this.pickType(definition))
+  }
+
+  @LocalBuilder
+  private typeSheetBody() {
+    Scroll() {
+      Column() {
+        GridRow({
+          columns: FIELD_TYPE_CARD_COLUMNS,
+          gutter: { x: $r('app.float.ds_space_sm'), y: $r('app.float.ds_space_sm') },
+          breakpoints: {
+            value: FIELD_TYPE_CARD_BREAKPOINTS,
+            reference: BreakpointsReference.ComponentSize,
+          },
+        }) {
+          ForEach(FIELD_TYPE_DEFINITIONS, (definition: FieldTypeDefinition) => {
+            GridCol({ span: 1 }) {
+              this.fieldTypeCard(definition)
+            }
+          }, (definition: FieldTypeDefinition) => definition.type)
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .padding({
+        top: $r('app.float.ds_space_lg'),
+        bottom: this.bottomOffset,
+        left: $r('app.float.ds_space_sm'),
+        right: $r('app.float.ds_space_sm'),
+      })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .align(Alignment.Top)
+    .clip(false)
   }
 
   @Builder
   private typeSheet() {
-    HdsNavigation() {
-      Scroll() {
-        Column() {
-          GridRow({
-            columns: FIELD_TYPE_CARD_COLUMNS,
-            gutter: { x: $r('sys.float.padding_level8'), y: $r('sys.float.padding_level8') },
-            breakpoints: {
-              value: FIELD_TYPE_CARD_BREAKPOINTS,
-              reference: BreakpointsReference.ComponentSize,
-            },
-          }) {
-            ForEach(FIELD_TYPE_DEFINITIONS, (definition: FieldTypeDefinition) => {
-              GridCol({ span: 1 }) {
-                this.fieldTypeCard(definition)
-              }
-            }, (definition: FieldTypeDefinition) => definition.type)
-          }
-          .width('100%')
-        }
-        .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({
-          top: this.titleBarOffset,
-          bottom: this.bottomOffset,
-          left: $r('sys.float.padding_level8'),
-          right: $r('sys.float.padding_level8'),
-        })
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
-    }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        title: {
-          mainTitle: $r('app.string.select_type'),
-        },
-        menu: {
-          value: [{
-            content: {
-              icon: this.cancelIcon,
-              type: IconStyleMode.SMALL,
-              label: $r('app.string.close'),
-              action: () => this.closeTypeSheet(),
-            },
-          }],
-        },
-      },
+    DsHalfModalSheet({
+      title: $r('app.string.select_type'),
+      actions: this.typeSheetActions(),
+      bodyBuilder: this.typeSheetBody,
     })
+  }
+
+  private typeSheetActions(): DsPageHeaderAction[] {
+    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeTypeSheet() }]
   }
 
   build() {
@@ -471,8 +437,7 @@ export struct EntryCustomFields {
     .bindSheet($$this.typeSheetVisible, this.typeSheet(), {
       dragBar: true,
       showClose: false,
-      backgroundColor: Color.Transparent,
-      systemMaterial: this.sheetMaterial,
+      backgroundColor: $r('app.color.ds_surface_lowest'),
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       // 默认 FOLLOW_DETENT 只在跟手结束后重排内容，多挡位拖动时会看到内容截断与松手跳变。
       scrollSizeMode: ScrollSizeMode.CONTINUOUS,

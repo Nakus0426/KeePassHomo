@@ -2,6 +2,7 @@ import { Configuration, UIAbility } from '@kit.AbilityKit'
 import { window } from '@kit.ArkUI'
 import { text } from '@kit.ArkGraphics2D'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { symbolRegister } from '@kit.UIDesignKit'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
 import { appSessionState } from '../state/AppSessionState'
 import { colorModeState } from '../state/ColorModeState'
@@ -42,6 +43,7 @@ export default class DefaultAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     immersiveLayoutState.reset()
     this.registerPasswordFont()
+    this.registerSymbols()
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         LogUtil.error(`页面加载失败，错误码：${err.code}`)
@@ -106,6 +108,19 @@ export default class DefaultAbility extends UIAbility {
     } catch (error) {
       const businessError: BusinessError = error as BusinessError
       LogUtil.error(`密码生成器字体注册失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
+    }
+  }
+
+  private registerSymbols(): void {
+    try {
+      const result: boolean =
+        symbolRegister.registerSymbol($rawfile('symbol/symbol_all.ttf'), $rawfile('symbol/symbol_all.json'))
+      if (!result) {
+        LogUtil.error('自定义 Symbol 注册失败')
+      }
+    } catch (error) {
+      const businessError: BusinessError = error as BusinessError
+      LogUtil.error(`自定义 Symbol 注册异常，错误码=${businessError.code}，错误信息=${businessError.message}`)
     }
   }
 }

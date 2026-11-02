@@ -1,19 +1,9 @@
-import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, matrix4, SymbolGlyphModifier } from '@kit.ArkUI'
-import {
-  hdsMaterial,
-  HdsNavigation,
-  HdsNavigationIconOptions,
-  HdsNavigationMenuItemOptions,
-  HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
+import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, matrix4 } from '@kit.ArkUI'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
-import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
 import {
   AnimationTokens,
   AppToast,
@@ -36,8 +26,9 @@ import { fieldTypeDefinition } from '../../model/FieldTypeCatalog'
 import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
 import { EntryAttachmentList } from './EntryAttachmentList'
 import { EntrySshKeyList } from './EntrySshKeyList'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPageHeaderAction } from '../../components/DsPageHeader'
 
-const PREVIEW_MENU_MAX_COUNT: number = 4
 const PASSWORD_MASK: string = '••••••••'
 // 与详情页既有显示时长一致；B04 统一切换到 PASSWORD_REVEAL_SECONDS 时改这一处。
 const PREVIEW_REVEAL_SECONDS: number = 30
@@ -119,7 +110,7 @@ struct Cell {
   @Param valueExpanded: boolean = false
   @Param clickable: boolean = true
   @Param showTrailingButton: boolean = false
-  @Param trailingSymbol: Resource = $r('sys.symbol.chevron_down')
+  @Param trailingSymbol: Resource = $r('app.string.symbol_chevron_down')
   @Param showExpandedContent: boolean = false
   @Param expandedContent: string = ''
   @Event onTrailingClick: () => void = () => {
@@ -132,7 +123,7 @@ struct Cell {
   build() {
     ListItem() {
       Column() {
-        Row({ space: $r('sys.float.padding_level4') }) {
+        Row({ space: $r('app.float.ds_space_xs') }) {
           if (this.iconImage !== undefined) {
             Image(this.iconImage)
               .draggable(false)
@@ -144,23 +135,23 @@ struct Cell {
             SymbolGlyph(this.icon)
               .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
               .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-              .fontColor([$r('sys.color.brand')])
+              .fontColor([$r('app.color.ds_primary')])
           }
 
-          Column({ space: $r('sys.float.padding_level4') }) {
+          Column({ space: $r('app.float.ds_space_xs') }) {
             Text(this.label)
               .fontSize($r('sys.float.Body_M'))
-              .fontColor($r('sys.color.font_secondary'))
+              .fontColor($r('app.color.ds_text_secondary'))
             if (this.valueExpanded) {
               Text(this.value.length > 0 ? this.value : ' ')
                 .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
+                .fontColor($r('app.color.ds_text_primary'))
                 .fontWeight(FontWeight.Medium)
                 .wordBreak(WordBreak.BREAK_ALL)
             } else {
               Text(this.value.length > 0 ? this.value : ' ')
                 .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('sys.color.font_primary'))
+                .fontColor($r('app.color.ds_text_primary'))
                 .fontWeight(FontWeight.Medium)
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -171,7 +162,7 @@ struct Cell {
           .alignItems(HorizontalAlign.Start)
 
           if (this.trailingBuilder !== undefined) {
-            Row({ space: $r('sys.float.padding_level4') }) {
+            Row({ space: $r('app.float.ds_space_xs') }) {
               this.trailingBuilder()
             }
             .alignSelf(ItemAlign.Center)
@@ -193,14 +184,14 @@ struct Cell {
       }
 
     }
-    .padding($r('sys.float.padding_level6'))
-    .margin($r('sys.float.padding_level2'))
+    .padding($r('app.float.ds_space_6'))
+    .margin($r('app.float.ds_space_2'))
     .stateStyles({
       normal: {
         .backgroundColor(Color.Transparent)
       },
       pressed: {
-        .backgroundColor(this.clickable ? $r('sys.color.interactive_pressed') : Color.Transparent)
+        .backgroundColor(this.clickable ? $r('app.color.ds_default_press') : Color.Transparent)
       },
     })
     .borderRadius($r('sys.float.corner_radius_level8'))
@@ -216,7 +207,6 @@ struct Cell {
 @ComponentV2
 export struct EntryPreviewView {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
-  @Param topOffset: number = 0
   @Param bottomOffset: number = 0
   @Event onClose: () => void = () => {
   }
@@ -235,21 +225,6 @@ export struct EntryPreviewView {
   @Local private cardPressDepth: number = 0
   private revealTimer: number = -1
   private readonly viewModel: AppViewModel = appViewModel
-  private readonly favoriteIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.star'))
-      .fontColor([$r('sys.color.titlebar_icon_color')])
-  private readonly favoritedIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.star_fill'))
-      .fontColor([$r('app.color.favorite')])
-  private readonly editIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.square_and_pencil'))
-      .fontColor([$r('sys.color.titlebar_icon_color')])
-  private readonly deleteIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.trash'))
-      .fontColor([$r('sys.color.warning')])
-  private readonly closeIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.xmark'))
-      .fontColor([$r('sys.color.titlebar_icon_color')])
 
   private needsExpansion(value: string): boolean {
     return value.includes('\n') || value.length > 48
@@ -611,7 +586,7 @@ export struct EntryPreviewView {
       },
       secondaryButton: {
         value: $r('app.string.delete_entry'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => this.viewModel.deleteEntry(this.sheet.entryUuid).then((deleted: boolean) => {
           if (deleted) {
             this.onClose()
@@ -622,39 +597,42 @@ export struct EntryPreviewView {
     this.getUIContext().showAlertDialog(options)
   }
 
-  private menuItem(icon: SymbolGlyphModifier, label: Resource, action: () => void,
-    enabled: boolean = true): HdsNavigationMenuItemOptions {
-    const content: HdsNavigationIconOptions = {
-      icon: icon,
-      type: IconStyleMode.SMALL,
-      label: label,
-      isEnabled: enabled,
-      action: action,
-    }
-    return { content: content }
-  }
-
-  private previewMenuItems(): HdsNavigationMenuItemOptions[] {
+  private previewActions(): DsPageHeaderAction[] {
     if (this.sheet.readOnly) {
-      return [this.menuItem(this.closeIcon, $r('app.string.close'), () => this.onClose())]
+      return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() }]
     }
     return [
-      this.menuItem(this.sheet.favorite ? this.favoritedIcon : this.favoriteIcon,
-        this.sheet.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
-        () => this.sheet.toggleFavorite(), !this.viewModel.busy),
-      this.menuItem(this.editIcon, $r('app.string.edit'), () => this.onEdit(), !this.viewModel.busy),
-      this.menuItem(this.deleteIcon, $r('app.string.delete_entry'), () => this.confirmDelete(),
-        !this.viewModel.busy),
-      this.menuItem(this.closeIcon, $r('app.string.close'), () => this.onClose()),
+      {
+        icon: this.sheet.favorite ? $r('app.string.symbol_star_filled') : $r('app.string.symbol_star'),
+        label: this.sheet.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
+        enabled: !this.viewModel.busy,
+        onTap: () => this.sheet.toggleFavorite(),
+      },
+      {
+        icon: $r('app.string.symbol_edit'),
+        label: $r('app.string.edit'),
+        enabled: !this.viewModel.busy,
+        onTap: () => this.onEdit(),
+      },
+      {
+        icon: $r('app.string.symbol_delete'),
+        label: $r('app.string.delete_entry'),
+        enabled: !this.viewModel.busy,
+        onTap: () => this.confirmDelete(),
+      },
+      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
     ]
   }
 
   @LocalBuilder
   private revealTrailing(definition: TemplateFieldDefinition) {
-    PasswordVisibilityToggle({
-      visible: this.revealedKeys.has(definition.key),
+    IconToggleButton({
+      symbol: $r('app.string.symbol_eye_off'),
+      symbolChecked: $r('app.string.symbol_eye'),
+      checked: this.revealedKeys.has(definition.key),
+      accessibilityLabel: this.revealedKeys.has(definition.key) ? $r('app.string.hide') : $r('app.string.show'),
       exclusive: true,
-      onChange: () => this.toggleReveal(definition.key),
+      onToggle: () => this.toggleReveal(definition.key),
     })
   }
 
@@ -754,7 +732,7 @@ export struct EntryPreviewView {
       Column()
         .width('100%')
         .height('100%')
-        .borderRadius($r('sys.float.corner_radius_level10'))
+        .borderRadius($r('app.float.ds_radius_none'))
         .border({ width: 1, color: ColorUtil.withAlphaHex($r('sys.color.white'), this.cardRimOpacity) })
         .hitTestBehavior(HitTestMode.None)
 
@@ -789,9 +767,9 @@ export struct EntryPreviewView {
     }
     .width('100%')
     .aspectRatio(CARD_ASPECT)
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .clip(true)
-    .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .margin({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     .transform(this.cardTransform)
     // setPolyToPoly 的映射以组件中心点为基准，官方要求把变换中心搬回左上角。
     .scale({
@@ -816,8 +794,8 @@ export struct EntryPreviewView {
       Text(this.countdownText())
         .width('100%')
         .fontSize($r('sys.float.Body_S'))
-        .fontColor($r('sys.color.font_tertiary'))
-        .padding({ top: $r('sys.float.padding_level4'), left: $r('sys.float.padding_level16') })
+        .fontColor($r('app.color.ds_text_tertiary'))
+        .padding({ top: $r('app.float.ds_space_xs'), left: $r('app.float.ds_space_16') })
     }
   }
 
@@ -877,7 +855,7 @@ export struct EntryPreviewView {
         onCellClick: () => this.copy(this.templateValue(definition)),
         showTrailingButton: this.needsExpansion(this.templateValue(definition)),
         trailingSymbol: this.sheet.expandedCustomFields.has(definition.key)
-          ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+          ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
         onTrailingClick: () => this.sheet.toggleCustomExpanded(definition.key),
       })
     }
@@ -887,7 +865,7 @@ export struct EntryPreviewView {
   private urlTrailing() {
     if (this.fieldValue('URL').length > 0) {
       IconToggleButton({
-        symbol: $r('sys.symbol.arrow_up_right'),
+        symbol: $r('app.string.symbol_open_in_new'),
         accessibilityLabel: $r('app.string.open_link'),
         exclusive: true,
         onToggle: () => this.openUrl(),
@@ -899,7 +877,7 @@ export struct EntryPreviewView {
   private notesTrailing() {
     if (this.needsExpansion(this.notes)) {
       IconToggleButton({
-        symbol: this.sheet.notesExpanded ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+        symbol: this.sheet.notesExpanded ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
         accessibilityLabel: $r('app.string.notes'),
         exclusive: true,
         onToggle: () => this.sheet.toggleNotesExpanded(),
@@ -907,12 +885,11 @@ export struct EntryPreviewView {
     }
   }
 
-  @Builder
-  private previewMenu() {
-    HdsNavigation() {
-      Scroll() {
-        Column({ space: $r('sys.float.padding_level16') }) {
-          Row({ space: $r('sys.float.padding_level8') }) {
+  @LocalBuilder
+  private previewMenuBody() {
+    Scroll() {
+        Column({ space: $r('app.float.ds_space_16') }) {
+          Row({ space: $r('app.float.ds_space_sm') }) {
             EntryAvatar(
               {
                 title: this.sheet.title,
@@ -920,21 +897,21 @@ export struct EntryPreviewView {
                 avatarSize: $r('app.float.entry_avatar_size'),
                 initialsFontSize: $r('sys.float.Display_S'),
               })
-            Column({ space: $r('sys.float.padding_level4') }) {
+            Column({ space: $r('app.float.ds_space_xs') }) {
               Text(this.sheet.title)
                 .width('100%')
                 .fontSize($r('sys.float.Title_M'))
                 .fontWeight(FontWeight.Bold)
-                .fontColor($r('sys.color.font_primary'))
+                .fontColor($r('app.color.ds_text_primary'))
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .ellipsisMode(EllipsisMode.CENTER)
-              Row({ space: $r('sys.float.padding_level4') }) {
-                SymbolGlyph($r('sys.symbol.folder')).fontSize($r('sys.float.Body_M'))
-                  .fontColor([$r('sys.color.font_secondary')])
+              Row({ space: $r('app.float.ds_space_xs') }) {
+                SymbolGlyph($r('app.string.symbol_folder')).fontSize($r('sys.float.Body_M'))
+                  .fontColor([$r('app.color.ds_text_secondary')])
                 Text(this.sheet.groupPath)
                   .fontSize($r('sys.float.Body_M'))
-                  .fontColor($r('sys.color.font_secondary'))
+                  .fontColor($r('app.color.ds_text_secondary'))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
                   .ellipsisMode(EllipsisMode.CENTER)
@@ -944,13 +921,13 @@ export struct EntryPreviewView {
             }
             .layoutWeight(1).alignItems(HorizontalAlign.Start)
           }
-          .margin({ left: $r('sys.float.padding_level8') })
+          .margin({ left: $r('app.float.ds_space_sm') })
 
           if (this.showBankCard) {
             this.bankCard()
           }
 
-          Column({ space: $r('sys.float.padding_level8') }) {
+          Column({ space: $r('app.float.ds_space_sm') }) {
             if (this.sshKeys.length > 0) {
               EntrySshKeyList({
                 keys: this.sshKeys,
@@ -970,13 +947,13 @@ export struct EntryPreviewView {
                 this.templateCell(definition)
               }, (definition: TemplateFieldDefinition) => definition.key)
             }
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .borderRadius($r('sys.float.corner_radius_level10'))
+            .backgroundColor($r('app.color.ds_surface_high'))
+            .borderRadius($r('app.float.ds_radius_none'))
             .divider({
               strokeWidth: 1,
-              color: $r('sys.color.grid_menu_divider_color'),
-              startMargin: $r('sys.float.padding_level8'),
-              endMargin: $r('sys.float.padding_level8'),
+              color: $r('app.color.ds_outline_variant'),
+              startMargin: $r('app.float.ds_space_sm'),
+              endMargin: $r('app.float.ds_space_sm'),
             })
 
             if (this.customFields.length > 0) {
@@ -996,33 +973,33 @@ export struct EntryPreviewView {
                     onCellClick: () => this.copy(field.value),
                     showTrailingButton: this.needsExpansion(field.value),
                     trailingSymbol: this.sheet.expandedCustomFields.has(field.name)
-                      ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'),
+                      ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
                     onTrailingClick: () => this.sheet.toggleCustomExpanded(field.name),
                   })
                 }, (field: VaultField) => field.name)
               }
               .width('100%')
-              .backgroundColor($r('sys.color.comp_background_tertiary'))
-              .borderRadius($r('sys.float.corner_radius_level10'))
+              .backgroundColor($r('app.color.ds_surface_high'))
+              .borderRadius($r('app.float.ds_radius_none'))
               .divider({
                 strokeWidth: 1,
-                color: $r('sys.color.grid_menu_divider_color'),
-                startMargin: $r('sys.float.padding_level8'),
-                endMargin: $r('sys.float.padding_level8'),
+                color: $r('app.color.ds_outline_variant'),
+                startMargin: $r('app.float.ds_space_sm'),
+                endMargin: $r('app.float.ds_space_sm'),
               })
               .scrollBar(BarState.Off)
             }
 
             Row() {
-              Row({ space: $r('sys.float.padding_level4') }) {
-                SymbolGlyph($r('sys.symbol.label'))
+              Row({ space: $r('app.float.ds_space_xs') }) {
+                SymbolGlyph($r('app.string.symbol_label'))
                   .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
                   .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-                  .fontColor([$r('sys.color.brand')])
+                  .fontColor([$r('app.color.ds_primary')])
                 Flex({
                   wrap: FlexWrap.Wrap, space: {
-                    main: LengthMetrics.resource($r('sys.float.padding_level8')),
-                    cross: LengthMetrics.resource($r('sys.float.padding_level8')),
+                    main: LengthMetrics.resource($r('app.float.ds_space_sm')),
+                    cross: LengthMetrics.resource($r('app.float.ds_space_sm')),
                   },
                 }) {
                   ForEach(this.sheet.tags, (tag: string) => {
@@ -1038,19 +1015,19 @@ export struct EntryPreviewView {
               }
               .width('100%')
               .alignItems(VerticalAlign.Top)
-              .padding($r('sys.float.padding_level8'))
+              .padding($r('app.float.ds_space_sm'))
             }
             .width('100%')
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .borderRadius($r('sys.float.corner_radius_level10'))
+            .backgroundColor($r('app.color.ds_surface_high'))
+            .borderRadius($r('app.float.ds_radius_none'))
           }
-          .margin({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+          .margin({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
 
         }
         .justifyContent(FlexAlign.Start)
         .width('100%')
         .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({ top: this.topOffset, bottom: this.bottomOffset })
+        .padding({ top: $r('app.float.ds_space_lg'), bottom: this.bottomOffset })
         .onTouch(() => this.viewModel.recordActivity())
       }
       .width('100%')
@@ -1059,21 +1036,14 @@ export struct EntryPreviewView {
       .align(Alignment.Top)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
-    }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: { enableScrollEffect: false, scrollEffectType: ScrollEffectType.GRADIENT_BLUR },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: { title: { mainTitle: '' }, menu: { maxCount: PREVIEW_MENU_MAX_COUNT, value: this.previewMenuItems() } },
-    })
+      .clip(false)
   }
 
   build() {
-    this.previewMenu()
+    DsHalfModalSheet({
+      title: '',
+      actions: this.previewActions(),
+      bodyBuilder: this.previewMenuBody,
+    })
   }
 }

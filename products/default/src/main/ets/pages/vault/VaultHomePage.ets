@@ -1,4 +1,4 @@
-import { curves, ListItemModifier, SymbolGlyphModifier, UIContext, uiMaterial } from '@kit.ArkUI'
+import { curves, ListItemModifier, SymbolGlyphModifier, UIContext } from '@kit.ArkUI'
 import { HdsListItem } from '@kit.UIDesignKit'
 import { AnimationTokens, AppToast, ItemTemplate, VaultEntry } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
@@ -63,9 +63,6 @@ export struct VaultHomePage {
   @Local private templatePickerVisible: boolean = false
   // 选择器未收起前不打开编辑半模态，避免两个半模态叠加。
   private pickedTemplate: ItemTemplate | undefined = undefined
-  private readonly templatePickerMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
   // HdsListItem 不支持通用属性，增删转场只能经 ListItemModifier 下发。
   // animation 写在组合链首个效果上，按官方规则会同时作用于后面的 scale 效果。
   private readonly entryCardItemModifier: ListItemModifier = new ListItemModifier()
@@ -145,7 +142,7 @@ export struct VaultHomePage {
   @Computed
   get topAvoidAreaHeight(): number {
     const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapPx = ResUtil.getNumber($r('app.float.ds_space_sm').id)
     const systemOffsetVp = this.getUIContext()
       .px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarHeightPx + gapPx)
     return systemOffsetVp + TITLE_BAR_FILTER_ROW_HEIGHT_VP
@@ -153,7 +150,7 @@ export struct VaultHomePage {
 
   @Computed
   get bottomAvoidHeight(): number {
-    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
     const gapVp: number = this.getUIContext().px2vp(gapPx)
     // 悬浮按钮显示时，底部再让出按钮直径与按钮到内容的同档间距，避免压住最后一张卡片。
     const fabInsetVp: number = this.showNewEntryFab ? this.newEntryFabDiameter + gapVp : 0
@@ -173,7 +170,7 @@ export struct VaultHomePage {
 
   @Computed
   get newEntryFabBottomInset(): number {
-    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
     return TAB_BAR_FLOAT_TOP_INSET_VP + this.getUIContext().px2vp(gapPx)
   }
 
@@ -188,7 +185,7 @@ export struct VaultHomePage {
       },
       secondaryButton: {
         value: $r('app.string.delete_entry'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => this.list.deleteEntry(row.uuid, this.listHost),
       },
     }
@@ -215,7 +212,7 @@ export struct VaultHomePage {
 
   @Builder
   private emptyBuilder() {
-    Column({ space: $r('sys.float.padding_level6') }) {
+    Column({ space: $r('app.float.ds_space_6') }) {
       Image($r('app.media.entry_empty'))
         .draggable(false)
         .width($r('app.float.vault_empty_icon_size'))
@@ -223,20 +220,20 @@ export struct VaultHomePage {
 
       if (!this.app.currentSource().readOnly) {
         Button() {
-          Row({ space: $r('sys.float.padding_level4') }) {
-            SymbolGlyph($r('sys.symbol.plus'))
+          Row({ space: $r('app.float.ds_space_xs') }) {
+            SymbolGlyph($r('app.string.symbol_add'))
               .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor([$r('sys.color.font_emphasize')])
+              .fontColor([$r('app.color.ds_text_primary')])
 
             Text($r('app.string.new_entry'))
               .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('sys.color.font_emphasize'))
+              .fontColor($r('app.color.ds_text_primary'))
           }
         }
         .height($r('sys.float.chip_normal_height'))
         .buttonStyle(ButtonStyleMode.NORMAL)
         .type(ButtonType.Capsule)
-        .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+        .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
         .onClick(() => this.templatePickerVisible = true)
       }
     }
@@ -266,7 +263,7 @@ export struct VaultHomePage {
       })
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     .height(this.removingEntryUuid === item.item.uuid ? 0 : 'auto')
     .opacity(this.removingEntryUuid === item.item.uuid ? 0 : 1)
     .scale({
@@ -299,10 +296,10 @@ export struct VaultHomePage {
             listItemModifier: this.entryCardItemModifier,
             swipeActionOptions: this.app.currentSource().readOnly ? undefined : {
               icons: [{
-                icon: new SymbolGlyphModifier($r('sys.symbol.square_and_pencil'))
-                  .fontColor([$r('sys.color.icon_on_primary')])
+                icon: new SymbolGlyphModifier($r('app.string.symbol_edit'))
+                  .fontColor([$r('app.color.ds_on_primary')])
                   .fontSize($r('sys.float.titlebar_icon_width')),
-                backgroundColor: $r('sys.color.brand'),
+                backgroundColor: $r('app.color.ds_primary'),
                 onAction: () => entrySheetViewModel.openEdit(item.item.uuid),
               }],
               deleteIconOptions: {
@@ -351,8 +348,8 @@ export struct VaultHomePage {
     .constraintSize({ maxWidth: $r('app.float.content_max_width') })
     .padding({
       top: this.topAvoidAreaHeight,
-      left: $r('sys.float.padding_level8'),
-      right: $r('sys.float.padding_level8'),
+      left: $r('app.float.ds_space_sm'),
+      right: $r('app.float.ds_space_sm'),
       bottom: this.bottomAvoidHeight,
     })
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
@@ -364,18 +361,18 @@ export struct VaultHomePage {
   @LocalBuilder
   private newEntryFab(right: boolean) {
     Button({ type: ButtonType.Circle }) {
-      SymbolGlyph($r('sys.symbol.plus'))
+      SymbolGlyph($r('app.string.symbol_add'))
         .fontSize($r('sys.float.ohos_id_min_circle_button_icon_size'))
-        .fontColor([$r('sys.color.icon_on_primary')])
+        .fontColor([$r('app.color.ds_on_primary')])
     }
     .width(this.newEntryFabDiameter)
     .height(this.newEntryFabDiameter)
     .alignRules(right ? this.fabRulesRight : this.fabRulesLeft)
-    .backgroundColor($r('sys.color.brand'))
+    .backgroundColor($r('app.color.ds_primary'))
     .shadow(ShadowStyle.OUTER_FLOATING_SM)
     .margin({
-      left: $r('sys.float.padding_level8'),
-      right: $r('sys.float.padding_level8'),
+      left: $r('app.float.ds_space_sm'),
+      right: $r('app.float.ds_space_sm'),
       bottom: this.newEntryFabBottomInset,
     })
     .transition(TransitionEffect.move(right ? TransitionEdge.END : TransitionEdge.START)
@@ -422,8 +419,7 @@ export struct VaultHomePage {
           .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), {
             dragBar: true,
             showClose: false,
-            backgroundColor: Color.Transparent,
-            systemMaterial: this.templatePickerMaterial,
+            backgroundColor: $r('app.color.ds_surface_lowest'),
             onDisappear: () => this.onTemplatePickerDisappeared(),
           })
 

@@ -14,7 +14,8 @@ export struct DsStrengthMeter {
     this.level = PasswordStrengthCalculator.calculate(this.password)
   }
 
-  private levelColor(): ResourceColor {
+  @Computed
+  get levelColor(): ResourceColor {
     if (this.level <= StrengthLevel.Weak) {
       return $r('app.color.ds_error')
     }
@@ -30,7 +31,7 @@ export struct DsStrengthMeter {
         Row()
           .height($r('app.float.ds_meter_height'))
           .layoutWeight(1)
-          .backgroundColor(index < this.level ? this.levelColor() : $r('app.color.ds_surface_highest'))
+          .backgroundColor(index < this.level ? this.levelColor : $r('app.color.ds_surface_highest'))
       }, (index: number) => index.toString())
     }
     .width('100%')

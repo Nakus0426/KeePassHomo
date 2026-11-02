@@ -254,6 +254,13 @@ function mapDocument(kdbx: Kdbx): VaultDocument {
   }
 }
 
+// 空密码在 KDBX 语义中是「无密码组件」，KeePass 不会混入空串哈希；传 ProtectedValue('') 会做出打不开的库。
+function credentialsOf(credential: VaultCredential): KdbxCredentials {
+  const password: ProtectedValue | null =
+    credential.password.length === 0 ? null : ProtectedValue.fromString(credential.password)
+  return new KdbxCredentials(password, credential.keyFile)
+}
+
 export class KdbxVaultEngine implements VaultEngine {
   private readonly documents: Map<VaultDocument, Kdbx> = new Map()
 
@@ -269,8 +276,7 @@ export class KdbxVaultEngine implements VaultEngine {
       }
       throw new VaultEngineError(VaultEngineErrorCategory.UnsupportedFormat, '保险库格式不受支持')
     }
-    const credentials: KdbxCredentials = new KdbxCredentials(
-      ProtectedValue.fromString(credential.password), credential.keyFile)
+    const credentials: KdbxCredentials = credentialsOf(credential)
     try {
       await credentials.ready
       const kdbx: Kdbx = await Kdbx.load(data, credentials, { preserveXml: true })
@@ -283,8 +289,7 @@ export class KdbxVaultEngine implements VaultEngine {
   }
 
   async create(name: string, credential: VaultCredential): Promise<VaultDocument> {
-    const credentials: KdbxCredentials = new KdbxCredentials(
-      ProtectedValue.fromString(credential.password), credential.keyFile)
+    const credentials: KdbxCredentials = credentialsOf(credential)
     await credentials.ready
     const kdbx: Kdbx = Kdbx.create(credentials, name)
     kdbx.createDefaultGroup()

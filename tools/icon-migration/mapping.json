@@ -1,0 +1,360 @@
+{
+  "source": "Material Symbols Outlined",
+  "variation": {
+    "wght": 400,
+    "opsz": 24,
+    "grad": 0
+  },
+  "icons": [
+    {
+      "key": "symbol_add",
+      "material": "add",
+      "fill": 0
+    },
+    {
+      "key": "symbol_add_square",
+      "material": "add_box",
+      "fill": 0
+    },
+    {
+      "key": "symbol_archive",
+      "material": "archive",
+      "fill": 0
+    },
+    {
+      "key": "symbol_archive_filled",
+      "material": "archive",
+      "fill": 1
+    },
+    {
+      "key": "symbol_arrow_back",
+      "material": "arrow_back",
+      "fill": 0
+    },
+    {
+      "key": "symbol_arrow_forward",
+      "material": "arrow_forward",
+      "fill": 0
+    },
+    {
+      "key": "symbol_attach_file",
+      "material": "attach_file",
+      "fill": 0
+    },
+    {
+      "key": "symbol_bolt",
+      "material": "bolt",
+      "fill": 0
+    },
+    {
+      "key": "symbol_business",
+      "material": "business",
+      "fill": 0
+    },
+    {
+      "key": "symbol_calendar",
+      "material": "calendar_month",
+      "fill": 0
+    },
+    {
+      "key": "symbol_check",
+      "material": "check",
+      "fill": 0
+    },
+    {
+      "key": "symbol_check_circle",
+      "material": "check_circle",
+      "fill": 0
+    },
+    {
+      "key": "symbol_chevron_down",
+      "material": "expand_more",
+      "fill": 0
+    },
+    {
+      "key": "symbol_chevron_left",
+      "material": "chevron_left",
+      "fill": 0
+    },
+    {
+      "key": "symbol_chevron_right",
+      "material": "chevron_right",
+      "fill": 0
+    },
+    {
+      "key": "symbol_chevron_up",
+      "material": "expand_less",
+      "fill": 0
+    },
+    {
+      "key": "symbol_close",
+      "material": "close",
+      "fill": 0
+    },
+    {
+      "key": "symbol_cloud_sync",
+      "material": "cloud_sync",
+      "fill": 0
+    },
+    {
+      "key": "symbol_copy",
+      "material": "content_copy",
+      "fill": 0
+    },
+    {
+      "key": "symbol_create_folder",
+      "material": "create_new_folder",
+      "fill": 0
+    },
+    {
+      "key": "symbol_credit_card",
+      "material": "credit_card",
+      "fill": 0
+    },
+    {
+      "key": "symbol_data_object",
+      "material": "data_object",
+      "fill": 0
+    },
+    {
+      "key": "symbol_database",
+      "material": "database",
+      "fill": 0
+    },
+    {
+      "key": "symbol_delete",
+      "material": "delete",
+      "fill": 0
+    },
+    {
+      "key": "symbol_description",
+      "material": "description",
+      "fill": 0
+    },
+    {
+      "key": "symbol_divider",
+      "material": "horizontal_rule",
+      "fill": 0
+    },
+    {
+      "key": "symbol_dns",
+      "material": "dns",
+      "fill": 0
+    },
+    {
+      "key": "symbol_download",
+      "material": "download",
+      "fill": 0
+    },
+    {
+      "key": "symbol_edit",
+      "material": "edit_square",
+      "fill": 0
+    },
+    {
+      "key": "symbol_error",
+      "material": "error",
+      "fill": 0
+    },
+    {
+      "key": "symbol_eye",
+      "material": "visibility",
+      "fill": 0
+    },
+    {
+      "key": "symbol_eye_off",
+      "material": "visibility_off",
+      "fill": 0
+    },
+    {
+      "key": "symbol_fingerprint",
+      "material": "fingerprint",
+      "fill": 0
+    },
+    {
+      "key": "symbol_folder",
+      "material": "folder",
+      "fill": 0
+    },
+    {
+      "key": "symbol_folder_filled",
+      "material": "folder",
+      "fill": 1
+    },
+    {
+      "key": "symbol_folder_open",
+      "material": "folder_open",
+      "fill": 0
+    },
+    {
+      "key": "symbol_generate",
+      "material": "auto_awesome",
+      "fill": 0
+    },
+    {
+      "key": "symbol_grid",
+      "material": "grid_view",
+      "fill": 0
+    },
+    {
+      "key": "symbol_grid_filled",
+      "material": "grid_view",
+      "fill": 1
+    },
+    {
+      "key": "symbol_image",
+      "material": "image",
+      "fill": 0
+    },
+    {
+      "key": "symbol_info",
+      "material": "info",
+      "fill": 0
+    },
+    {
+      "key": "symbol_info_filled",
+      "material": "info",
+      "fill": 1
+    },
+    {
+      "key": "symbol_key",
+      "material": "key",
+      "fill": 0
+    },
+    {
+      "key": "symbol_keyboard_tab",
+      "material": "keyboard_tab",
+      "fill": 0
+    },
+    {
+      "key": "symbol_label",
+      "material": "label",
+      "fill": 0
+    },
+    {
+      "key": "symbol_link",
+      "material": "link",
+      "fill": 0
+    },
+    {
+      "key": "symbol_lock",
+      "material": "lock",
+      "fill": 0
+    },
+    {
+      "key": "symbol_lock_filled",
+      "material": "lock",
+      "fill": 1
+    },
+    {
+      "key": "symbol_lock_open",
+      "material": "lock_open",
+      "fill": 0
+    },
+    {
+      "key": "symbol_more",
+      "material": "more_horiz",
+      "fill": 0
+    },
+    {
+      "key": "symbol_notes",
+      "material": "description",
+      "fill": 0
+    },
+    {
+      "key": "symbol_open_in_new",
+      "material": "north_east",
+      "fill": 0
+    },
+    {
+      "key": "symbol_person",
+      "material": "person",
+      "fill": 0
+    },
+    {
+      "key": "symbol_radio_selected",
+      "material": "radio_button_checked",
+      "fill": 0
+    },
+    {
+      "key": "symbol_radio_unselected",
+      "material": "radio_button_unchecked",
+      "fill": 0
+    },
+    {
+      "key": "symbol_refresh",
+      "material": "refresh",
+      "fill": 0
+    },
+    {
+      "key": "symbol_remove",
+      "material": "remove",
+      "fill": 0
+    },
+    {
+      "key": "symbol_save",
+      "material": "save",
+      "fill": 0
+    },
+    {
+      "key": "symbol_schedule",
+      "material": "schedule",
+      "fill": 0
+    },
+    {
+      "key": "symbol_search",
+      "material": "search",
+      "fill": 0
+    },
+    {
+      "key": "symbol_security_warning",
+      "material": "gpp_maybe",
+      "fill": 0
+    },
+    {
+      "key": "symbol_space_bar",
+      "material": "space_bar",
+      "fill": 0
+    },
+    {
+      "key": "symbol_star",
+      "material": "star",
+      "fill": 0
+    },
+    {
+      "key": "symbol_star_filled",
+      "material": "star",
+      "fill": 1
+    },
+    {
+      "key": "symbol_sync",
+      "material": "sync",
+      "fill": 0
+    },
+    {
+      "key": "symbol_upload",
+      "material": "upload",
+      "fill": 0
+    },
+    {
+      "key": "symbol_upload_file",
+      "material": "upload_file",
+      "fill": 0
+    },
+    {
+      "key": "symbol_verified_user",
+      "material": "verified_user",
+      "fill": 0
+    },
+    {
+      "key": "symbol_warning",
+      "material": "warning",
+      "fill": 0
+    },
+    {
+      "key": "symbol_swap_horiz",
+      "material": "swap_horiz",
+      "fill": 0
+    }
+  ]
+}

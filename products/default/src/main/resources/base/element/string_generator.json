@@ -14,27 +14,51 @@
     },
     {
       "name": "password_length_value",
-      "value": "密码长度"
+      "value": "长度"
+    },
+    {
+      "name": "password_length_range",
+      "value": "8–20 位"
     },
     {
       "name": "include_uppercase",
-      "value": "包含大写字母"
+      "value": "大写字母"
     },
     {
       "name": "include_lowercase",
-      "value": "包含小写字母"
+      "value": "小写字母"
     },
     {
       "name": "include_digits",
-      "value": "包含数字"
+      "value": "数字"
     },
     {
       "name": "include_symbols",
-      "value": "包含符号"
+      "value": "符号"
+    },
+    {
+      "name": "charset_uppercase_desc",
+      "value": "A–Z"
+    },
+    {
+      "name": "charset_lowercase_desc",
+      "value": "a–z"
+    },
+    {
+      "name": "charset_digits_desc",
+      "value": "0–9"
+    },
+    {
+      "name": "charset_symbols_desc",
+      "value": "!@#$"
     },
     {
       "name": "exclude_similar",
       "value": "排除易混淆字符"
+    },
+    {
+      "name": "exclude_similar_desc",
+      "value": "0 O 1 l I"
     },
     {
       "name": "minimum_digits_value",
@@ -45,8 +69,16 @@
       "value": "最少符号"
     },
     {
+      "name": "minimum_count_range",
+      "value": "0–8 位"
+    },
+    {
       "name": "word_count_value",
       "value": "单词数量"
+    },
+    {
+      "name": "word_count_range",
+      "value": "3–8"
     },
     {
       "name": "separator",
@@ -62,43 +94,67 @@
     },
     {
       "name": "lowercase",
-      "value": "小写"
+      "value": "全小写"
     },
     {
       "name": "capitalize",
-      "value": "首字母"
+      "value": "首字母大写"
     },
     {
       "name": "uppercase",
-      "value": "大写"
+      "value": "全大写"
     },
     {
       "name": "append_number",
       "value": "末尾追加数字"
     },
     {
+      "name": "append_number_desc",
+      "value": "追加 1 位数字"
+    },
+    {
       "name": "pin_length_value",
       "value": "PIN 长度"
     },
     {
+      "name": "pin_length_range",
+      "value": "4–12"
+    },
+    {
       "name": "avoid_pin_patterns",
-      "value": "避开连续和相邻重复数字"
+      "value": "避开连续与相邻重复"
+    },
+    {
+      "name": "avoid_pin_patterns_desc",
+      "value": "如 1234、1122"
     },
     {
       "name": "no_candidate",
       "value": "当前规则无法生成密码"
     },
     {
+      "name": "generate_result",
+      "value": "生成结果"
+    },
+    {
+      "name": "regenerate_password",
+      "value": "重新生成"
+    },
+    {
+      "name": "copy_password",
+      "value": "复制密码"
+    },
+    {
       "name": "fill_current_entry",
       "value": "填入"
     },
     {
-      "name": "parameter_settings",
-      "value": "参数设置"
-    },
-    {
       "name": "copy_success",
       "value": "密码复制成功，将在30秒后清空"
+    },
+    {
+      "name": "generate_password",
+      "value": "生成密码"
     }
   ]
 }

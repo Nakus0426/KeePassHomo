@@ -1,0 +1,216 @@
+{
+  "version": "1.0.0",
+  "axes": [],
+  "icons": {
+    "symbol_add": {
+      "unicode": "􀀀"
+    },
+    "symbol_add_square": {
+      "unicode": "􀀁"
+    },
+    "symbol_archive": {
+      "unicode": "􀀂"
+    },
+    "symbol_arrow_back": {
+      "unicode": "􀀃"
+    },
+    "symbol_arrow_forward": {
+      "unicode": "􀀄"
+    },
+    "symbol_attach_file": {
+      "unicode": "􀀅"
+    },
+    "symbol_bolt": {
+      "unicode": "􀀆"
+    },
+    "symbol_business": {
+      "unicode": "􀀇"
+    },
+    "symbol_calendar": {
+      "unicode": "􀀈"
+    },
+    "symbol_check": {
+      "unicode": "􀀉"
+    },
+    "symbol_check_circle": {
+      "unicode": "􀀊"
+    },
+    "symbol_chevron_down": {
+      "unicode": "􀀋"
+    },
+    "symbol_chevron_left": {
+      "unicode": "􀀌"
+    },
+    "symbol_chevron_right": {
+      "unicode": "􀀍"
+    },
+    "symbol_chevron_up": {
+      "unicode": "􀀎"
+    },
+    "symbol_close": {
+      "unicode": "􀀏"
+    },
+    "symbol_cloud_sync": {
+      "unicode": "􀀐"
+    },
+    "symbol_copy": {
+      "unicode": "􀀑"
+    },
+    "symbol_create_folder": {
+      "unicode": "􀀒"
+    },
+    "symbol_credit_card": {
+      "unicode": "􀀓"
+    },
+    "symbol_data_object": {
+      "unicode": "􀀔"
+    },
+    "symbol_database": {
+      "unicode": "􀀕"
+    },
+    "symbol_delete": {
+      "unicode": "􀀖"
+    },
+    "symbol_description": {
+      "unicode": "􀀗"
+    },
+    "symbol_divider": {
+      "unicode": "􀀘"
+    },
+    "symbol_dns": {
+      "unicode": "􀀙"
+    },
+    "symbol_download": {
+      "unicode": "􀀚"
+    },
+    "symbol_edit": {
+      "unicode": "􀀛"
+    },
+    "symbol_error": {
+      "unicode": "􀀜"
+    },
+    "symbol_eye": {
+      "unicode": "􀀝"
+    },
+    "symbol_eye_off": {
+      "unicode": "􀀞"
+    },
+    "symbol_fingerprint": {
+      "unicode": "􀀟"
+    },
+    "symbol_folder": {
+      "unicode": "􀀠"
+    },
+    "symbol_folder_open": {
+      "unicode": "􀀡"
+    },
+    "symbol_generate": {
+      "unicode": "􀀢"
+    },
+    "symbol_grid": {
+      "unicode": "􀀣"
+    },
+    "symbol_image": {
+      "unicode": "􀀤"
+    },
+    "symbol_info": {
+      "unicode": "􀀥"
+    },
+    "symbol_key": {
+      "unicode": "􀀦"
+    },
+    "symbol_keyboard_tab": {
+      "unicode": "􀀧"
+    },
+    "symbol_label": {
+      "unicode": "􀀨"
+    },
+    "symbol_link": {
+      "unicode": "􀀩"
+    },
+    "symbol_lock": {
+      "unicode": "􀀪"
+    },
+    "symbol_lock_open": {
+      "unicode": "􀀫"
+    },
+    "symbol_more": {
+      "unicode": "􀀬"
+    },
+    "symbol_notes": {
+      "unicode": "􀀭"
+    },
+    "symbol_open_in_new": {
+      "unicode": "􀀮"
+    },
+    "symbol_person": {
+      "unicode": "􀀯"
+    },
+    "symbol_radio_selected": {
+      "unicode": "􀀰"
+    },
+    "symbol_radio_unselected": {
+      "unicode": "􀀱"
+    },
+    "symbol_refresh": {
+      "unicode": "􀀲"
+    },
+    "symbol_remove": {
+      "unicode": "􀀳"
+    },
+    "symbol_save": {
+      "unicode": "􀀴"
+    },
+    "symbol_schedule": {
+      "unicode": "􀀵"
+    },
+    "symbol_search": {
+      "unicode": "􀀶"
+    },
+    "symbol_security_warning": {
+      "unicode": "􀀷"
+    },
+    "symbol_space_bar": {
+      "unicode": "􀀸"
+    },
+    "symbol_star": {
+      "unicode": "􀀹"
+    },
+    "symbol_sync": {
+      "unicode": "􀀺"
+    },
+    "symbol_upload": {
+      "unicode": "􀀻"
+    },
+    "symbol_upload_file": {
+      "unicode": "􀀼"
+    },
+    "symbol_verified_user": {
+      "unicode": "􀀽"
+    },
+    "symbol_warning": {
+      "unicode": "􀀾"
+    },
+    "symbol_swap_horiz": {
+      "unicode": "􀀿"
+    },
+    "symbol_archive_filled": {
+      "unicode": "􀄀"
+    },
+    "symbol_folder_filled": {
+      "unicode": "􀄁"
+    },
+    "symbol_grid_filled": {
+      "unicode": "􀄂"
+    },
+    "symbol_info_filled": {
+      "unicode": "􀄃"
+    },
+    "symbol_lock_filled": {
+      "unicode": "􀄄"
+    },
+    "symbol_star_filled": {
+      "unicode": "􀄅"
+    }
+  }
+}

@@ -1,20 +1,8 @@
 {
   "string": [
     {
-      "name": "preparing_vault",
-      "value": "正在准备保险库"
-    },
-    {
-      "name": "retry",
-      "value": "重试"
-    },
-    {
-      "name": "error_details",
-      "value": "查看错误详情"
-    },
-    {
       "name": "create_vault",
-      "value": "创建新保险库"
+      "value": "新建保险库"
     },
     {
       "name": "vault_name",
@@ -22,11 +10,15 @@
     },
     {
       "name": "vault_name_required",
-      "value": "请输入保险库名称"
+      "value": "保险库名称不能为空。"
     },
     {
       "name": "master_password_required",
-      "value": "请输入主密码"
+      "value": "请输入主密码：至少 8 位，建议包含数字与符号。"
+    },
+    {
+      "name": "master_password_min_length",
+      "value": "主密码至少 8 位，建议包含数字与符号。"
     },
     {
       "name": "confirm_password_required",
@@ -37,48 +29,64 @@
       "value": "确认主密码"
     },
     {
-      "name": "generate_password_suggestion",
-      "value": "生成主密码建议"
-    },
-    {
       "name": "password_mismatch",
-      "value": "两次输入的主密码不一致"
+      "value": "两次输入的主密码不一致，请重新确认。"
     },
     {
       "name": "creating",
       "value": "正在创建"
     },
     {
-      "name": "file_summary",
-      "value": "文件摘要"
-    },
-    {
       "name": "reselect_file",
-      "value": "重新选择"
+      "value": "重选文件"
     },
     {
       "name": "unlock_vault",
       "value": "解锁保险库"
     },
     {
-      "name": "unlock_vault_desc",
-      "value": "输入主密码，解锁当前保险库"
+      "name": "unlock_password_placeholder",
+      "value": "输入主密码"
     },
     {
-      "name": "unlock_password_required",
-      "value": "请输入密码后再进行解锁操作"
+      "name": "unlock_key_file_add",
+      "value": "添加密钥文件"
     },
     {
-      "name": "local_file",
-      "value": "本地文件"
+      "name": "unlock_key_file_remove",
+      "value": "移除密钥文件"
+    },
+    {
+      "name": "unlock_failed_title",
+      "value": "解锁失败"
+    },
+    {
+      "name": "unlock_failed_body",
+      "value": "主密码可能有误，或密钥文件不正确。请检查后重新解锁。"
+    },
+    {
+      "name": "unlock_missing_credential_title",
+      "value": "还差一样凭据"
+    },
+    {
+      "name": "unlock_missing_credential_body",
+      "value": "请输入主密码，或选择一个密钥文件后再解锁。"
+    },
+    {
+      "name": "unlock_retry",
+      "value": "重试解锁"
+    },
+    {
+      "name": "unlock_opening",
+      "value": "已解锁 · 正在打开"
+    },
+    {
+      "name": "unlock_last_updated",
+      "value": "最近更新 %s"
     },
     {
       "name": "unlocking",
-      "value": "正在解锁"
-    },
-    {
-      "name": "wrong_credential",
-      "value": "凭据不正确或文件无法解密"
+      "value": "正在解锁…"
     },
     {
       "name": "choose_another_vault",
@@ -86,19 +94,87 @@
     },
     {
       "name": "file_format",
-      "value": "文件格式"
+      "value": "格式"
     },
     {
       "name": "file_size",
-      "value": "文件大小"
+      "value": "大小"
     },
     {
       "name": "last_modified",
-      "value": "最后修改时间"
+      "value": "最后修改"
     },
     {
       "name": "file_status",
-      "value": "文件状态"
+      "value": "状态"
+    },
+    {
+      "name": "file_selected_title",
+      "value": "已选择文件"
+    },
+    {
+      "name": "read_only_format_title",
+      "value": "只能查看，不能修改"
+    },
+    {
+      "name": "read_only_format_body",
+      "value": "旧版 KDBX 3.1 能读，不能存。解锁后可升级到 4.x，升级前请先备份。"
+    },
+    {
+      "name": "read_only_permission_title",
+      "value": "应用只获得了读取权限"
+    },
+    {
+      "name": "read_only_permission_body",
+      "value": "重新选择同一个文件并允许写入，就能恢复编辑。"
+    },
+    {
+      "name": "read_only_file_system_title",
+      "value": "文件所在位置不允许写入"
+    },
+    {
+      "name": "read_only_file_system_body",
+      "value": "把数据库另存到其他位置，再从新位置打开。"
+    },
+    {
+      "name": "regrant_and_open",
+      "value": "重新授权并打开"
+    },
+    {
+      "name": "save_to_other_location",
+      "value": "另存到其他位置"
+    },
+    {
+      "name": "file_summary_empty",
+      "value": "尚未选择文件"
+    },
+    {
+      "name": "file_summary_error_title",
+      "value": "打不开这个文件"
+    },
+    {
+      "name": "file_summary_error_not_kdbx",
+      "value": "它不是 KDBX 3.1 或 KDBX 4.x 数据库。请重新选择正确的文件。"
+    },
+    {
+      "name": "file_summary_error_cannot_open",
+      "value": "文件被移动、删除，或访问授权已失效。确认文件还在原位置后可重试。"
+    },
+    {
+      "name": "file_format_unknown",
+      "value": "无法识别"
+    },
+    {
+      "name": "file_value_unknown",
+      "value": "—"
+    },
+    {
+      "name": "file_access_unreadable",
+      "value": "无法打开"
+    },
+    {
+      "name": "retry_action",
+      "value": "重试"
     },
     {
       "name": "welcome_tagline",
@@ -130,15 +206,11 @@
     },
     {
       "name": "action_webdav_desc",
-      "value": "连接 Nextcloud、NAS 或其他支持 WebDAV 的服务器"
+      "value": "连接 Nextcloud、NAS 或其他支持 WebDAV 的私有存储"
     },
     {
       "name": "action_webdav_footer",
       "value": "配置连接"
-    },
-    {
-      "name": "create_vault_subtitle",
-      "value": "设置保险库基本信息与解锁方式。"
     },
     {
       "name": "vault_auth_mode",
@@ -155,10 +227,6 @@
     {
       "name": "auth_mode_key_only",
       "value": "仅密钥文件"
-    },
-    {
-      "name": "auth_mode_unavailable",
-      "value": "该鉴权方式将在后续阶段开放"
     },
     {
       "name": "key_file_unbound_title",
@@ -181,6 +249,30 @@
       "value": "生成新密钥"
     },
     {
+      "name": "key_file_regenerate",
+      "value": "重新生成"
+    },
+    {
+      "name": "key_file_replace",
+      "value": "更换文件"
+    },
+    {
+      "name": "key_file_fingerprint",
+      "value": "SHA-256: %s"
+    },
+    {
+      "name": "key_file_size",
+      "value": "大小: %s"
+    },
+    {
+      "name": "key_file_default_name",
+      "value": "KeePassHomo_%s"
+    },
+    {
+      "name": "key_file_required",
+      "value": "请选择密钥文件：本地导入或生成新密钥。"
+    },
+    {
       "name": "create_open_vault",
       "value": "创建并打开保险库"
     },
@@ -193,16 +285,24 @@
       "value": "*"
     },
     {
-      "name": "confirm_close_hint",
-      "value": "主密码无法找回，请确认后再继续。"
-    },
-    {
       "name": "app_brand_name",
-      "value": "KEEPASSHOMO"
+      "value": "KeePassHomo"
     },
     {
-      "name": "create_vault_hint",
-      "value": "请先填写保险库名称与主密码，并确认两次输入一致。"
+      "name": "default_vault_name",
+      "value": "个人保险库"
+    },
+    {
+      "name": "op_error_open_local",
+      "value": "打开本地 KDBX 失败"
+    },
+    {
+      "name": "op_error_generate_keyfile",
+      "value": "生成密钥文件失败"
+    },
+    {
+      "name": "op_error_save_as",
+      "value": "另存保险库失败"
     }
   ]
 }

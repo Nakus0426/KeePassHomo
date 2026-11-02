@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { LengthMetrics, promptAction, SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
+import { LengthMetrics, promptAction, SymbolGlyphModifier } from '@kit.ArkUI'
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import { AppToast, inspectSshPrivateKey, SshKeyAlgorithm, SshKeyInspection } from '@ohos/common'
@@ -39,9 +39,6 @@ export struct EntrySshKeysField {
   private renameTarget: SshKeyDraft | undefined = undefined
   private readonly app: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
-  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
 
   @Computed
   private get keys(): SshKeyDraft[] {
@@ -174,7 +171,7 @@ export struct EntrySshKeysField {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.renameDialog(), this.dialogController, {
-        backgroundColor: $r('sys.color.comp_background_primary'),
+        backgroundColor: $r('app.color.ds_surface_low'),
       })
       .catch((error: BusinessError) => {
         LogUtil.error(`打开重命名弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
@@ -212,7 +209,7 @@ export struct EntrySshKeysField {
       },
       secondaryButton: {
         value: $r('app.string.delete_entry'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => {
           this.editor.removeSshKey(key)
           this.onActivity()
@@ -227,14 +224,14 @@ export struct EntrySshKeysField {
     Menu() {
       MenuItem({
         content: $r('app.string.ssh_key_pick_file'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_up_to_line')).fontSize($r('sys.float.Body_L')),
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_upload_file')).fontSize($r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
         .onClick(() => this.pickKeyFile())
 
       MenuItem({
         content: $r('app.string.ssh_key_paste'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_text_on_doc_text')).fontSize(
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_copy')).fontSize(
           $r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
@@ -242,14 +239,14 @@ export struct EntrySshKeysField {
 
       MenuItem({
         content: $r('app.string.ssh_key_generate'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.wand_and_stars')).fontSize($r('sys.float.Body_L')),
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_generate')).fontSize($r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
         .onClick(() => this.generateSheetVisible = true)
     }
     .menuItemDivider({
       strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
-      color: $r('sys.color.grid_menu_divider_color'),
+      color: $r('app.color.ds_outline_variant'),
       startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
       endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
     })
@@ -261,51 +258,51 @@ export struct EntrySshKeysField {
       Text($r('app.string.ssh_key_rename'))
         .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
+        .fontColor($r('app.color.ds_text_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
-        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
+        .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
 
       TextInput({ placeholder: $r('app.string.ssh_key_name_placeholder'), text: this.renameName })
         .fontSize($r('sys.float.Body_L'))
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('app.color.ds_outline_variant'), typing: $r('app.color.ds_primary') })
         .margin({
-          top: $r('sys.float.padding_level6'),
-          left: $r('sys.float.padding_level12'),
-          right: $r('sys.float.padding_level12'),
+          top: $r('app.float.ds_space_6'),
+          left: $r('app.float.ds_space_md'),
+          right: $r('app.float.ds_space_md'),
         })
         .onChange((value: string) => this.renameName = value)
 
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.dialogController.close())
 
         Divider()
           .vertical(true)
           .strokeWidth(1)
-          .color($r('sys.color.comp_divider'))
+          .color($r('app.color.ds_outline_variant'))
           .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button($r('app.string.confirm'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.submitRename())
       }
       .width('100%')
-      .margin({ top: $r('sys.float.padding_level2') })
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .margin({ top: $r('app.float.ds_space_2') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     }
     .width('100%')
-    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
+    .padding({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_sm') })
   }
 
   // 与「其他」区的新增按钮同款，复用系统点按反馈；生成期间换成加载态并禁用。
@@ -313,24 +310,24 @@ export struct EntrySshKeysField {
   private addRow() {
     Row() {
       Button() {
-        Row({ space: $r('sys.float.padding_level4') }) {
+        Row({ space: $r('app.float.ds_space_xs') }) {
           if (this.busy) {
             LoadingProgress()
               .width($r('sys.float.chip_normal_icon_size'))
               .height($r('sys.float.chip_normal_icon_size'))
-              .color($r('sys.color.font_emphasize'))
+              .color($r('app.color.ds_text_primary'))
 
             Text($r('app.string.ssh_key_generating'))
               .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('sys.color.font_emphasize'))
+              .fontColor($r('app.color.ds_text_primary'))
           } else {
-            SymbolGlyph($r('sys.symbol.plus'))
+            SymbolGlyph($r('app.string.symbol_add'))
               .fontSize($r('sys.float.chip_normal_icon_size'))
-              .fontColor([$r('sys.color.font_emphasize')])
+              .fontColor([$r('app.color.ds_text_primary')])
 
             Text($r('app.string.add'))
               .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('sys.color.font_emphasize'))
+              .fontColor($r('app.color.ds_text_primary'))
           }
         }
       }
@@ -348,18 +345,18 @@ export struct EntrySshKeysField {
   // 粘贴控件必须由用户直接点击才能拿到剪贴板临时授权，故独立成一块而不是菜单项。
   @Builder
   private pasteRow() {
-    Column({ space: $r('sys.float.padding_level8') }) {
-      Column({ space: $r('sys.float.padding_level2') }) {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      Column({ space: $r('app.float.ds_space_2') }) {
         Text($r('app.string.ssh_key_paste_action'))
           .width('100%')
           .fontSize($r('sys.float.Body_L'))
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font_primary'))
+          .fontColor($r('app.color.ds_text_primary'))
 
         Text($r('app.string.ssh_key_paste_reason'))
           .width('100%')
           .fontSize($r('sys.float.Body_S'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('app.color.ds_text_secondary'))
           .maxLines(2)
       }
       .width('100%')
@@ -368,17 +365,17 @@ export struct EntrySshKeysField {
       Row() {
         PasteButton({ text: PasteDescription.PASTE, buttonType: ButtonType.Capsule })
           .fontSize($r('sys.float.chip_normal_font_size'))
-          .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-          .fontColor($r('sys.color.font_emphasize'))
+          .backgroundColor($r('app.color.ds_surface_high'))
+          .fontColor($r('app.color.ds_text_primary'))
           .onClick((_event: ClickEvent, result: PasteButtonOnClickResult) => this.pasteFromClipboard(result))
       }
       .width('100%')
       .justifyContent(FlexAlign.End)
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
   }
 
   @LocalBuilder
@@ -391,7 +388,7 @@ export struct EntrySshKeysField {
   }
 
   build() {
-    Column({ space: $r('sys.float.padding_level8') }) {
+    Column({ space: $r('app.float.ds_space_sm') }) {
       ForEach(this.keys, (key: SshKeyDraft) => {
         SshKeyCard({
           sshKey: key,
@@ -415,8 +412,7 @@ export struct EntrySshKeysField {
     .alignItems(HorizontalAlign.Start)
     .bindSheet($$this.generateSheetVisible, this.generateSheet(), {
       dragBar: true,
-      backgroundColor: Color.Transparent,
-      systemMaterial: this.sheetMaterial,
+      backgroundColor: $r('app.color.ds_surface_lowest'),
       showClose: false,
       detents: [SheetSize.MEDIUM],
       onDisappear: () => this.generateSheetVisible = false,

@@ -1,4 +1,3 @@
-import { common } from '@kit.AbilityKit'
 import { UIObserver } from '@kit.ArkUI'
 import {
   CustomTransitionDelegate,
@@ -22,9 +21,10 @@ import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { fadeNavTransition } from '../navigation/NavFadeTransition'
 import { appViewModel } from '../viewmodel/AppViewModel'
-import { SplashContent } from '../pages/onboarding/SplashContent'
 import { VaultHomePage } from '../pages/vault/VaultHomePage'
 import { vaultTabChrome } from '../pages/vault/VaultTabChrome'
+import { DsPageHeader, DsPageHeaderAction } from './DsPageHeader'
+import { dsPageTitleBarOptions } from './DsPageTitleBar'
 import { ModuleTabChrome } from './ModuleTabChrome'
 import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
@@ -77,7 +77,6 @@ export struct AppShell {
   aboutToAppear(): void {
     this.uiObserver = this.getUIContext().getUIObserver()
     appRouter.attach(this.uiObserver)
-    appViewModel.initialize(this.context())
   }
 
   aboutToDisappear(): void {
@@ -85,7 +84,6 @@ export struct AppShell {
       appRouter.detach(this.uiObserver)
       this.uiObserver = undefined
     }
-    appViewModel.dispose()
   }
 
   @Monitor('session.vaultLocked')
@@ -101,10 +99,6 @@ export struct AppShell {
   @Monitor('session.foregroundEpoch')
   onForegroundEpochChanged(_monitor: IMonitor): void {
     appViewModel.onForegroundEpochChanged()
-  }
-
-  private context(): common.UIAbilityContext {
-    return this.getUIContext().getHostContext() as common.UIAbilityContext
   }
 
   // clearToHome 回首页用零时长转场；其余委托 fadeNavTransition 解析。
@@ -135,6 +129,33 @@ export struct AppShell {
     return MODULES[this.moduleIndex]
   }
 
+  @Computed
+  get isVaultModule(): boolean {
+    return this.currentTab.route === ROUTE_VAULT
+  }
+
+  @Computed
+  get pageHeaderActions(): DsPageHeaderAction[] {
+    const actions: DsPageHeaderAction[] = []
+    const moduleActions: DsPageHeaderAction[] = this.currentTab.chrome?.headerActions?.() ?? []
+    for (const action of moduleActions) {
+      actions.push(action)
+    }
+    actions.push(this.buildLockAction())
+    return actions
+  }
+
+  // 页头动作与标题栏菜单共用同一个锁定项，避免两处重复构造。
+  private buildLockAction(): DsPageHeaderAction {
+    return {
+      icon: $r('app.string.symbol_lock'),
+      label: $r('app.string.lock'),
+      onTap: (): void => {
+        appViewModel.lockVault()
+      },
+    }
+  }
+
   // 内容须铺满页签，否则点击热区只覆盖墨迹；选中态在 Builder 内读状态，切换时才会刷新。
   @Builder
   private tabItem(module: ModuleTabDescriptor, index: number) {
@@ -145,13 +166,13 @@ export struct AppShell {
         .interpolation(ImageInterpolation.High)
       Text(module.label)
         .fontSize(TAB_LABEL_FONT_SIZE_FP)
-        .fontColor(this.moduleIndex === index ? $r('sys.color.font_emphasize') : $r('sys.color.font_secondary'))
+        .fontColor(this.moduleIndex === index ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_secondary'))
         .maxLines(1)
     }
     .layoutWeight(1)
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.moduleIndex === index ? $r('sys.color.comp_background_tertiary') : Color.Transparent)
+    .backgroundColor(this.moduleIndex === index ? $r('app.color.ds_surface_high') : Color.Transparent)
     .onClick(() => {
       this.tabsController.changeIndex(index)
       appViewModel.switchModule(module.route)
@@ -168,10 +189,10 @@ export struct AppShell {
       }
       .width('100%')
       .height(TAB_BAR_FLOAT_HEIGHT_VP)
-      .backgroundColor($r('sys.color.comp_background_primary'))
+      .backgroundColor($r('app.color.ds_surface_low'))
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     .margin({ bottom: TAB_BAR_FLOAT_BOTTOM_MARGIN_VP })
   }
 
@@ -187,19 +208,20 @@ export struct AppShell {
   }
 
   @Computed
-  get titleBarOptions(): HdsNavigationTitleBarOptions {
+  get vaultTitleBarOptions(): HdsNavigationTitleBarOptions {
     const chrome: ModuleTabChrome | undefined = this.currentTab.chrome
     const menuItems: HdsNavigationMenuItemOptions[] = []
     const moduleMenuItems: HdsNavigationMenuItemOptions[] = chrome?.menuItems?.() ?? []
     for (const item of moduleMenuItems) {
       menuItems.push(item)
     }
+    const lockAction: DsPageHeaderAction = this.buildLockAction()
     menuItems.push({
       content: {
-        icon: $r('sys.symbol.lock'),
+        icon: lockAction.icon,
         type: IconStyleMode.SMALL,
-        label: $r('app.string.lock'),
-        action: () => appViewModel.lockVault(),
+        label: lockAction.label,
+        action: lockAction.onTap,
       },
     })
 
@@ -211,7 +233,7 @@ export struct AppShell {
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
         },
         systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.IMMERSIVE,
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
         },
       },
       content: {
@@ -228,6 +250,37 @@ export struct AppShell {
         menu: { value: menuItems },
       },
     }
+  }
+
+  @Builder
+  private pageHeaderBuilder() {
+    DsPageHeader({
+      title: this.currentTab.label,
+      showBack: false,
+      actions: this.pageHeaderActions,
+    })
+  }
+
+  @Computed
+  get titleBarOptions(): HdsNavigationTitleBarOptions {
+    return this.isVaultModule
+      ? this.vaultTitleBarOptions
+      : dsPageTitleBarOptions((): void => this.pageHeaderBuilder())
+  }
+
+  // 前后台切换时的隐私遮罩：只露品牌标识，不展示启动页的版本号与加载节拍。
+  @Builder
+  private privacyCover() {
+    Column() {
+      Image($r('app.media.launch_icon'))
+        .draggable(false)
+        .width($r('app.float.ds_logo_size'))
+        .height($r('app.float.ds_logo_size'))
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
   }
 
   build() {
@@ -270,16 +323,17 @@ export struct AppShell {
       .titleMode(HdsNavigationTitleMode.MINI)
       .customNavContentTransition(this.navTransition)
       .mode(NavigationMode.Stack)
-      .backgroundColor($r('sys.color.background_secondary'))
+      .backgroundColor($r('app.color.ds_surface_canvas'))
 
       if (this.session.privacyCovered) {
-        SplashContent({ viewModel: appViewModel })
-          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        this.privacyCover()
       }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor($r('app.color.ds_surface_canvas'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    // 壳层真正上屏后才让品牌页退场，交接期间不出现空白帧。
+    .onAppear(() => appViewModel.markShellReady())
   }
 }

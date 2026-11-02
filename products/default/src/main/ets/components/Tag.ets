@@ -10,13 +10,21 @@ export enum TagType {
   Default = 'default',
 }
 
-const TAG_VERTICAL_PADDING: number = 4
+export enum TagShape {
+  Pill = 'pill',
+  Square = 'square',
+}
+
+const PILL_VERTICAL_PADDING: number = 4
 const INITIAL_CORNER_RADIUS: number = 14
+const SQUARE_CORNER_RADIUS: number = 4
 const TAG_BACKGROUND_OPACITY: number = 0.2
 
 @ComponentV2
 export struct Tag {
   @Param type: TagType | ResourceColor | ColorMetrics = TagType.Default
+  // Pill 是胶囊徽标（圆角取高度一半），Square 是设计系统的方角标签。
+  @Param shape: TagShape = TagShape.Pill
   @BuilderParam content: () => void = this.emptyBuilder
   @Local private cornerRadius: number = INITIAL_CORNER_RADIUS
   @Local private colorMode: ColorModeState = colorModeState
@@ -28,17 +36,20 @@ export struct Tag {
   @Computed
   get typeColor(): ResourceColor {
     if (typeof this.type === 'string') {
+      if (this.shape === TagShape.Square) {
+        return this.squareContainerColor
+      }
       switch (this.type) {
         case TagType.Brand:
-          return $r('sys.color.brand')
+          return $r('app.color.ds_primary')
         case TagType.Warning:
-          return $r('sys.color.warning')
+          return $r('app.color.ds_warning')
         case TagType.Alert:
-          return $r('sys.color.alert')
+          return $r('app.color.ds_error')
         case TagType.Confirm:
-          return $r('sys.color.confirm')
+          return $r('app.color.ds_success')
         case TagType.Default:
-          return $r('sys.color.font_primary')
+          return $r('app.color.ds_text_primary')
         default:
           return this.type
       }
@@ -50,8 +61,46 @@ export struct Tag {
   }
 
   @Computed
-  get backgroundColorValue(): number {
+  get squareContainerColor(): ResourceColor {
+    switch (this.type) {
+      case TagType.Brand:
+        return $r('app.color.ds_primary')
+      case TagType.Warning:
+        return $r('app.color.ds_warning_container')
+      case TagType.Alert:
+        return $r('app.color.ds_error_container')
+      case TagType.Confirm:
+        return $r('app.color.ds_success_container')
+      default:
+        return $r('app.color.ds_surface_high')
+    }
+  }
+
+  @Computed
+  get contentColor(): ResourceColor {
+    if (this.shape !== TagShape.Square || typeof this.type !== 'string') {
+      return this.typeColor
+    }
+    switch (this.type) {
+      case TagType.Brand:
+        return $r('app.color.ds_on_primary')
+      case TagType.Warning:
+        return $r('app.color.ds_on_warning_container')
+      case TagType.Alert:
+        return $r('app.color.ds_on_error_container')
+      case TagType.Confirm:
+        return $r('app.color.ds_on_success_container')
+      default:
+        return $r('app.color.ds_text_primary')
+    }
+  }
+
+  @Computed
+  get backgroundColorValue(): number | ResourceColor {
     this.colorMode.isDark
+    if (this.shape === TagShape.Square) {
+      return this.typeColor
+    }
     return ColorUtil.withAlpha(this.typeColor, TAG_BACKGROUND_OPACITY)
   }
 
@@ -60,16 +109,29 @@ export struct Tag {
       this.content()
     }
     .backgroundColor(this.backgroundColorValue)
-    .borderRadius(this.cornerRadius)
-    .foregroundColor(this.typeColor)
+    .borderRadius(this.shape === TagShape.Square ? SQUARE_CORNER_RADIUS : this.cornerRadius)
+    .foregroundColor(this.contentColor)
     .padding({
-      top: TAG_VERTICAL_PADDING,
-      bottom: TAG_VERTICAL_PADDING,
-      left: this.cornerRadius,
-      right: this.cornerRadius,
+      top: this.paddingVertical,
+      bottom: this.paddingVertical,
+      left: this.paddingHorizontal,
+      right: this.paddingHorizontal,
     })
     .onSizeChange((_oldValue: SizeResult, newValue: SizeResult) => {
+      if (this.shape === TagShape.Square) {
+        return
+      }
       this.cornerRadius = newValue.height / 2
     })
+  }
+
+  @Computed
+  get paddingVertical(): number | Resource {
+    return this.shape === TagShape.Square ? $r('app.float.ds_space_2') : PILL_VERTICAL_PADDING
+  }
+
+  @Computed
+  get paddingHorizontal(): number | Resource {
+    return this.shape === TagShape.Square ? $r('app.float.ds_space_6') : this.cornerRadius
   }
 }

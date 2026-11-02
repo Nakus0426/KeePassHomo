@@ -1,13 +1,15 @@
-import { SymbolGlyphModifier, uiMaterial } from '@kit.ArkUI'
-import { hdsMaterial, HdsNavigation, HdsNavigationTitleMode, IconStyleMode, ScrollEffectType } from '@kit.UIDesignKit'
 import { AnimationTokens, AppToast, BounceAnimator } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
+import { DsBottomActionBar } from '../../components/DsBottomActionBar'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsButton, DsButtonTone } from '../../components/DsButton'
+import { DsPageHeaderAction } from '../../components/DsPageHeader'
 import { FormItem, Status } from '../../components/FormItem'
 import { FormTextArea } from '../../components/FormTextArea'
 import { FormTextField, FormTextFieldStatus } from '../../components/FormTextField'
 import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
-import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
+import { IconToggleButton } from '../../components/IconToggleButton'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
 import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
@@ -27,7 +29,6 @@ import { EntryTagEditor } from './EntryTagEditor'
 @ComponentV2
 export struct EntryEditorView {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
-  @Param topOffset: number = 0
   @Param bottomOffset: number = 0
   @Event onWillDismissCheck: (handler: () => void) => void = () => {
   }
@@ -38,6 +39,7 @@ export struct EntryEditorView {
   @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Local private passwordVisible: boolean = false
   @Local private generatorSheetVisible: boolean = false
+  @Local private generatorBottomBarHeight: number = 0
   @Local private groupPickerVisible: boolean = false
   // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
@@ -45,16 +47,7 @@ export struct EntryEditorView {
   private readonly viewModel: AppViewModel = appViewModel
   private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
-  private readonly fillIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
-    .fontColor([$r('sys.color.confirm')])
   private bounce: BounceAnimator = new BounceAnimator()
-  private readonly saveIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
-    .fontColor([$r('sys.color.confirm')])
-  private readonly cancelIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontColor([$r('sys.color.icon_primary')])
-  private readonly sheetMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-  })
 
   aboutToAppear(): void {
     this.passwordVisible = false
@@ -121,7 +114,7 @@ export struct EntryEditorView {
       },
       secondaryButton: {
         value: $r('app.string.discard'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => this.onCancel(),
       },
     }
@@ -163,7 +156,7 @@ export struct EntryEditorView {
     const fieldTopPx: number = componentUtils.getRectangleById(`field_${fieldKey}`).windowOffset.y
     const scrollTopPx: number = componentUtils.getRectangleById('entry_edit_scroll').windowOffset.y
     const targetY: number = this.scroller.currentOffset().yOffset +
-      this.getUIContext().px2vp(fieldTopPx - scrollTopPx) - this.topOffset
+      this.getUIContext().px2vp(fieldTopPx - scrollTopPx)
     this.scroller.scrollTo({
       xOffset: 0,
       yOffset: Math.max(targetY, 0),
@@ -201,7 +194,7 @@ export struct EntryEditorView {
   @Computed
   get textInputButtonSize(): number {
     const buttonHeight: number = ResUtil.getNumber($r('app.float.control_height').id)
-    const padding: number = ResUtil.getNumber($r('sys.float.padding_level4').id)
+    const padding: number = ResUtil.getNumber($r('app.float.ds_space_xs').id)
     return this.getUIContext().px2vp(buttonHeight - padding * 2)
   }
 
@@ -237,20 +230,23 @@ export struct EntryEditorView {
       onSheet: true,
       onChange: (value: string) => this.editor.setPassword(value),
     }) {
-      PasswordVisibilityToggle({
-        visible: this.passwordVisible,
-        onChange: (visible: boolean) => this.passwordVisible = visible,
+      IconToggleButton({
+        symbol: $r('app.string.symbol_eye_off'),
+        symbolChecked: $r('app.string.symbol_eye'),
+        checked: this.passwordVisible,
+        accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
+        onToggle: () => this.passwordVisible = !this.passwordVisible,
       })
 
       Divider()
         .vertical(true)
-        .margin({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level6') })
-        .color($r('sys.color.comp_divider'))
+        .margin({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_6') })
+        .color($r('app.color.ds_outline_variant'))
 
       Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('sys.symbol.wand_and_stars'))
+        SymbolGlyph($r('app.string.symbol_generate'))
           .fontSize(22)
-          .fontColor([$r('sys.color.brand')])
+          .fontColor([$r('app.color.ds_primary')])
           .scale({ x: this.bounce.scale, y: this.bounce.scale })
       }
       .width(this.textInputButtonSize)
@@ -295,13 +291,13 @@ export struct EntryEditorView {
         text: field.value,
         onSheet: true,
         prefixIcon: this.matchedOptionIcon(field, definition),
-        prefixSymbol: $r('sys.symbol.bank_card'),
+        prefixSymbol: $r('app.string.symbol_credit_card'),
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       }) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.chevron_down'))
+          SymbolGlyph($r('app.string.symbol_chevron_down'))
             .fontSize($r('sys.float.Title_S'))
-            .fontColor([$r('sys.color.icon_secondary')])
+            .fontColor([$r('app.color.ds_on_surface_variant')])
         }
         .width(this.textInputButtonSize)
         .height(this.textInputButtonSize)
@@ -343,7 +339,7 @@ export struct EntryEditorView {
       },
     })
       .id(`field_${definition.key}`)
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   // 组件必须在 @Builder 作用域内创建：直接写进 FormItem 的箭头参数里不会被编译成组件创建
@@ -374,7 +370,7 @@ export struct EntryEditorView {
       contentBuilder: this.attachmentField,
     })
       .id('field_attachments')
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   @Builder
@@ -384,7 +380,7 @@ export struct EntryEditorView {
       contentBuilder: this.sshKeysField,
     })
       .id(`field_${definition.key}`)
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   @LocalBuilder
@@ -414,85 +410,115 @@ export struct EntryEditorView {
   private otherFieldLabel() {
     Row() {
       Text($r('app.string.field_other'))
-        .fontColor($r('sys.color.font_secondary'))
+        .fontColor($r('app.color.ds_text_secondary'))
         .fontSize($r('sys.float.Body_M'))
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level16') })
+    .padding({ left: $r('app.float.ds_space_16') })
+  }
+
+  @Builder
+  private generatorBottomActions() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Row() {
+        DsButton({
+          label: $r('app.string.regenerate_password'),
+          tone: DsButtonTone.Default,
+          leadingIcon: $r('app.string.symbol_refresh'),
+          fullWidth: true,
+          onTap: () => this.viewModel.generator.regenerate(),
+        })
+      }
+      .layoutWeight(1)
+
+      Row() {
+        DsButton({
+          label: $r('app.string.fill_current_entry'),
+          leadingIcon: $r('app.string.symbol_check'),
+          fullWidth: true,
+          onTap: () => this.fillPasswordFromGenerator(),
+        })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  // 预览底色上探到标题栏底部：内容绘制到标题栏下方，标题栏悬浮其上。
+  @Computed
+  get sheetTitleBarHeightVp(): number {
+    const titleBarPx: number = ResUtil.getNumber($r('app.float.ds_page_header_height_sm').id)
+    return this.getUIContext().px2vp(titleBarPx)
   }
 
   @LocalBuilder
-  private generatorSheet() {
-    HdsNavigation() {
+  private generatorBody() {
+    Stack() {
       GeneratorContent({
         viewModel: this.viewModel.generator,
         controller: this.generatorController,
-        topOffset: this.topOffset,
-        bottomOffset: this.bottomOffset,
+        topOffset: this.sheetTitleBarHeightVp,
+        bottomOffset: this.generatorBottomBarHeight,
         onSheet: true,
         onActivity: () => this.viewModel.recordActivity(),
       })
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
+    .width('100%')
+    .height('100%')
+  }
+
+  @LocalBuilder
+  private generatorBottomBar() {
+    DsBottomActionBar({
+      surfaceColor: $r('app.color.ds_surface_lowest'),
+      fadeColor: $r('app.color.ds_surface_lowest_transparent'),
+      onHeightChange: (height: number) => {
+        this.generatorBottomBarHeight = height
       },
-      content: {
-        title: {
-          mainTitle: $r('app.string.password_generator'),
-        },
-        menu: {
-          value: [{
-            content: {
-              icon: $r('sys.symbol.doc_text_on_doc_text'),
-              type: IconStyleMode.SMALL,
-              label: $r('app.string.copy'),
-              action: () => this.generatorController.copyPassword(),
-            },
-          }, {
-            content: {
-              icon: this.fillIcon,
-              type: IconStyleMode.SMALL,
-              label: $r('app.string.fill_current_entry'),
-              action: () => this.fillPasswordFromGenerator(),
-            },
-          }],
-        },
+      contentBuilder: () => {
+        this.generatorBottomActions()
       },
     })
   }
 
   @LocalBuilder
+  private generatorSheet() {
+    DsHalfModalSheet({
+      title: $r('app.string.generate_password'),
+      actions: this.generatorActions(),
+      bodyBuilder: this.generatorBody,
+      bottomBarBuilder: this.generatorBottomBar,
+      contentBehindTitleBar: true,
+    })
+  }
+
+  private generatorActions(): DsPageHeaderAction[] {
+    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeGeneratorSheet() }]
+  }
+
+  @LocalBuilder
   private groupBuilder() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('sys.float.padding_level8') }) {
+      Row({ space: $r('app.float.ds_space_sm') }) {
         Stack() {
-          SymbolGlyph($r('sys.symbol.folder_fill'))
+          SymbolGlyph($r('app.string.symbol_folder_filled'))
             .fontSize($r('sys.float.Title_L'))
-            .fontColor([$r('sys.color.brand')])
+            .fontColor([$r('app.color.ds_primary')])
         }
-        .padding($r('sys.float.padding_level4'))
+        .padding($r('app.float.ds_space_xs'))
         .borderRadius('50%')
-        .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+        .backgroundColor($r('app.color.ds_surface_high'))
 
-        Column({ space: $r('sys.float.padding_level2') }) {
+        Column({ space: $r('app.float.ds_space_2') }) {
           Text(this.editor.groupName)
             .fontSize($r('sys.float.Subtitle_L'))
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .fontWeight(FontWeight.Medium)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.editor.groupPath)
             .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
+            .fontColor($r('app.color.ds_text_secondary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -500,16 +526,16 @@ export struct EntryEditorView {
         .alignItems(HorizontalAlign.Start)
 
         if (!this.readOnly) {
-          SymbolGlyph($r('sys.symbol.chevron_forward'))
+          SymbolGlyph($r('app.string.symbol_chevron_right'))
             .fontSize($r('sys.float.Title_S'))
-            .fontColor([$r('sys.color.font_secondary')])
+            .fontColor([$r('app.color.ds_text_secondary')])
         }
       }
       .width('100%')
     }
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .enabled(!this.readOnly)
     .onClick(() => this.groupPickerVisible = true)
   }
@@ -539,9 +565,9 @@ export struct EntryEditorView {
     action.dismiss()
   }
 
-  build() {
-    HdsNavigation() {
-      Scroll(this.scroller) {
+  @LocalBuilder
+  private editorBody() {
+    Scroll(this.scroller) {
         Column() {
           EntryAvatarPicker({
             title: this.editor.title,
@@ -554,10 +580,10 @@ export struct EntryEditorView {
             },
             onReset: () => this.editor.clearAvatar(),
           })
-            .margin({ bottom: $r('sys.float.padding_level12') })
+            .margin({ bottom: $r('app.float.ds_space_md') })
 
           FormItem({ label: $r('app.string.group'), contentBuilder: this.groupBuilder })
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+            .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
 
           FormItem({
             label: $r('app.string.entry_title'),
@@ -569,7 +595,7 @@ export struct EntryEditorView {
             required: true,
           })
             .id('field_title')
-            .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+            .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
 
 
           ForEach(this.definition.fields, (definition: TemplateFieldDefinition) => {
@@ -580,7 +606,7 @@ export struct EntryEditorView {
                 value: this.editor.username,
               })
                 .id('field_username')
-                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
             } else if (definition.reservedField === 'Password') {
               FormItem({
                 label: definition.label,
@@ -588,14 +614,14 @@ export struct EntryEditorView {
                 value: this.editor.password,
               })
                 .id('field_password')
-                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
 
               Row() {
                 PasswordStrengthIndicator({ password: this.editor.password })
               }
               .width('100%')
-              .padding({ left: $r('sys.float.padding_level16'), right: $r('sys.float.padding_level16') })
-              .margin({ bottom: $r('sys.float.padding_level12') })
+              .padding({ left: $r('app.float.ds_space_16'), right: $r('app.float.ds_space_16') })
+              .margin({ bottom: $r('app.float.ds_space_md') })
             } else if (definition.reservedField === 'URL') {
               FormItem({
                 label: definition.label,
@@ -603,7 +629,7 @@ export struct EntryEditorView {
                 value: this.editor.url,
               })
                 .id('field_url')
-                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
             } else if (definition.reservedField === 'Notes') {
               FormItem({
                 label: definition.label,
@@ -611,7 +637,7 @@ export struct EntryEditorView {
                 value: this.editor.notes,
               })
                 .id('field_notes')
-                .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
             } else if (definition.attachments) {
               this.attachmentRow(definition)
             } else if (definition.sshKeys) {
@@ -635,13 +661,13 @@ export struct EntryEditorView {
               contentBuilder: this.tagsBuilder,
             })
               .id('field_tags')
-              .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+              .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
           }
         }
         .width('100%')
         .constraintSize({ maxWidth: $r('app.float.content_max_width') })
         .padding({
-          top: this.topOffset,
+          top: $r('app.float.ds_space_lg'),
           bottom: this.bottomOffset,
         })
       }
@@ -653,53 +679,38 @@ export struct EntryEditorView {
       .onTouch(() => this.viewModel.recordActivity())
       .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
         dragBar: true,
-        backgroundColor: Color.Transparent,
-        systemMaterial: this.sheetMaterial,
+        backgroundColor: $r('app.color.ds_surface_lowest'),
         showClose: false,
         onDisappear: () => this.closeGeneratorSheet(),
       })
+      .clip(false)
+  }
+
+  private editorActions(): DsPageHeaderAction[] {
+    return [
+      {
+        icon: $r('app.string.symbol_check'),
+        label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
+        onTap: () => this.saveEntry(),
+      },
+      { icon: $r('app.string.symbol_close'), label: $r('app.string.cancel'), onTap: () => this.requestExit() },
+    ]
+  }
+
+  build() {
+    Stack() {
+      DsHalfModalSheet({
+        title: this.sheet.entryUuid.length === 0
+          ? $r('app.string.new_entry') : $r('app.string.edit'),
+        actions: this.editorActions(),
+        bodyBuilder: this.editorBody,
+      })
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        title: {
-          mainTitle: this.sheet.entryUuid.length === 0
-            ? $r('app.string.new_entry') : $r('app.string.edit'),
-        },
-        menu: {
-          // 数组顺序即从左往右的渲染顺序：取消放末位，永远落在最右侧。
-          value: [{
-            content: {
-              icon: this.saveIcon,
-              type: IconStyleMode.SMALL,
-              label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
-              action: () => this.saveEntry(),
-            },
-          }, {
-            content: {
-              icon: this.cancelIcon,
-              type: IconStyleMode.SMALL,
-              label: $r('app.string.cancel'),
-              action: () => this.requestExit(),
-            },
-          }],
-        },
-      },
-    })
+    .width('100%')
+    .height('100%')
     .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
       dragBar: true,
-      backgroundColor: Color.Transparent,
-      systemMaterial: this.sheetMaterial,
+      backgroundColor: $r('app.color.ds_surface_lowest'),
       showClose: false,
       onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
       onDisappear: () => {

@@ -1,4 +1,3 @@
-import { uiMaterial } from '@kit.ArkUI'
 import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
@@ -55,25 +54,11 @@ export struct EntrySheet {
     this.childHandler = undefined
   }
 
-  @Computed
-  get contentTopOffset(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level16').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
-  }
-
   // 半模态内容底部 = 窗口安全区 + 安全间距：与 SearchPage 同档，只让出安全区时最后一项仍压在导航条上。
   @Computed
   get contentBottomOffset(): number {
-    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level8').id)
+    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + gapPx)
-  }
-
-  @Computed
-  get sheetTopAvoidAreaHeight(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const paddingHeightPx = ResUtil.getNumber($r('sys.float.padding_level12').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + paddingHeightPx)
   }
 
   private confirmDiscard(): void {
@@ -87,7 +72,7 @@ export struct EntrySheet {
       },
       secondaryButton: {
         value: $r('app.string.discard'),
-        fontColor: $r('sys.color.warning'),
+        fontColor: $r('app.color.ds_warning'),
         action: () => this.sheet.close(),
       },
     }
@@ -111,7 +96,6 @@ export struct EntrySheet {
       if (this.sheet.mode === EntrySheetMode.Preview) {
         EntryPreviewView({
           sheet: this.sheet,
-          topOffset: this.contentTopOffset,
           bottomOffset: this.contentBottomOffset,
           onClose: () => this.sheet.close(),
           onEdit: () => this.sheet.beginEdit(),
@@ -119,7 +103,6 @@ export struct EntrySheet {
       } else {
         EntryEditorView({
           sheet: this.sheet,
-          topOffset: this.sheetTopAvoidAreaHeight,
           bottomOffset: this.contentBottomOffset,
           onWillDismissCheck: (handler: () => void) => this.childHandler = handler,
           onCancel: () => this.sheet.exitEditor(),
@@ -138,10 +121,7 @@ export struct EntrySheet {
       .bindSheet(this.sheet.visible, this.sheetContent(), {
         dragBar: true,
         showClose: false,
-        backgroundColor: Color.Transparent,
-        systemMaterial: new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THICK,
-        }),
+        backgroundColor: $r('app.color.ds_surface_lowest'),
         onHeightDidChange: (heightPx: number) => {
           this.sheetHeightVp = this.getUIContext().px2vp(heightPx)
         },

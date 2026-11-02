@@ -1,0 +1,284 @@
+{
+  "string": [
+    {
+      "name": "symbol_add",
+      "value": "0x100000"
+    },
+    {
+      "name": "symbol_add_square",
+      "value": "0x100001"
+    },
+    {
+      "name": "symbol_archive",
+      "value": "0x100002"
+    },
+    {
+      "name": "symbol_archive_filled",
+      "value": "0x100100"
+    },
+    {
+      "name": "symbol_arrow_back",
+      "value": "0x100003"
+    },
+    {
+      "name": "symbol_arrow_forward",
+      "value": "0x100004"
+    },
+    {
+      "name": "symbol_attach_file",
+      "value": "0x100005"
+    },
+    {
+      "name": "symbol_bolt",
+      "value": "0x100006"
+    },
+    {
+      "name": "symbol_business",
+      "value": "0x100007"
+    },
+    {
+      "name": "symbol_calendar",
+      "value": "0x100008"
+    },
+    {
+      "name": "symbol_check",
+      "value": "0x100009"
+    },
+    {
+      "name": "symbol_check_circle",
+      "value": "0x10000A"
+    },
+    {
+      "name": "symbol_chevron_down",
+      "value": "0x10000B"
+    },
+    {
+      "name": "symbol_chevron_left",
+      "value": "0x10000C"
+    },
+    {
+      "name": "symbol_chevron_right",
+      "value": "0x10000D"
+    },
+    {
+      "name": "symbol_chevron_up",
+      "value": "0x10000E"
+    },
+    {
+      "name": "symbol_close",
+      "value": "0x10000F"
+    },
+    {
+      "name": "symbol_cloud_sync",
+      "value": "0x100010"
+    },
+    {
+      "name": "symbol_copy",
+      "value": "0x100011"
+    },
+    {
+      "name": "symbol_create_folder",
+      "value": "0x100012"
+    },
+    {
+      "name": "symbol_credit_card",
+      "value": "0x100013"
+    },
+    {
+      "name": "symbol_data_object",
+      "value": "0x100014"
+    },
+    {
+      "name": "symbol_database",
+      "value": "0x100015"
+    },
+    {
+      "name": "symbol_delete",
+      "value": "0x100016"
+    },
+    {
+      "name": "symbol_description",
+      "value": "0x100017"
+    },
+    {
+      "name": "symbol_divider",
+      "value": "0x100018"
+    },
+    {
+      "name": "symbol_dns",
+      "value": "0x100019"
+    },
+    {
+      "name": "symbol_download",
+      "value": "0x10001A"
+    },
+    {
+      "name": "symbol_edit",
+      "value": "0x10001B"
+    },
+    {
+      "name": "symbol_error",
+      "value": "0x10001C"
+    },
+    {
+      "name": "symbol_eye",
+      "value": "0x10001D"
+    },
+    {
+      "name": "symbol_eye_off",
+      "value": "0x10001E"
+    },
+    {
+      "name": "symbol_fingerprint",
+      "value": "0x10001F"
+    },
+    {
+      "name": "symbol_folder",
+      "value": "0x100020"
+    },
+    {
+      "name": "symbol_folder_filled",
+      "value": "0x100101"
+    },
+    {
+      "name": "symbol_folder_open",
+      "value": "0x100021"
+    },
+    {
+      "name": "symbol_generate",
+      "value": "0x100022"
+    },
+    {
+      "name": "symbol_grid",
+      "value": "0x100023"
+    },
+    {
+      "name": "symbol_grid_filled",
+      "value": "0x100102"
+    },
+    {
+      "name": "symbol_image",
+      "value": "0x100024"
+    },
+    {
+      "name": "symbol_info",
+      "value": "0x100025"
+    },
+    {
+      "name": "symbol_info_filled",
+      "value": "0x100103"
+    },
+    {
+      "name": "symbol_key",
+      "value": "0x100026"
+    },
+    {
+      "name": "symbol_keyboard_tab",
+      "value": "0x100027"
+    },
+    {
+      "name": "symbol_label",
+      "value": "0x100028"
+    },
+    {
+      "name": "symbol_link",
+      "value": "0x100029"
+    },
+    {
+      "name": "symbol_lock",
+      "value": "0x10002A"
+    },
+    {
+      "name": "symbol_lock_filled",
+      "value": "0x100104"
+    },
+    {
+      "name": "symbol_lock_open",
+      "value": "0x10002B"
+    },
+    {
+      "name": "symbol_more",
+      "value": "0x10002C"
+    },
+    {
+      "name": "symbol_notes",
+      "value": "0x10002D"
+    },
+    {
+      "name": "symbol_open_in_new",
+      "value": "0x10002E"
+    },
+    {
+      "name": "symbol_person",
+      "value": "0x10002F"
+    },
+    {
+      "name": "symbol_radio_selected",
+      "value": "0x100030"
+    },
+    {
+      "name": "symbol_radio_unselected",
+      "value": "0x100031"
+    },
+    {
+      "name": "symbol_refresh",
+      "value": "0x100032"
+    },
+    {
+      "name": "symbol_remove",
+      "value": "0x100033"
+    },
+    {
+      "name": "symbol_save",
+      "value": "0x100034"
+    },
+    {
+      "name": "symbol_schedule",
+      "value": "0x100035"
+    },
+    {
+      "name": "symbol_search",
+      "value": "0x100036"
+    },
+    {
+      "name": "symbol_security_warning",
+      "value": "0x100037"
+    },
+    {
+      "name": "symbol_space_bar",
+      "value": "0x100038"
+    },
+    {
+      "name": "symbol_star",
+      "value": "0x100039"
+    },
+    {
+      "name": "symbol_star_filled",
+      "value": "0x100105"
+    },
+    {
+      "name": "symbol_swap_horiz",
+      "value": "0x10003F"
+    },
+    {
+      "name": "symbol_sync",
+      "value": "0x10003A"
+    },
+    {
+      "name": "symbol_upload",
+      "value": "0x10003B"
+    },
+    {
+      "name": "symbol_upload_file",
+      "value": "0x10003C"
+    },
+    {
+      "name": "symbol_verified_user",
+      "value": "0x10003D"
+    },
+    {
+      "name": "symbol_warning",
+      "value": "0x10003E"
+    }
+  ]
+}

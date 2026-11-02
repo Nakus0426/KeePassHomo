@@ -9,6 +9,7 @@ import {
   RESERVED_FIELD_NAMES,
   SshKeyAlgorithm,
   SshKeyPairText,
+  VaultAuthMode,
   VaultEngineError,
   VaultEngineErrorCategory,
   VaultEntry,
@@ -23,7 +24,7 @@ import {
   VaultSource,
 } from '@ohos/common'
 import { formatISO9075 } from '@wolfx/date-fns'
-import { AppUtil, FileUtil, LogUtil, PreferencesUtil } from '@pura/harmony-utils'
+import { AppUtil, DateUtil, FileUtil, LogUtil, PreferencesUtil, ResUtil } from '@pura/harmony-utils'
 import {
   ROUTE_CREATE_VAULT,
   ROUTE_FILE_SUMMARY,
@@ -33,7 +34,7 @@ import {
   ROUTE_WEBDAV,
   ROUTE_WELCOME,
 } from '../constants/RouteConstants'
-import { stageOneVaultStore, UserCancelledError, VaultFileSummary } from '../model/StageOneVaultStore'
+import { stageOneVaultStore, UserCancelledError, VaultAccess, VaultFileSummary } from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { WelcomeParam } from '../navigation/RouteParams'
@@ -49,6 +50,8 @@ const ACTION_SEND_TO_DATA: string = 'ohos.want.action.sendToData'
 
 const TEMPLATE_PREFERENCES_NAME: string = 'entry_templates'
 const RECENT_TEMPLATES_KEY: string = 'recent_templates'
+// 品牌页最短展示时长（自品牌页首帧出现起算）。
+const MIN_LAUNCH_VISIBLE_MS: number = 600
 // 最近使用只在模板卡片上标注，不改变列表顺序。
 const RECENT_TEMPLATE_LIMIT: number = 3
 const EMPTY_TEMPLATES: string[] = []
@@ -82,7 +85,8 @@ export class AppViewModel {
   @Trace busy: boolean = false
   @Trace status: string = ''
   @Trace lastError: AppErrorModel | undefined = undefined
-  @Trace splashTimedOut: boolean = false
+  @Trace launchVisible: boolean = true
+  @Trace shellVisible: boolean = false
   @Trace fileSummary: VaultFileSummary | undefined = undefined
   @Trace unlockFailures: number = 0
   @Trace unlockBlocked: boolean = false
@@ -91,29 +95,55 @@ export class AppViewModel {
   readonly generator: GeneratorViewModel = new GeneratorViewModel()
   readonly session: VaultSessionViewModel = new VaultSessionViewModel()
 
-  private splashTimer: number = -1
+  private launchTimer: number = -1
+  private initialized: boolean = false
+  private launchDwellElapsed: boolean = false
+  private initialRoute: string = ''
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     this.setStatus('')
-    this.splashTimedOut = false
-    this.splashTimer = setTimeout(() => this.splashTimedOut = true, 8000)
+    this.launchVisible = true
     try {
       await stageOneVaultStore.initialize(context)
       this.refreshVault()
-      const initialRoute: string = stageOneVaultStore.hasRecentVault ? ROUTE_UNLOCK : ROUTE_WELCOME
-      setTimeout(() => appRouter.resetTo(initialRoute), 0)
+      // 路由等壳层挂载后再压栈：此时 Navigation 已具备承载页面的条件。
+      this.initialRoute = stageOneVaultStore.hasRecentVault ? ROUTE_UNLOCK : ROUTE_WELCOME
     } catch (error) {
       this.reportBoundaryError('应用初始化失败，请重新启动应用', error)
-      this.splashTimedOut = true
     } finally {
-      clearTimeout(this.splashTimer)
       appSessionState.privacyCovered = false
+      this.initialized = true
+      this.mountShellIfSettled()
     }
   }
 
+  // 品牌页首帧出现后由 LaunchPage 调用：展示时长不能把进程启动与首帧构建耗时算进去。
+  startLaunchDwell(): void {
+    clearTimeout(this.launchTimer)
+    this.launchTimer = setTimeout(() => {
+      this.launchDwellElapsed = true
+      this.mountShellIfSettled()
+    }, MIN_LAUNCH_VISIBLE_MS)
+  }
+
+  // AppShell 挂载后回话：品牌页退场时机由壳层决定，避免两层交接时露出空白帧。
+  markShellReady(): void {
+    if (this.initialRoute.length > 0) {
+      appRouter.resetTo(this.initialRoute)
+      this.initialRoute = ''
+    }
+    this.launchVisible = false
+  }
+
   dispose(): void {
-    clearTimeout(this.splashTimer)
+    clearTimeout(this.launchTimer)
     this.session.dispose()
+  }
+
+  private mountShellIfSettled(): void {
+    if (this.initialized && this.launchDwellElapsed) {
+      this.shellVisible = true
+    }
   }
 
   switchModule(route: string): void {
@@ -143,19 +173,54 @@ export class AppViewModel {
       }
       this.setStatus('')
     } catch (error) {
-      this.reportBoundaryError('打开本地 KDBX 失败', error)
+      if (error instanceof UserCancelledError) {
+        this.setStatus('')
+        return
+      }
+      this.reportBoundaryError(ResUtil.getStringSync($r('app.string.op_error_open_local')), error)
+    } finally {
+      this.busy = false
+    }
+  }
+
+  // 重试沿用上次探明的来源，不再拉起系统选择器。
+  async retryOpenVault(): Promise<void> {
+    this.busy = true
+    try {
+      this.fileSummary = await stageOneVaultStore.retryFailedSource()
+      this.refreshVault()
+      this.setStatus('')
+    } catch (error) {
+      this.reportBoundaryError(ResUtil.getStringSync($r('app.string.op_error_open_local')), error)
     } finally {
       this.busy = false
     }
   }
 
   async chooseKeyFile(): Promise<void> {
-    try {
+    await this.bindKeyFile('选择密钥文件失败', async (): Promise<void> => {
       await stageOneVaultStore.chooseKeyFile()
+    })
+  }
+
+  // 生成密钥文件同样拉起保存选择器：取消保存不改变既有绑定。
+  async generateKeyFile(fileName: string): Promise<void> {
+    await this.bindKeyFile(ResUtil.getStringSync($r('app.string.op_error_generate_keyfile')), async (): Promise<void> => {
+      await stageOneVaultStore.generateKeyFile(fileName)
+    })
+  }
+
+  private async bindKeyFile(operation: string, action: () => Promise<void>): Promise<void> {
+    try {
+      await action()
       this.refreshVault()
       this.setStatus('')
     } catch (error) {
-      this.reportBoundaryError('选择密钥文件失败', error)
+      if (error instanceof UserCancelledError) {
+        this.setStatus('')
+        return
+      }
+      this.reportBoundaryError(operation, error)
     }
   }
 
@@ -166,12 +231,9 @@ export class AppViewModel {
     this.setStatus('')
   }
 
+  // NEW_INSTANCE 才会执行 push 动效；同帧清栈会被折叠成栈变浅，系统按移除页面播出反向动画。
   openUnlock(): void {
-    if (appRouter.stack.getParamByName(ROUTE_UNLOCK).length > 0) {
-      appRouter.stack.popToName(ROUTE_UNLOCK)
-      return
-    }
-    appRouter.push(ROUTE_UNLOCK)
+    appRouter.push(ROUTE_UNLOCK, undefined, { launchMode: LaunchMode.NEW_INSTANCE, animated: true })
     this.setStatus('')
   }
 
@@ -191,10 +253,10 @@ export class AppViewModel {
     this.setStatus('')
   }
 
-  async createVault(vaultName: string, masterPassword: string): Promise<void> {
+  async createVault(vaultName: string, masterPassword: string, authMode: VaultAuthMode): Promise<void> {
     this.busy = true
     try {
-      await stageOneVaultStore.createVault(vaultName.trim(), masterPassword)
+      await stageOneVaultStore.createVault(vaultName.trim(), masterPassword, authMode)
       this.refreshVault()
       this.session.markUnlocked()
       appSessionState.setCurrentModule(ROUTE_VAULT)
@@ -212,8 +274,9 @@ export class AppViewModel {
   }
 
   // 成功返回 true（解锁页播放离场动画后自行跳转首页），失败经 lastError 通告页面。
+  // 仅密钥文件也能解锁：凭据是否为空由页面判断，这里不再按密码长度拦截。
   async unlockVault(password: string): Promise<boolean> {
-    if (password.length === 0 || this.unlockBlocked) {
+    if (this.unlockBlocked) {
       return false
     }
     this.busy = true
@@ -262,13 +325,31 @@ export class AppViewModel {
         format: VaultFormat.Kdbx4,
         size: this.fileSummary?.size ?? 0,
         modifiedAt: Date.now() / 1000,
-        readOnly: false,
+        // 升级走 writeSafely 并校验通过，写权限已被证明。
+        access: VaultAccess.ReadWrite,
       }
       this.refreshVault()
       this.setStatus(`升级成功，备份文件：${backupName}`)
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('KDBX 3.1 升级失败', error)
+    } finally {
+      this.busy = false
+    }
+  }
+
+  async saveAsLocalVault(): Promise<void> {
+    this.busy = true
+    try {
+      this.fileSummary = await stageOneVaultStore.saveAsLocalVault()
+      this.refreshVault()
+      this.setStatus('')
+    } catch (error) {
+      if (error instanceof UserCancelledError) {
+        this.setStatus('')
+        return
+      }
+      this.reportBoundaryError(ResUtil.getStringSync($r('app.string.op_error_save_as')), error)
     } finally {
       this.busy = false
     }
@@ -627,6 +708,15 @@ export class AppViewModel {
     return formatISO9075(new Date(time))
   }
 
+  formatMinute(timeSeconds: number): string {
+    return DateUtil.getFormatDateStr(timeSeconds * 1000, 'yyyy-MM-dd HH:mm')
+  }
+
+  currentModifiedAt(): number {
+    this.revision
+    return stageOneVaultStore.currentModifiedAt
+  }
+
   hasRecentVault(): boolean {
     this.revision
     return stageOneVaultStore.hasRecentVault
@@ -645,6 +735,16 @@ export class AppViewModel {
   currentKeyFileUri(): string {
     this.revision
     return stageOneVaultStore.currentKeyFileUri
+  }
+
+  currentKeyFileFingerprint(): string {
+    this.revision
+    return stageOneVaultStore.currentKeyFileFingerprint
+  }
+
+  currentKeyFileSize(): number {
+    this.revision
+    return stageOneVaultStore.currentKeyFileSize
   }
 
   currentFormat(): VaultFormat {

@@ -13,6 +13,7 @@ export {
   VaultFormat,
   VaultSource,
   VaultCredential,
+  VaultAuthMode,
   SyncState,
   ConflictResolution,
   ReauthenticationPurpose,
@@ -52,6 +53,8 @@ export {
 } from './src/main/ets/vault/FileVaultRepository'
 
 export { DefaultVaultSession } from './src/main/ets/vault/DefaultVaultSession'
+
+export { generateRandomKeyFile, keyFileFingerprint } from './src/main/ets/vault/KeyFileGenerator'
 
 export { StageZeroKdbxVerifier, KdbxVerificationResult } from './src/main/ets/vault/StageZeroKdbxVerifier'
 

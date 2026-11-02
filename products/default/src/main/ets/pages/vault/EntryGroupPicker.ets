@@ -1,48 +1,15 @@
 import { BusinessError } from '@kit.BasicServicesKit'
-import { LengthMetrics, promptAction, SymbolGlyphModifier, UIContext, uiMaterial, UIUtils } from '@kit.ArkUI'
-import {
-  BottomBuilderShowType,
-  hdsMaterial,
-  HdsNavigation,
-  HdsNavigationIconOptions,
-  HdsNavigationMenuItemOptions,
-  HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
+import { LengthMetrics, promptAction, UIContext, UIUtils } from '@kit.ArkUI'
 import { AnimationTokens, AppToast, VaultGroup } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/GroupRow'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../components/DsPageHeader'
+import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from './GroupPickerShared'
 
 // 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
 const NEW_GROUP_NAME_MAX_LENGTH: number = 64
-
-// 标题栏下方搜索区高度，与官方自定义区域示例一致。
-const SEARCH_BAR_HEIGHT_VP: number = 56
-
-// 横移自身宽度的 20%，与生成器页签切换动画同参。
-const LEVEL_TRANSITION_OFFSET_RATIO: number = 0.2
-
-// 从 group 向上回溯到目标组的链路（含首尾）；目标不在子树内返回 undefined。
-function findGroupChain(group: VaultGroup, targetUuid: string): VaultGroup[] | undefined {
-  if (group.uuid === targetUuid) {
-    return [group]
-  }
-  for (const child of group.groups) {
-    const chain: VaultGroup[] | undefined = findGroupChain(child, targetUuid)
-    if (chain !== undefined) {
-      chain.unshift(group)
-      return chain
-    }
-  }
-  return undefined
-}
-
-function sameOrder(previous: string[], next: string[]): boolean {
-  return previous.length === next.length
-    && previous.every((uuid: string, index: number) => uuid === next[index])
-}
 
 // 分组选择器：编辑半模态内的第二层半模态，形态对齐官方文件选择器（保存位置模式）。
 @ComponentV2
@@ -81,15 +48,6 @@ export struct EntryGroupPicker {
   private readonly breadcrumbScroller: Scroller = new Scroller()
   private readonly viewModel: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
-  private readonly confirmIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.checkmark'))
-    .fontColor([$r('sys.color.confirm')])
-  private readonly newGroupIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.folder_badge_plus'))
-      .fontColor([$r('sys.color.titlebar_icon_color')])
-  private readonly closeIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontColor([$r('sys.color.titlebar_icon_color')])
-  private readonly backIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.chevron_backward'))
-    .fontColor([$r('sys.color.titlebar_icon_color')])
   // 纯淡入淡出：面包屑搜索态淡出、列表与空态互换共用；缩放交给行自身。
   private readonly fadeTransition: TransitionEffect = TransitionEffect.OPACITY
     .animation({
@@ -162,28 +120,18 @@ export struct EntryGroupPicker {
     return this.viewModel.rootGroup().name
   }
 
-  @Computed
-  private get titleBarOffset(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level8').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
-  }
-
   @Builder
   private searchBuilder() {
     Row() {
       Search({ placeholder: $r('app.string.search_groups'), value: this.searchDraft })
         .height($r('sys.float.titlebar_icon_background_width'))
         .searchButton($r('app.string.search'))
-        .systemMaterial(new uiMaterial.ImmersiveMaterial({
-          style: uiMaterial.ImmersiveStyle.ULTRA_THIN,
-          interactive: true,
-        }))
+        .backgroundColor($r('app.color.ds_surface_low'))
         .onChange((value: string) => this.applyQuery(value))
         .onSubmit(() => this.onActivity())
     }
     .width('100%')
-    .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   private applyQuery(value: string): void {
@@ -214,9 +162,9 @@ export struct EntryGroupPicker {
   // 分割线与主文本左对齐：行内边距 + 圆形图标宽（字形加两侧内边距）+ 图标与文本间距。
   @Computed
   private get dividerStartMargin(): number {
-    const padding8Px = ResUtil.getNumber($r('sys.float.padding_level8').id) * 2
+    const padding8Px = ResUtil.getNumber($r('app.float.ds_space_sm').id) * 2
     const iconSizePx = ResUtil.getNumber($r('sys.float.Title_L').id)
-    const padding4Px = ResUtil.getNumber($r('sys.float.padding_level4').id) * 2
+    const padding4Px = ResUtil.getNumber($r('app.float.ds_space_xs').id) * 2
     return this.getUIContext().px2vp(padding8Px + iconSizePx + padding4Px)
   }
 
@@ -304,10 +252,10 @@ export struct EntryGroupPicker {
       Text($r('app.string.new_group'))
         .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
         .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font_primary'))
+        .fontColor($r('app.color.ds_text_primary'))
         .width('100%')
         .textAlign(TextAlign.Center)
-        .padding({ left: $r('sys.float.padding_level12'), right: $r('sys.float.padding_level12') })
+        .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
 
       TextInput({ placeholder: $r('app.string.group_name_placeholder'), text: this.newGroupName })
         .fontSize($r('sys.float.Body_L'))
@@ -315,41 +263,41 @@ export struct EntryGroupPicker {
         .height($r('app.float.control_height'))
         .backgroundColor(Color.Transparent)
         .showUnderline(true)
-        .underlineColor({ normal: $r('sys.color.comp_divider'), typing: $r('sys.color.brand') })
+        .underlineColor({ normal: $r('app.color.ds_outline_variant'), typing: $r('app.color.ds_primary') })
         .margin({
-          top: $r('sys.float.padding_level6'),
-          left: $r('sys.float.padding_level12'),
-          right: $r('sys.float.padding_level12'),
+          top: $r('app.float.ds_space_6'),
+          left: $r('app.float.ds_space_md'),
+          right: $r('app.float.ds_space_md'),
         })
         .onChange((value: string) => this.newGroupName = value)
 
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Button($r('app.string.cancel'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.closeNewGroupDialog())
 
         Divider()
           .vertical(true)
           .strokeWidth(1)
-          .color($r('sys.color.comp_divider'))
+          .color($r('app.color.ds_outline_variant'))
           .height($r('sys.float.ohos_id_dialog_divider_height'))
 
         Button($r('app.string.confirm'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('sys.color.brand'))
+          .fontColor($r('app.color.ds_primary'))
           .layoutWeight(1)
           .onClick(() => this.submitNewGroup())
       }
       .width('100%')
-      .margin({ top: $r('sys.float.padding_level2') })
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .margin({ top: $r('app.float.ds_space_2') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     }
     .width('100%')
-    .padding({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level8') })
+    .padding({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_sm') })
   }
 
   private openNewGroupDialog(): void {
@@ -361,7 +309,7 @@ export struct EntryGroupPicker {
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.newGroupDialog(), this.dialogController, {
-        backgroundColor: $r('sys.color.comp_background_primary'),
+        backgroundColor: $r('app.color.ds_surface_low'),
       })
       .catch((error: BusinessError) => {
         LogUtil.error(`打开新建分组弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
@@ -399,53 +347,49 @@ export struct EntryGroupPicker {
     AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
   }
 
-  private menuItem(icon: SymbolGlyphModifier, label: Resource, action: () => void,
-    enabled: boolean = true): HdsNavigationMenuItemOptions {
-    const content: HdsNavigationIconOptions = {
-      icon: icon,
-      type: IconStyleMode.SMALL,
-      label: label,
-      isEnabled: enabled,
-      action: action,
-    }
-    return { content: content }
-  }
-
-  private menuItems(): HdsNavigationMenuItemOptions[] {
+  private groupActions(): DsPageHeaderAction[] {
     const enabled: boolean = !this.viewModel.busy
     return [
-      this.menuItem(this.newGroupIcon, $r('app.string.new_group'), () => this.openNewGroupDialog(), enabled),
-      this.menuItem(this.confirmIcon,
-        this.searching ? $r('app.string.group_pick_confirm') : $r('app.string.select_current_group'),
-        () => this.confirmPick(), enabled),
-      this.menuItem(this.closeIcon, $r('app.string.close'), () => this.onClose(), true),
+      {
+        icon: $r('app.string.symbol_create_folder'),
+        label: $r('app.string.new_group'),
+        enabled: enabled,
+        onTap: () => this.openNewGroupDialog(),
+      },
+      {
+        icon: $r('app.string.symbol_check'),
+        label: this.searching ? $r('app.string.group_pick_confirm') : $r('app.string.select_current_group'),
+        enabled: enabled,
+        onTap: () => this.confirmPick(),
+      },
+      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
     ]
   }
 
   @LocalBuilder
   breadcrumb() {
     Scroll(this.breadcrumbScroller) {
-      Row({ space: $r('sys.float.padding_level2') }) {
+      Row({ space: $r('app.float.ds_space_2') }) {
         Button(this.rootName)
           .height($r('sys.float.Title_L'))
           .buttonStyle(ButtonStyleMode.TEXTUAL)
           .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('sys.color.font_secondary'))
-          .padding({ left: $r('sys.float.padding_level4'), right: $r('sys.float.padding_level4') })
+          .fontColor($r('app.color.ds_text_secondary'))
+          .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_xs') })
           .onClick(() => this.jumpTo(0))
 
         ForEach(this.pathGroups, (group: VaultGroup, index: number) => {
-          Row({ space: $r('sys.float.padding_level2') }) {
-            SymbolGlyph($r('sys.symbol.chevron_forward'))
+          Row({ space: $r('app.float.ds_space_2') }) {
+            SymbolGlyph($r('app.string.symbol_chevron_right'))
               .fontSize($r('sys.float.Body_S'))
-              .fontColor([$r('sys.color.font_tertiary')])
+              .fontColor([$r('app.color.ds_text_tertiary')])
             Button(group.name)
               .height($r('sys.float.Title_L'))
               .buttonStyle(ButtonStyleMode.TEXTUAL)
               .fontSize($r('sys.float.Body_M'))
               .fontColor(index === this.pathGroups.length - 1
-                ? $r('sys.color.font_primary') : $r('sys.color.font_secondary'))
-              .padding({ left: $r('sys.float.padding_level4'), right: $r('sys.float.padding_level4') })
+                ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_secondary'))
+              .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_xs') })
               .onClick(() => this.jumpTo(index + 1))
           }
         }, (group: VaultGroup) => group.uuid)
@@ -453,14 +397,14 @@ export struct EntryGroupPicker {
       // 内容尺寸一变就把当前层级带回视野：当前层级恒为末项，滚到末端即可。
       .onAreaChange((_oldArea: Area, _newArea: Area) => this.breadcrumbScroller.scrollEdge(Edge.End))
       // 内边距放在内容上让滚动视口贴边；与渐隐长度取同一 token，两端末项不被压暗。
-      .padding({ left: $r('sys.float.padding_level8'), right: $r('sys.float.padding_level8') })
+      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     }
     .width('100%')
-    .margin({ bottom: $r('sys.float.padding_level6') })
+    .margin({ bottom: $r('app.float.ds_space_6') })
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
     .align(Alignment.Start)
-    .fadingEdge(true, { fadingEdgeLength: LengthMetrics.resource($r('sys.float.padding_level8')) })
+    .fadingEdge(true, { fadingEdgeLength: LengthMetrics.resource($r('app.float.ds_space_sm')) })
     .transition(this.fadeTransition)
   }
 
@@ -498,9 +442,9 @@ export struct EntryGroupPicker {
     .scrollBar(BarState.Off)
     .divider({
       strokeWidth: 1,
-      color: $r('sys.color.grid_menu_divider_color'),
+      color: $r('app.color.ds_outline_variant'),
       startMargin: this.dividerStartMargin,
-      endMargin: $r('sys.float.padding_level8'),
+      endMargin: $r('app.float.ds_space_sm'),
     })
     .translate({ x: this.levelOffsetX })
     .opacity(this.levelOpacity)
@@ -531,68 +475,55 @@ export struct EntryGroupPicker {
     .transition(this.fadeTransition)
   }
 
-  build() {
-    HdsNavigation() {
-      Scroll() {
-        Column() {
-          if (!this.searching) {
-            this.breadcrumb()
-          }
+  @LocalBuilder
+  private titleBarContent() {
+    Column() {
+      DsPageHeader({
+        title: $r('app.string.select_group'),
+        headerSize: DsPageHeaderSize.Small,
+        showBack: this.pathGroups.length > 0,
+        actions: this.groupActions(),
+        onBack: () => this.navigateUp(),
+      })
 
-          if (this.visibleGroups.length === 0) {
-            this.emptyHint()
-          } else {
-            this.groupList()
-          }
+      this.searchBuilder()
+    }
+    .width('100%')
+  }
+
+  @LocalBuilder
+  private bodyContent() {
+    Scroll() {
+      Column() {
+        if (!this.searching) {
+          this.breadcrumb()
         }
-        .width('100%')
-        .height(this.visibleGroups.length === 0 ? '100%' : 'auto')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .alignItems(HorizontalAlign.Start)
+
+        if (this.visibleGroups.length === 0) {
+          this.emptyHint()
+        } else {
+          this.groupList()
+        }
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .padding({ top: this.titleBarOffset + SEARCH_BAR_HEIGHT_VP, bottom: this.bottomOffset })
-      .align(Alignment.Top)
-      .onTouch(() => this.onActivity())
+      .height(this.visibleGroups.length === 0 ? '100%' : 'auto')
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .alignItems(HorizontalAlign.Start)
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        // MODAL 半模态标题栏不渲染内置返回键，返回图标走 subIcon 槽位；
-        // 根层级不显示，返回语义由 navigateUp 统一裁决。
-        subIcon: this.pathGroups.length === 0 ? undefined : {
-          content: {
-            icon: this.backIcon,
-            label: $r('app.string.back'),
-            isEnabled: true,
-            action: () => this.navigateUp(),
-          },
-        },
-        title: {
-          mainTitle: $r('app.string.select_group'),
-        },
-        menu: {
-          value: this.menuItems(),
-        },
-        bottomBuilder: {
-          builder: () => this.searchBuilder(),
-          height: SEARCH_BAR_HEIGHT_VP,
-          showType: BottomBuilderShowType.DIRECTLY_SHOW,
-        },
-      },
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .padding({ top: $r('app.float.ds_space_lg'), bottom: this.bottomOffset })
+    .align(Alignment.Top)
+    .onTouch(() => this.onActivity())
+    .clip(false)
+  }
+
+  build() {
+    DsHalfModalSheet({
+      titleBarBuilder: this.titleBarContent,
+      bodyBuilder: this.bodyContent,
     })
   }
 }

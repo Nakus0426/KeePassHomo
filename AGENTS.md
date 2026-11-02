@@ -72,6 +72,45 @@
 - 测试：任务完成后不执行白盒测试，由用户手动测试
 - 代码检查：遵循 `code-linter.json5` 中的性能、TypeScript 和安全规则
 
+## 设计系统规范
+
+### 设计源与迁移
+
+- 视觉唯一来源是 pen 文档 `C:\Users\82077\.pencil\documents\c50018f6-3d43-42a5-bdf6-0c09e3cd2548\KeePassHomo.pen`。改 UI 前先读对应页面、组件和浅深色设计表；设计稿与代码冲突时以设计稿为准。
+- 不在 pen 设计稿之外自行定义视觉。设计稿未覆盖的页面保持现状，先补设计稿再开发，不按设计系统推断新页面。
+- 新页面与改版页面整页使用新设计系统；旧页面保持现状，改版时整页迁移。禁止在旧页面新增 `sys.color.*`、非设计系统 `app.color.*` 或旧风格自绘组件。
+
+### Token 与组件
+
+- 颜色、间距、圆角、字号、图标和控件尺寸使用 `app.color.ds_*`、`app.float.ds_*`；命名与 pen 变量一致（`ds_` + snake_case），新增 Token 同时维护 `resources/base` 与 `resources/dark`。
+- 新页面与改版页面的 UI 颜色只用 `app.color.ds_*`；旧页面保持现状。`sys.color.*` 仅限透明色与系统控件默认外观。禁止新增十六进制、RGB、非 `ds_*` 的 `app.color.*` 和 `sys.color.*` 用途。
+- 设计系统组件位于 `products/default/src/main/ets/components/Ds*.ets`。新页面和改版页面必须复用 `DsButton`、`DsInput`、`DsField`、`DsPageHeader`；缺能力先扩展现有组件，不在页面内复制同视觉组件。
+- 视觉语言为扁平实色：常态不描边，层次由 `ds_surface_*` 底色差表达；页面组件（卡片、输入框、按钮、页头）圆角为 0，仅小徽标和圆形控件可按设计稿使用 4vp 圆角或 `50%`；禁止装饰性渐变、阴影、玻璃和光斑。聚焦与错误态描边、分隔线、设计稿指定的卡面皮肤除外。
+- 半模态、菜单和弹层的面底使用设计稿指定的 `ds_surface_*` Token，不使用 `sys.color.comp_background_*`。
+- 半模态统一使用 `DsHalfModalSheet`（悬浮标题栏 + 滚动穿透，含密码生成器沉浸式预览示例），详见 `docs/arkui-half-modal.md`。
+- 页面底部固定操作区统一使用 `DsBottomActionBar`（`products/default/src/main/ets/components/DsBottomActionBar.ets`），不得在页面内重复实现。
+- 底部操作区使用 `ds_surface_canvas_transparent` → `ds_surface_canvas` 的垂直渐变淡出，滚动内容按 `onHeightChange` 实测高度避让；禁止实色底板、`Scroll.fadingEdge` 或页面自绘渐变。详见 `docs/arkui-bottom-action-bar.md`。
+
+### 图标、字体与动效
+
+- 图标使用 `DefaultAbility.onWindowStageCreate` 注册的自定义 Material Symbols TTF，资源键为 `app.string.symbol_*`；新增图标先补 `tools/icon-migration` 映射与字体，不使用 `sys.symbol.*`。
+- 自定义 `SymbolGlyph` / `SymbolGlyphModifier` 必须同时设置 `fontColor` 与 `foregroundColor`，两者使用同一颜色表达式。
+- 字体：UI 使用 `HarmonyOS Sans SC`；密码、密钥和代码使用 `PASSWORD_FONT_FAMILY`（Maple Mono NF CN）。禁止新增其他字体族。
+- 动效数值统一来自 `common/src/main/ets/animation/AnimationTokens.ets`：反馈 300ms、`cubic-bezier(0.2, 0, 0, 1)`；禁止在组件内写临时时长或曲线。
+
+### 标题栏与系统材质
+
+- `HdsNavigation` / `HdsNavDestination` 只作为路由与标题栏容器使用；内容区不得使用 HDS 系统视觉组件。
+- 所有 HDS 标题栏统一 `hdsMaterial.MaterialType.ADAPTIVE` + `ScrollEffectType.GRADIENT_BLUR`；主壳、搜索页和子页不得使用不同材质档位。现存 `AppShell`、`SearchPage` 的 `IMMERSIVE` 属于待迁移偏差，触碰时改为 `ADAPTIVE`。
+- 标题栏之外的组件禁止 `systemMaterialEffect`：底部导航、菜单、筛选面板、半模态、弹层和页面内容一律使用设计系统实色面底。现存半模态与面板的 `systemMaterialEffect` 属于待迁移偏差，触碰时移除。
+- `HdsNavDestination` 子页的标题栏避让与滚动穿透统一按 `docs/arkui-hds-titlebar-safe-area.md`：`enableComponentSafeArea` + `Scroll.clip(false)`，禁止页面手写状态栏/标题栏高度计算。
+- 标题栏渐变模糊依赖的系统材质按平台能力降级，不手写视觉回退分支。
+
+### 平板
+
+- 手机设计稿是当前唯一视觉源。平板设计稿到位前，不开发新的平板视觉与新页面布局。
+- 现有平板布局保持可维护；禁止把手机稿等比放大或按手机稿推导平板布局。平板设计稿到位后复用 `features/adaptiveLayout`、`features/responsiveLayout` 与 pen 的 `sm`/`md`/`lg` 尺寸主题。
+
 ## ArkTS 与 ArkUI 规范
 
 ### 编码规范
@@ -80,6 +119,8 @@
 - 单一职责，Ability 仅处理生命周期和窗口初始化，业务 UI 放在 Page 或 Component 中
 - 页面文件组织：一个 `.ets` 文件只允许定义一个页面（`@Component`/`@ComponentV2` 页面结构体），禁止将多个页面集中在 `*Pages.ets` 或单个页面文件中。仅在当前页面内复用的组件、Builder 和页面辅助组件可与页面同文件；被多个页面复用时再拆到独立文件。
 - ArkUI 组件使用 `@Entry`、`@Component`、`@Builder` 等既有声明式模式
+- 给 `@BuilderParam` 传内容时必须委托给 `@Builder` 方法，禁止在箭头函数内直接构造自定义组件，否则运行时会报 `class constructor cannot called without 'new'`
+- 跨组件传递的本地 builder 一律用 `@LocalBuilder` 声明并传方法引用（`content: this.xxxBuilder`）；普通 `@Builder` 的 `this` 指向调用方组件，父组件状态读不到、插槽内容空白且不报错。详见 `docs/arkui-builder-slot.md`
 - `build()` 中只描述 UI 结构，避免执行副作用、复杂计算或异步操作
 - 状态必须使用与生命周期匹配的 ArkUI 状态装饰器或项目现有状态容器
 - 注册的监听器、媒体查询和系统回调必须在对应生命周期中注销
@@ -95,8 +136,8 @@
 - 优先降低重复遍历和不必要的状态更新，避免在高频 UI 生命周期中创建临时对象
 - `TabSegmentButtonV2` 与 `Tabs` 联动的切换动画有固定接线约束（状态拆分、`changeIndex`、位移挂点），动手前先读
   `docs/arkui-segment-tabs-animation.md`
-- 卡片、输入框等容器禁止用 `sys.color.comp_background_secondary` 描边做与背景的分层，层次由底色差表达；聚焦与错误态描边、
-  分隔线与卡面皮肤例外，动手前先读 `docs/arkui-borderless-ui.md`
+- 卡片、输入框等容器常态不描边，层次由 `ds_surface_*` 底色差表达；聚焦与错误态描边、分隔线与设计稿卡面皮肤例外
+- 改 UI 前先读 pen 设计稿对应页面；不得按 HarmonyOS 原生视觉自行发挥
 
 ### 注释规范
 
@@ -110,13 +151,10 @@
 ### 配置与资源规范
 
 - 应用级配置放在 `AppScope`，模块级配置放在对应模块 `src/main/module.json5`
-- 新增或修改颜色、间距、圆角、字号、标准控件尺寸和系统组件尺寸前，必须先查对应官方 API 文档及当前 API 26 SDK 的
-  `sysResource.js`；存在语义一致的 `sys.color.*` 或 `sys.float.*` 时直接复用，禁止重复声明 `app.color.*` 或 `app.float.*`
-- 所有 UI 颜色默认使用 `sys.color.*`，包括品牌色和成功、提醒、错误等业务状态色；除非用户明确指定颜色，否则禁止新增自定义
-  `app.color.*`、十六进制或 RGB 颜色；确需完全透明时可使用系统透明色资源或 `Color.Transparent`
-- 仅当配置 schema 无法引用系统颜色（例如启动窗口配置），或用户明确指定颜色时，才允许定义应用颜色资源，并在修改处记录保留原因
-- 系统资源复用必须同时满足语义和用途一致，禁止仅因当前数值相同而替换；业务布局约束等产品专属尺寸 Token 可保留应用资源
-- 删除被系统资源替代或已无引用的应用资源；不确定系统资源含义、设备差异或深浅色行为时，先查官方文档和 SDK 定义，不凭名称猜测
+- 颜色、间距、圆角、字号和控件尺寸按《设计系统规范》使用 `app.color.ds_*` 与 `app.float.ds_*`；新增 Token 必须与 pen 变量同名（`ds_` + snake_case），并同步维护 `resources/base` 与 `resources/dark`
+- `sys.color.*` 与 `sys.float.*` 仅用于透明、系统控件默认外观和平台接口必需值；不得用于设计系统表面、文字、业务状态与控件尺寸
+- 仅当配置 schema 无法引用应用资源（例如启动窗口配置）时，才允许直接写颜色值，并在修改处记录原因
+- 删除已无引用的应用资源；不得因数值与系统资源相同而替换设计系统 Token；不确定设计稿语义时先读 pen 设计稿，不凭名称猜测
 - 深浅色资源使用 `resources/base` 与 `resources/dark` 的同名资源覆盖机制
 - 不同设备资源使用 HarmonyOS 限定词目录，不在运行时手写资源选择逻辑
 - 字符串资源按页面或功能拆分到 `resources/*/element/string_<scope>.json`；跨页面共用文案放入 `string_common.json`，无法归属单一页面的文案也放入公共资源；所有文件根节点保持 `string`，资源 key 保持全局唯一。
@@ -127,6 +165,7 @@
 ## 任务执行要求
 
 - 修改前先检查相关模块、配置、资源引用和调用链
+- UI 任务需对照 pen 设计稿检查布局、颜色、字号和状态；无法读取设计稿时明确说明
 - 只处理当前任务直接涉及的文件，保留用户已有改动
 - 可执行静态检查和 `devecocli build` 验证编译、资源及配置是否有效；这些不属于白盒测试
 - 任务完成后不执行单元测试、`ohosTest`、白盒测试或自动化运行测试

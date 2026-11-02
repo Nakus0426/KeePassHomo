@@ -21,6 +21,13 @@ export interface VaultCredential {
   keyFile?: Uint8Array;
 }
 
+// 创建时显式声明的凭据组成；解锁沿用「已提供什么就用什么」，不走此枚举。
+export enum VaultAuthMode {
+  PasswordAndKey = 'passwordAndKey',
+  PasswordOnly = 'passwordOnly',
+  KeyOnly = 'keyOnly'
+}
+
 export enum SyncState {
   Idle = 'idle',
   Syncing = 'syncing',

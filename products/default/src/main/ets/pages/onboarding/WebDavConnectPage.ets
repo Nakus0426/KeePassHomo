@@ -1,11 +1,13 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { WebDavProbeErrorCategory } from '@ohos/common'
-import { DsButton, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone } from '../../components/DsButton'
 import { DsField } from '../../components/DsField'
-import { DsInput } from '../../components/DsInput'
+import { DsInput, DsInputTone } from '../../components/DsInput'
 import { DsPageHeader } from '../../components/DsPageHeader'
+import { IconToggleButton } from '../../components/IconToggleButton'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
+import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { appRouter } from '../../navigation/AppRouter'
-import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { WebDavConnectStatus, WebDavConnectViewModel } from '../../viewmodel/WebDavConnectViewModel'
 
 function failureMessage(category: WebDavProbeErrorCategory | undefined): ResourceStr {
@@ -34,12 +36,21 @@ function failureMessage(category: WebDavProbeErrorCategory | undefined): Resourc
 @ComponentV2
 export struct WebDavConnectPage {
   @Local private viewModel: WebDavConnectViewModel = new WebDavConnectViewModel()
-  @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private passwordVisible: boolean = false
 
   @Computed
-  get topInset(): number {
-    return this.getUIContext().px2vp(this.immersiveLayout.topAvoidAreaHeightPx)
+  private get serverFieldTone(): DsInputTone {
+    if (this.viewModel.status !== WebDavConnectStatus.Failure) {
+      return DsInputTone.Default
+    }
+    switch (this.viewModel.failure) {
+      // 认证失败与证书问题标在密码/证书，不把服务器地址标红
+      case WebDavProbeErrorCategory.Authentication:
+      case WebDavProbeErrorCategory.Tls:
+        return DsInputTone.Default
+      default:
+        return DsInputTone.Error
+    }
   }
 
   aboutToDisappear(): void {
@@ -47,104 +58,126 @@ export struct WebDavConnectPage {
   }
 
   @Builder
+  private pageHeaderBuilder() {
+    DsPageHeader({
+      title: $r('app.string.webdav_connect_title'),
+      showBack: true,
+      onBack: () => appRouter.pop(),
+    })
+  }
+
+  @Builder
   private statusStrip() {
     if (this.viewModel.status === WebDavConnectStatus.Success) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_success')])
-        Text($r('app.string.webdav_status_success'))
-          .fontSize($r('app.float.ds_font_body_sm'))
-          .fontColor($r('app.color.ds_on_success_container'))
-          .layoutWeight(1)
-      }
-      .width('100%')
-      .padding({ top: $r('app.float.ds_space_sm'), bottom: $r('app.float.ds_space_sm') })
-      .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
-      .backgroundColor($r('app.color.ds_success_container'))
+      DsNotice({
+        tone: DsNoticeTone.Success,
+        title: $r('app.string.webdav_status_success'),
+        body: $r('app.string.webdav_status_success_body'),
+      })
     } else if (this.viewModel.status === WebDavConnectStatus.Failure) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        SymbolGlyph($r('sys.symbol.exclamationmark_circle_fill'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_error')])
-        Text(failureMessage(this.viewModel.failure))
-          .fontSize($r('app.float.ds_font_body_sm'))
-          .fontColor($r('app.color.ds_on_error_container'))
-          .layoutWeight(1)
-      }
-      .width('100%')
-      .padding({ top: $r('app.float.ds_space_sm'), bottom: $r('app.float.ds_space_sm') })
-      .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
-      .backgroundColor($r('app.color.ds_error_container'))
+      DsNotice({
+        tone: DsNoticeTone.Error,
+        title: $r('app.string.webdav_status_failure_title'),
+        body: failureMessage(this.viewModel.failure),
+      })
     }
+  }
+
+  @Builder
+  private serverUrlContent() {
+    DsInput({
+      text: this.viewModel.host,
+      placeholder: $r('app.string.text_input_placeholder'),
+      prefix: 'https://',
+      tone: this.serverFieldTone,
+      onChange: (value: string) => this.viewModel.setHost(value),
+    })
+  }
+
+  @Builder
+  private usernameContent() {
+    DsInput({
+      text: this.viewModel.username,
+      placeholder: $r('app.string.text_input_placeholder'),
+      onChange: (value: string) => this.viewModel.setUsername(value),
+    })
+  }
+
+  @LocalBuilder
+  private passwordToggle() {
+    IconToggleButton({
+      symbol: $r('app.string.symbol_eye_off'),
+      symbolChecked: $r('app.string.symbol_eye'),
+      checked: this.passwordVisible,
+      symbolColor: $r('app.color.ds_on_surface_variant'),
+      boxSize: $r('app.float.ds_input_icon_box_md'),
+      iconSizeOverride: $r('app.float.ds_input_icon_size_md'),
+      accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
+      onToggle: () => this.passwordVisible = !this.passwordVisible,
+    })
+  }
+
+  @Builder
+  private passwordContent() {
+    DsInput({
+      text: this.viewModel.password,
+      placeholder: $r('app.string.text_input_placeholder'),
+      type: InputType.Password,
+      showPassword: this.passwordVisible,
+      trailingBuilder: this.passwordToggle,
+      onChange: (value: string) => this.viewModel.setPassword(value),
+    })
   }
 
   build() {
     HdsNavDestination() {
-      Column() {
-        DsPageHeader({
-          title: $r('app.string.webdav_connect_title'),
-          subtitle: $r('app.string.webdav_connect_subtitle'),
-          showMore: false,
-          onBack: () => appRouter.pop(),
+      Column({ space: $r('app.float.ds_space_lg') }) {
+        DsField({
+          label: $r('app.string.webdav_server_url'),
+          required: true,
+          contentBuilder: () => {
+            this.serverUrlContent()
+          },
         })
 
-        Column({ space: $r('app.float.ds_space_lg') }) {
-          DsField({ label: $r('app.string.webdav_server_url'), required: true }) {
-            DsInput({
-              text: this.viewModel.host,
-              placeholder: $r('app.string.text_input_placeholder'),
-              prefix: 'https://',
-              onChange: (value: string) => this.viewModel.setHost(value),
-            })
-          }
-
-          DsField({ label: $r('app.string.webdav_username_label'), required: true }) {
-            DsInput({
-              text: this.viewModel.username,
-              placeholder: $r('app.string.text_input_placeholder'),
-              onChange: (value: string) => this.viewModel.setUsername(value),
-            })
-          }
-
-          DsField({ label: $r('app.string.webdav_password_label'), required: true }) {
-            DsInput({
-              text: this.viewModel.password,
-              placeholder: $r('app.string.text_input_placeholder'),
-              type: InputType.Password,
-              showPassword: this.passwordVisible,
-              onChange: (value: string) => this.viewModel.setPassword(value),
-            }) {
-              SymbolGlyph(this.passwordVisible ? $r('sys.symbol.eye_slash') : $r('sys.symbol.eye'))
-                .fontSize($r('app.float.ds_icon_sm'))
-                .fontColor([$r('app.color.ds_text_tertiary')])
-                .onClick(() => this.passwordVisible = !this.passwordVisible)
-            }
-          }
-
-          DsButton({
-            label: this.viewModel.status === WebDavConnectStatus.Testing
-              ? $r('app.string.webdav_testing') : $r('app.string.webdav_test_connection'),
-            variant: DsButtonVariant.Secondary,
-            active: this.viewModel.canTest,
-            onTap: () => this.viewModel.test(),
-          })
-
-          this.statusStrip()
-        }
-        .width('100%')
-        .padding({
-          top: $r('app.float.ds_space_lg'),
-          left: $r('app.float.ds_gutter'),
-          right: $r('app.float.ds_gutter'),
+        DsField({
+          label: $r('app.string.webdav_username_label'),
+          required: true,
+          contentBuilder: () => {
+            this.usernameContent()
+          },
         })
-        .alignItems(HorizontalAlign.Start)
+
+        DsField({
+          label: $r('app.string.webdav_password_label'),
+          required: true,
+          contentBuilder: () => {
+            this.passwordContent()
+          },
+        })
+
+        DsButton({
+          label: this.viewModel.status === WebDavConnectStatus.Testing
+            ? $r('app.string.webdav_testing') : $r('app.string.webdav_test_connection'),
+          tone: DsButtonTone.Default,
+          fullWidth: true,
+          disabled: !this.viewModel.canTest,
+          onTap: () => this.viewModel.test(),
+        })
+
+        this.statusStrip()
       }
       .width('100%')
       .height('100%')
-      .padding({ top: this.topInset })
+      .padding({
+        top: $r('app.float.ds_space_lg'),
+        left: $r('app.float.ds_gutter'),
+        right: $r('app.float.ds_gutter'),
+      })
+      .alignItems(HorizontalAlign.Start)
     }
-    .hideTitleBar(true)
+    .titleBar(dsNavPageTitleBarOptions((): void => this.pageHeaderBuilder()))
+    .hideBackButton(true)
     .backgroundColor($r('app.color.ds_surface_canvas'))
   }
 }
@@ -153,3 +186,5 @@ export struct WebDavConnectPage {
 export function webDavConnectPageBuilder() {
   WebDavConnectPage()
 }
+
+

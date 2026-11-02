@@ -1,323 +1,559 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
+import { ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, AppErrorModel, AppToast } from '@ohos/common'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { ColorModeState, colorModeState } from '../../state/ColorModeState'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens, AppErrorModel, AppToast, BounceAnimator } from '@ohos/common'
-import { FormTextField } from '../../components/FormTextField'
-import { PasswordVisibilityToggle } from '../../components/PasswordVisibilityToggle'
-
-const LUNCH_ICON_SIZE = 100
+import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsInput } from '../../components/DsInput'
+import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
+import { IconToggleButton } from '../../components/IconToggleButton'
 
 @ComponentV2
 export struct UnlockPage {
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  @Local private colorMode: ColorModeState = colorModeState
   @Local private viewModel: AppViewModel = appViewModel
   @Local private password: string = ''
   @Local private passwordVisible: boolean = false
-  @Local private passwordFocused: boolean = false
-  @Local private splitProgress: number = 0
-  @Local private topShift: number = 0
-  @Local private bottomShift: number = 0
-  private pageHeight: number = 0
+  @Local private bandProgress: number = 0
+  @Local private formProgress: number = 0
+  @Local private pageHeight: number = 0
+  @Local private bandHeight: number = 0
+  @Local private entering: boolean = false
+  @Local private noticeTone: DsNoticeTone = DsNoticeTone.Error
+  @Local private noticeVisible: boolean = false
+  @Local private errorBannerOffset: number = AnimationTokens.BANNER_ENTER_OFFSET
+  @Local private errorBannerOpacity: number = 0
+  @Local private unlockSucceeded: boolean = false
   private exitAnimating: boolean = false
   private enterPending: boolean = false
-  private readonly unlockBounce: BounceAnimator = new BounceAnimator()
+  // 解锁请求进行中不再叠加 Toast，失败统一由页内提示条呈现。
+  private submittingUnlock: boolean = false
+
   @Computed
-  get bottomSafeAreaHeight() {
+  get bottomSafeAreaHeight(): number {
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
   }
 
   @Computed
-  get formPaddingToHeight() {
-    const padding = ResUtil.getNumber($r('sys.float.padding_level12').id)
-    return this.getUIContext().px2vp(padding) + LUNCH_ICON_SIZE / 2
+  get topSafeAreaHeight(): number {
+    return this.getUIContext().px2vp(this.immersiveLayout.topAvoidAreaHeightPx)
   }
 
   @Computed
-  get suffixButtonSize(): number {
-    const buttonHeight: number = ResUtil.getNumber($r('app.float.control_height').id)
-    const padding: number = ResUtil.getNumber($r('sys.float.padding_level4').id)
-    return this.getUIContext().px2vp(buttonHeight - padding * 2)
+  get formHeight(): number {
+    return Math.max(this.pageHeight - this.bandHeight, 0)
   }
 
   @Computed
-  get showUnlockSuffix(): boolean {
-    return this.passwordFocused || this.password.length > 0
+  get pageOpacity(): number {
+    return this.entering ? 1 - this.bandProgress : 1
+  }
+
+  @Computed
+  get formBottomPadding(): number {
+    return this.bottomSafeAreaHeight + this.vpOf($r('app.float.ds_space_lg'))
+  }
+
+  @Computed
+  get credentialsDisabled(): boolean {
+    return this.viewModel.busy || this.unlockSucceeded
+  }
+
+  @Computed
+  get buttonLabel(): Resource {
+    if (this.unlockSucceeded) {
+      return $r('app.string.unlock_opening')
+    }
+    if (this.viewModel.busy) {
+      return $r('app.string.unlocking')
+    }
+    // 缺凭据是本地校验，保留「解锁保险库」；只有鉴权失败才切「重试解锁」。
+    if (this.noticeVisible && this.noticeTone === DsNoticeTone.Error) {
+      return $r('app.string.unlock_retry')
+    }
+    return $r('app.string.unlock_vault')
+  }
+
+  @Computed
+  get buttonTrailingIcon(): Resource {
+    if (this.unlockSucceeded) {
+      return $r('app.string.symbol_check_circle')
+    }
+    if (this.noticeVisible && this.noticeTone === DsNoticeTone.Error) {
+      return $r('app.string.symbol_refresh')
+    }
+    return $r('app.string.symbol_lock_open')
+  }
+
+  @Computed
+  get noticeTitle(): Resource {
+    return this.noticeTone === DsNoticeTone.Warning
+      ? $r('app.string.unlock_missing_credential_title') : $r('app.string.unlock_failed_title')
+  }
+
+  @Computed
+  get noticeBody(): Resource {
+    return this.noticeTone === DsNoticeTone.Warning
+      ? $r('app.string.unlock_missing_credential_body') : $r('app.string.unlock_failed_body')
+  }
+
+  @Computed
+  get showUpdated(): boolean {
+    return this.viewModel.currentModifiedAt() > 0
+  }
+
+  private vpOf(value: Resource): number {
+    return this.getUIContext().px2vp(ResUtil.getNumber(value.id))
   }
 
   @Monitor('viewModel.lastError')
   onLastErrorChanged(): void {
     const error: AppErrorModel | undefined = this.viewModel.lastError
-    if (error !== undefined) {
-      AppToast.show(this.getUIContext(), error.message)
+    if (error === undefined || this.submittingUnlock) {
+      return
     }
+    AppToast.show(this.getUIContext(), error.message)
   }
 
   aboutToAppear(): void {
     if (appRouter.consumeLockEnter()) {
-      // 首帧即隐藏（整页透明），待首次布局完成后再从屏幕外滑入。
-      this.splitProgress = 1
+      this.bandProgress = 1
+      this.formProgress = 1
+      this.entering = true
       this.enterPending = true
     }
   }
 
+  private startEnterIfReady(): void {
+    if (!this.enterPending || this.pageHeight <= 0 || this.bandHeight <= 0) {
+      return
+    }
+    this.enterPending = false
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.EASE_ENTER,
+      onFinish: () => this.entering = false,
+    }, () => {
+      this.bandProgress = 0
+      this.formProgress = 0
+    })
+  }
+
   private async handleSubmit(): Promise<void> {
-    if (this.exitAnimating) {
+    if (this.exitAnimating || this.viewModel.busy || this.viewModel.unlockBlocked || this.unlockSucceeded) {
       return
     }
-    if (this.password.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.unlock_password_required'))
+    // 密码与密钥文件都为空时本地拦截：不发解锁请求，只给页内警示。
+    if (this.password.length === 0 && this.viewModel.currentKeyFileName().length === 0) {
+      this.showNotice(DsNoticeTone.Warning)
       return
     }
-    if (await this.viewModel.unlockVault(this.password)) {
+    this.dismissNotice()
+    this.submittingUnlock = true
+    let unlocked: boolean = false
+    try {
+      unlocked = await this.viewModel.unlockVault(this.password)
+    } finally {
+      this.submittingUnlock = false
+    }
+    if (unlocked) {
       this.playExitAnimation()
+      return
+    }
+    if (this.viewModel.lastError !== undefined) {
+      this.showNotice(DsNoticeTone.Error)
     }
   }
 
   private playExitAnimation(): void {
     this.exitAnimating = true
+    this.unlockSucceeded = true
     this.getUIContext().getFocusController().clearFocus()
-    // 延迟启动，避开收键盘布局变化与动画首帧同帧的干扰
+    // 设计稿：成功态停留约 120ms 后再沿灰白交界外移，150ms 为最近动效 Token。
     setTimeout(() => {
-      this.topShift = this.pageHeight * 0.2
-      this.bottomShift = this.pageHeight * 0.8
       this.getUIContext().animateTo({
-        duration: AnimationTokens.STATE_TRANSITION_DURATION,
-        curve: Curve.EaseIn,
-        onFinish: () => {
-          appRouter.clearToHome()
-        },
+        duration: AnimationTokens.DURATION_STRUCTURAL,
+        curve: AnimationTokens.EASE_ENTER,
       }, () => {
-        this.splitProgress = 1
+        this.bandProgress = 1
       })
-    }, 50)
+      this.getUIContext().animateTo({
+        duration: AnimationTokens.DURATION_STRUCTURAL,
+        curve: AnimationTokens.EASE_EXIT,
+        onFinish: () => appRouter.restoreAfterUnlock(),
+      }, () => {
+        this.formProgress = 1
+      })
+    }, AnimationTokens.DURATION_FAST)
   }
 
-  private playEnterAnimation(): void {
-    this.topShift = this.pageHeight * 0.2
-    this.bottomShift = this.pageHeight * 0.8
-    // 延迟启动，避开首次布局与动画首帧同帧。
-    setTimeout(() => {
-      this.getUIContext().animateTo({
-        duration: AnimationTokens.STATE_TRANSITION_DURATION,
-        curve: Curve.EaseOut,
-      }, () => {
-        this.splitProgress = 0
-      })
-    }, 50)
+  private chooseKeyFile(): void {
+    if (this.credentialsDisabled) {
+      return
+    }
+    this.dismissNotice()
+    this.viewModel.chooseKeyFile()
+  }
+
+  private clearKeyFile(): void {
+    if (this.credentialsDisabled) {
+      return
+    }
+    this.dismissNotice()
+    this.viewModel.clearKeyFile()
+  }
+
+  private showNotice(tone: DsNoticeTone): void {
+    const alreadyVisible: boolean = this.noticeVisible && this.errorBannerOpacity === 1
+    this.noticeTone = tone
+    this.noticeVisible = true
+    if (alreadyVisible) {
+      return
+    }
+    // 提示条常驻但透明，先归位再动画，保证首次出现与退出中途重现都有起始帧。
+    this.errorBannerOffset = AnimationTokens.BANNER_ENTER_OFFSET
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.DURATION_FEEDBACK,
+      curve: AnimationTokens.EASE_STATE,
+    }, () => {
+      this.errorBannerOffset = 0
+      this.errorBannerOpacity = 1
+    })
+  }
+
+  private dismissNotice(): void {
+    this.noticeVisible = false
+    if (this.errorBannerOpacity === 0) {
+      return
+    }
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.DURATION_FAST,
+      curve: AnimationTokens.EASE_EXIT,
+    }, () => {
+      this.errorBannerOffset = AnimationTokens.BANNER_EXIT_OFFSET
+      this.errorBannerOpacity = 0
+    })
   }
 
   @LocalBuilder
-  private vaultSwitchBuilder() {
-    Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('sys.float.padding_level8') }) {
-        Stack() {
-          SymbolGlyph($r('sys.symbol.folder'))
-            .fontSize($r('sys.float.Title_L'))
-            .fontColor([$r('sys.color.brand')])
+  private vaultSwitchButton() {
+    DsButton({
+      variant: DsButtonVariant.Text,
+      buttonSize: DsButtonSize.Small,
+      iconOnly: true,
+      leadingIcon: $r('app.string.symbol_swap_horiz'),
+      iconSizeOverride: $r('app.float.ds_icon_sm'),
+      iconColorOverride: $r('app.color.ds_on_surface_variant'),
+      accessibilityLabelResource: $r('app.string.choose_another_vault'),
+      onTap: () => {
+        if (this.credentialsDisabled) {
+          return
         }
-        .padding($r('sys.float.padding_level4'))
-        .borderRadius('50%')
-        .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+        this.viewModel.chooseAnotherVault()
+      },
+    })
+  }
 
-        Column({ space: $r('sys.float.padding_level2') }) {
+  @Builder
+  private vaultBand() {
+    Column() {
+      Row()
+        .width('100%')
+        .height(this.topSafeAreaHeight)
+
+      Column({ space: $r('app.float.ds_space_lg') }) {
+        Row({ space: $r('app.float.ds_space_10') }) {
+          Image($r('app.media.launch_icon'))
+            .width($r('app.float.ds_logo_size_sm'))
+            .height($r('app.float.ds_logo_size_sm'))
+            .draggable(false)
+
+          Text($r('app.string.app_brand_name'))
+            .fontSize($r('app.float.ds_font_title'))
+            .fontWeight(600)
+            .fontColor($r('app.color.ds_text_primary'))
+
+          Blank()
+
+          this.vaultSwitchButton()
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        Column({ space: $r('app.float.ds_space_sm') }) {
           Text(this.viewModel.currentSource().displayName)
-            .fontSize($r('sys.float.Subtitle_L'))
-            .fontColor($r('sys.color.font_primary'))
-            .fontWeight(FontWeight.Medium)
-          Text(this.viewModel.formatName(this.viewModel.currentFormat()))
-            .fontSize($r('sys.float.Body_M'))
-            .fontColor($r('sys.color.font_secondary'))
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
+            .fontSize($r('app.float.ds_font_display_lg'))
+            .fontWeight(600)
+            .fontColor($r('app.color.ds_text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        SymbolGlyph($r('sys.symbol.chevron_forward'))
-          .fontSize($r('sys.float.Title_S'))
-          .fontColor([$r('sys.color.font_secondary')])
-          .fontWeight(FontWeight.Medium)
+          if (this.showUpdated) {
+            Text($r('app.string.unlock_last_updated',
+              this.viewModel.formatMinute(this.viewModel.currentModifiedAt())))
+              .fontSize($r('app.float.ds_font_label_sm'))
+              .fontFamily(PASSWORD_FONT_FAMILY)
+              .fontColor($r('app.color.ds_text_tertiary'))
+          }
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
       }
       .width('100%')
+      .padding({
+        top: $r('app.float.ds_space_28'),
+        bottom: $r('app.float.ds_space_26'),
+        left: $r('app.float.ds_space_lg'),
+        right: $r('app.float.ds_space_lg'),
+      })
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding({
-      top: $r('sys.float.padding_level6'),
-      bottom: $r('sys.float.padding_level6'),
-      left: $r('sys.float.padding_level8'),
-      right: $r('sys.float.padding_level8'),
+    .backgroundColor($r('app.color.ds_surface_container'))
+    .translate({ y: -this.bandHeight * this.bandProgress })
+    .onAreaChange((_old: Area, newArea: Area) => {
+      this.bandHeight = newArea.height as number
+      this.startEnterIfReady()
     })
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
-    .enabled(!this.viewModel.busy)
-    .onClick(() => this.viewModel.chooseAnotherVault())
   }
 
   @LocalBuilder
-  private passwordSuffixBuilder() {
-    Row({ space: $r('sys.float.padding_level2') }) {
-      PasswordVisibilityToggle({
-        visible: this.passwordVisible,
-        onChange: (visible: boolean) => this.passwordVisible = visible,
+  private passwordLeadingIcon() {
+    Row() {
+      SymbolGlyph($r('app.string.symbol_lock'))
+        .fontSize($r('app.float.ds_icon_sm'))
+        .fontColor([this.unlockSucceeded
+          ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_tertiary')])
+        .foregroundColor(this.unlockSucceeded
+          ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_tertiary'))
+    }
+    .width($r('app.float.ds_input_icon_box_md'))
+    .height($r('app.float.ds_input_icon_box_md'))
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @LocalBuilder
+  private passwordTrailing() {
+    IconToggleButton({
+      symbol: $r('app.string.symbol_eye_off'),
+      symbolChecked: $r('app.string.symbol_eye'),
+      checked: this.passwordVisible,
+      symbolColor: this.unlockSucceeded
+        ? $r('app.color.ds_text_disabled') : $r('app.color.ds_on_surface_variant'),
+      clickable: !this.credentialsDisabled,
+      accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
+      onToggle: () => this.passwordVisible = !this.passwordVisible,
+    })
+  }
+
+  @LocalBuilder
+  private keyFileText() {
+    if (this.viewModel.currentKeyFileName().length > 0) {
+      Text(this.viewModel.currentKeyFileName())
+        .fontSize($r('app.float.ds_font_body'))
+        .fontFamily(PASSWORD_FONT_FAMILY)
+        .fontWeight(600)
+        .fontColor(this.credentialsDisabled
+          ? $r('app.color.ds_text_disabled') : $r('app.color.ds_on_surface_variant'))
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    } else {
+      Text($r('app.string.unlock_key_file_add'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontColor(this.credentialsDisabled
+          ? $r('app.color.ds_text_disabled') : $r('app.color.ds_on_surface_variant'))
+        .layoutWeight(1)
+        .maxLines(1)
+    }
+  }
+
+  @LocalBuilder
+  private keyFileContent() {
+    Row({ space: $r('app.float.ds_space_10') }) {
+      SymbolGlyph($r('app.string.symbol_key'))
+        .fontSize($r('app.float.ds_icon_xs'))
+        .fontColor([$r('app.color.ds_on_surface_variant')])
+        .foregroundColor($r('app.color.ds_on_surface_variant'))
+
+      this.keyFileText()
+
+      if (this.viewModel.currentKeyFileName().length > 0) {
+        Row() {
+          SymbolGlyph($r('app.string.symbol_close'))
+            .fontSize($r('app.float.ds_icon_sm'))
+            .fontColor([$r('app.color.ds_on_surface_variant')])
+            .foregroundColor($r('app.color.ds_on_surface_variant'))
+        }
+        .width($r('app.float.ds_button_small_height'))
+        .height($r('app.float.ds_button_small_height'))
+        .justifyContent(FlexAlign.Center)
+        .accessibilityText($r('app.string.unlock_key_file_remove'))
+        .monopolizeEvents(true)
+        .onClick(() => this.clearKeyFile())
+      } else {
+        SymbolGlyph($r('app.string.symbol_add'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_on_surface_variant')])
+          .foregroundColor($r('app.color.ds_on_surface_variant'))
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private keyFileRow() {
+    DsButton({
+      variant: DsButtonVariant.Filled,
+      tone: DsButtonTone.Tonal,
+      buttonSize: DsButtonSize.Medium,
+      fullWidth: true,
+      backgroundColorOverride: $r('app.color.ds_surface_low'),
+      controlHeightOverride: $r('app.float.ds_input_height_md'),
+      horizontalPaddingOverride: $r('app.float.ds_space_14'),
+      disabled: this.credentialsDisabled,
+      contentBuilder: this.keyFileContent,
+      onTap: () => this.chooseKeyFile(),
+    })
+  }
+
+  @Builder
+  private credentialStack() {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      DsInput({
+        text: this.password,
+        placeholder: $r('app.string.unlock_password_placeholder'),
+        type: InputType.Password,
+        showPassword: this.passwordVisible,
+        disabled: this.credentialsDisabled,
+        leadingBuilder: this.passwordLeadingIcon,
+        trailingBuilder: this.passwordTrailing,
+        onChange: (value: string) => {
+          this.password = value
+          this.dismissNotice()
+        },
       })
 
-      if (this.showUnlockSuffix) {
-        Divider()
-          .vertical(true)
-          .margin({ top: $r('sys.float.padding_level6'), bottom: $r('sys.float.padding_level6') })
-          .color($r('sys.color.comp_divider'))
-
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.chevron_forward'))
-            .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-            .fontColor([$r('sys.color.brand')])
-            .fontWeight(FontWeight.Normal)
-            .scale({ x: this.unlockBounce.scale, y: this.unlockBounce.scale })
-        }
-        .width(this.suffixButtonSize)
-        .height(this.suffixButtonSize)
-        .backgroundColor(Color.Transparent)
-        .stateStyles({
-          pressed: {
-            .backgroundColor($r('sys.color.interactive_pressed'))
-          },
-        })
-        .accessibilityText($r('app.string.unlock_vault'))
-        .enabled(!this.viewModel.busy)
-        .onClick(() => this.unlockBounce.play(this.getUIContext(), () => this.handleSubmit()))
-      }
+      this.keyFileRow()
     }
+    .width('100%')
   }
 
   @LocalBuilder
-  private keyFileBuilder() {
-    Button() {
-      Row({ space: $r('sys.float.padding_level2') }) {
-        Text(this.viewModel.currentKeyFileName().length > 0
-          ? this.viewModel.currentKeyFileName() : $r('app.string.key_file_label'))
-          .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('sys.color.font_secondary'))
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .maxLines(1)
-        SymbolGlyph($r('sys.symbol.chevron_forward'))
-          .fontSize($r('sys.float.Body_M'))
-          .fontColor([$r('sys.color.font_secondary')])
+  private unlockButtonContent() {
+    if (this.viewModel.busy) {
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        DsLoadingIndicator({
+          indicatorSize: DsLoadingIndicatorSize.Small,
+          tone: DsLoadingIndicatorTone.Inverse,
+        })
+        Text($r('app.string.unlocking'))
+          .fontSize($r('app.float.ds_font_title'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_on_primary'))
       }
+    } else {
+      Text(this.buttonLabel)
+        .fontSize($r('app.float.ds_font_title'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_on_primary'))
+        .maxLines(1)
     }
-    .buttonStyle(ButtonStyleMode.TEXTUAL)
-    .padding({
-      top: $r('sys.float.padding_level2'),
-      bottom: $r('sys.float.padding_level2'),
-      left: $r('sys.float.padding_level4'),
-      right: $r('sys.float.padding_level4'),
+  }
+
+  @Builder
+  private unlockButton() {
+    DsButton({
+      buttonSize: DsButtonSize.Large,
+      fullWidth: true,
+      trailingIcon: this.buttonTrailingIcon,
+      accessibilityLabelResource: this.buttonLabel,
+      contentBuilder: this.unlockButtonContent,
+      onTap: () => this.handleSubmit(),
     })
-    .onClick(() => this.viewModel.chooseKeyFile())
+  }
+
+  @Builder
+  private unlockNotice() {
+    DsNotice({
+      tone: this.noticeTone,
+      title: this.noticeTitle,
+      body: this.noticeBody,
+    })
+  }
+
+  @Builder
+  private formZone() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column({ space: $r('app.float.ds_space_16') }) {
+        Column()
+          .width('100%')
+          .layoutWeight(1)
+
+        this.credentialStack()
+        this.unlockButton()
+
+        Column()
+          .width('100%')
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .height('100%')
+      .padding({
+        top: $r('app.float.ds_space_24'),
+        bottom: this.formBottomPadding,
+        left: $r('app.float.ds_space_lg'),
+        right: $r('app.float.ds_space_lg'),
+      })
+
+      Column() {
+        this.unlockNotice()
+      }
+      .width('100%')
+      .padding({
+        left: $r('app.float.ds_space_lg'),
+        right: $r('app.float.ds_space_lg'),
+      })
+      .margin({ bottom: this.formBottomPadding })
+      .translate({ y: this.errorBannerOffset })
+      .opacity(this.errorBannerOpacity)
+      .hitTestBehavior(HitTestMode.None)
+      .accessibilityLevel(this.errorBannerOpacity > 0 ? 'yes' : 'no')
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
+    .translate({ y: this.formHeight * this.formProgress })
   }
 
   build() {
     HdsNavDestination() {
       Stack() {
-        Rect()
-          .width('100%')
-          .height('20%')
-          .fill($r('sys.color.background_tertiary'))
-          .position({ top: 0, left: 0 })
-          .translate({ y: -this.topShift * this.splitProgress })
-          .border({
-            width: {
-              top: 0,
-              bottom: $r('sys.float.border_width'),
-              left: 0,
-              right: 0,
-            },
-            color: $r('sys.color.comp_divider'),
-          })
-        Stack({ alignContent: Alignment.Center }) {
-          Image($r('app.media.launch_icon'))
-            .draggable(false)
-            .width(LUNCH_ICON_SIZE * 256 / (256 - 30 * 2))
-            .height(LUNCH_ICON_SIZE * 256 / (256 - 30 * 2))
-        }
-        .width(LUNCH_ICON_SIZE)
-        .height(LUNCH_ICON_SIZE)
-        .position({ top: '20%', left: '50%' })
-        .translate({
-          x: -LUNCH_ICON_SIZE / 2,
-          y: -LUNCH_ICON_SIZE / 2 - this.topShift * this.splitProgress,
-        })
-        .zIndex(1)
-        .borderRadius('50%')
-        .clip(true)
-        .shadow(ShadowStyle.OUTER_DEFAULT_XS)
-
-        Rect()
-          .width('100%')
-          .height('80%')
-          .fill(this.colorMode.isDark
-            ? $r('sys.color.background_fourth') : $r('sys.color.background_secondary'))
-          .position({ bottom: 0, left: 0 })
-          .translate({ y: this.bottomShift * this.splitProgress })
-
         Column() {
-          Column({ space: $r('sys.float.padding_level12') }) {
-            Column({ space: $r('sys.float.padding_level6') }) {
-              Text($r('app.string.unlock_vault'))
-                .fontSize($r('sys.float.Title_L'))
-                .fontWeight(FontWeight.Bold)
-                .fontColor($r('sys.color.font_primary'))
-
-              Text($r('app.string.unlock_vault_desc'))
-                .fontSize($r('sys.float.Body_M'))
-                .fontColor($r('sys.color.font_secondary'))
-            }
-
-            this.vaultSwitchBuilder()
-
-            FormTextField({
-              placeholder: $r('app.string.text_input_placeholder'),
-              type: InputType.Password,
-              text: this.password,
-              showPassword: this.passwordVisible,
-              onChange: (value: string) => this.password = value,
-              onFocusChange: (focused: boolean) => this.passwordFocused = focused,
-              onSubmit: () => this.handleSubmit(),
-            }) {
-              this.passwordSuffixBuilder()
-            }
-          }
-
-          this.keyFileBuilder()
+          this.vaultBand()
+          this.formZone()
         }
         .width('100%')
-        .height('80%')
-        .justifyContent(FlexAlign.SpaceBetween)
-        .position({ bottom: 0, left: 0 })
-        .translate({ y: this.bottomShift * this.splitProgress })
-        .padding(
-          {
-            top: this.formPaddingToHeight,
-            bottom: this.bottomSafeAreaHeight,
-            left: $r('sys.float.padding_level8'),
-            right: $r('sys.float.padding_level8'),
-          })
+        .height('100%')
       }
-      .height('100%')
       .width('100%')
-      .opacity(1 - this.splitProgress)
+      .height('100%')
+      .clip(true)
+      .opacity(this.pageOpacity)
       .onAreaChange((_old: Area, newArea: Area) => {
         this.pageHeight = newArea.height as number
-        if (this.enterPending) {
-          this.enterPending = false
-          this.playEnterAnimation()
-        }
+        this.startEnterIfReady()
       })
     }
     .hideTitleBar(true)
     .hideBackButton(true)
-    .backgroundColor($r('sys.color.background_secondary'))
+    .backgroundColor($r('app.color.ds_surface_canvas'))
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true

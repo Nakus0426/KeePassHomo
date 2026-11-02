@@ -39,3 +39,8 @@ oh_modules/
 /.qoder/
 /.dsh/
 /.cache/
+/.screenshots/
+
+# >>> magpie: library skills placed here (magpie adds and removes these lines) >>>
+/.agents/skills/deveco-cli
+# <<< magpie <<<

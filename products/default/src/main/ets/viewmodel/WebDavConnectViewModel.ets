@@ -50,7 +50,10 @@ export class WebDavConnectViewModel {
         this.status = WebDavConnectStatus.Failure
         return
       }
-      throw error as Error
+      const failure: Error = error as Error
+      LogUtil.error(`WebDAV 连接校验异常：${failure.message}`)
+      this.failure = WebDavProbeErrorCategory.Other
+      this.status = WebDavConnectStatus.Failure
     }
   }
 

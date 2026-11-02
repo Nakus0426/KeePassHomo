@@ -13,6 +13,10 @@
       "value": "KeePassHomo"
     },
     {
+      "name": "launch_version",
+      "value": "v%s"
+    },
+    {
       "name": "master_password",
       "value": "主密码"
     },
@@ -59,10 +63,6 @@
     {
       "name": "writable",
       "value": "可读写"
-    },
-    {
-      "name": "read_only_explanation",
-      "value": "当前保险库以只读方式打开，不能新增或编辑条目"
     },
     {
       "name": "password_weak",

@@ -1,23 +1,9 @@
-import {
-  SegmentButtonV2ItemOptions,
-  SegmentButtonV2Items,
-  SymbolGlyphModifier,
-  TabSegmentButtonV2,
-  uiMaterial,
-  UIUtils,
-} from '@kit.ArkUI'
-import {
-  hdsMaterial,
-  HdsNavigation,
-  HdsNavigationIconOptions,
-  HdsNavigationMenuItemOptions,
-  HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
+import { UIUtils } from '@kit.ArkUI'
 import { AnimationTokens, SshKeyAlgorithm } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
 import { FormItem, LabelPlacement } from '../../components/FormItem'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 
 const RSA_BITS_MIN: number = 2048
 const RSA_BITS_MAX: number = 4096
@@ -62,21 +48,11 @@ export struct SshKeyGeneratorSheet {
   @Local private tabOpacity: number[] = [1, 0]
   @Local private tabOffsetX: number[] = [0, 0]
   @Local private tabZIndex: number[] = [1, 0]
-  private readonly typeItems: SegmentButtonV2Items = new SegmentButtonV2Items([
-    { text: $r('app.string.ssh_algorithm_ed25519') },
-    { text: $r('app.string.ssh_key_algorithm_rsa') },
-  ] as SegmentButtonV2ItemOptions[])
-  private readonly typeBarMaterial: uiMaterial.Material = new uiMaterial.ImmersiveMaterial({
-    style: uiMaterial.ImmersiveStyle.REGULAR,
-    materialColor: $r('sys.color.comp_background_tertiary'),
-    applyShadow: false,
-  })
+  private readonly typeItems: DsSegmentedSwitchItem[] = [
+    { label: $r('app.string.ssh_algorithm_ed25519'), enabled: true },
+    { label: $r('app.string.ssh_key_algorithm_rsa'), enabled: true },
+  ]
   private readonly tabsController: TabsController = new TabsController()
-  private readonly confirmIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.checkmark')).fontColor([$r('sys.color.confirm')])
-  private readonly closeIcon: SymbolGlyphModifier =
-    new SymbolGlyphModifier($r('sys.symbol.xmark')).fontColor([$r('sys.color.icon_primary')])
-
   // 每次打开都回到默认类型与推荐位长，选择不跨次保留；页签动效状态一并归位。
   aboutToAppear(): void {
     this.currentTabIndex = SshKeyType.Ed25519
@@ -87,33 +63,20 @@ export struct SshKeyGeneratorSheet {
     this.tabZIndex = [1, 0]
   }
 
-  // 单行标题栏实测高度才是内容避让量，titlebar_default_height 含材质余量，直接用会空出一大截。
-  @Computed
-  private get titleBarOffset(): number {
-    const titlebarHeightPx: number = ResUtil.getNumber($r('sys.float.single_line_titlebar_height').id)
-    const gapPx: number = ResUtil.getNumber($r('sys.float.padding_level16').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
-  }
-
   @Computed
   private get typeTransitionOffset(): number {
     return this.contentWidth * TYPE_TRANSITION_OFFSET_RATIO
   }
 
-  private menuItems(): HdsNavigationMenuItemOptions[] {
-    const confirm: HdsNavigationIconOptions = {
-      icon: this.confirmIcon,
-      type: IconStyleMode.SMALL,
-      label: $r('app.string.confirm'),
-      action: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
-    }
-    const close: HdsNavigationIconOptions = {
-      icon: this.closeIcon,
-      type: IconStyleMode.SMALL,
-      label: $r('app.string.close'),
-      action: () => this.onClose(),
-    }
-    return [{ content: confirm }, { content: close }]
+  private sheetActions(): DsPageHeaderAction[] {
+    return [
+      {
+        icon: $r('app.string.symbol_check'),
+        label: $r('app.string.confirm'),
+        onTap: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
+      },
+      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
+    ]
   }
 
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
@@ -155,7 +118,7 @@ export struct SshKeyGeneratorSheet {
 
   @LocalBuilder
   private bitsContent() {
-    Row({ space: $r('sys.float.padding_level8') }) {
+    Row({ space: $r('app.float.ds_space_sm') }) {
       Slider({
         value: this.bits,
         min: RSA_BITS_MIN,
@@ -169,23 +132,23 @@ export struct SshKeyGeneratorSheet {
 
       Text(`${this.bits}`)
         .fontSize($r('sys.float.Body_M'))
-        .fontColor($r('sys.color.font_secondary'))
+        .fontColor($r('app.color.ds_text_secondary'))
     }
     .width('100%')
   }
 
   @Builder
   private securityTip(type: number) {
-    Row({ space: $r('sys.float.padding_level4') }) {
-      SymbolGlyph($r('sys.symbol.info_circle'))
+    Row({ space: $r('app.float.ds_space_xs') }) {
+      SymbolGlyph($r('app.string.symbol_info'))
         .fontSize($r('sys.float.Subtitle_L'))
-        .fontColor([$r('sys.color.brand')])
+        .fontColor([$r('app.color.ds_primary')])
 
       if (type === SshKeyType.Ed25519) {
         Text($r('app.string.ssh_key_tip_ed25519'))
           .layoutWeight(1)
           .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('app.color.ds_text_secondary'))
       } else if (this.bits === RSA_BITS_MIN) {
         Text() {
           Span($r('app.string.ssh_key_tip_rsa2048_prefix'))
@@ -195,25 +158,25 @@ export struct SshKeyGeneratorSheet {
         }
         .layoutWeight(1)
         .fontSize($r('sys.float.Body_M'))
-        .fontColor($r('sys.color.font_secondary'))
+        .fontColor($r('app.color.ds_text_secondary'))
       } else {
         Text($r('app.string.ssh_key_tip_rsa_compat'))
           .layoutWeight(1)
           .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('sys.color.font_secondary'))
+          .fontColor($r('app.color.ds_text_secondary'))
       }
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
   }
 
   @LocalBuilder
   private typeTabContent(type: number) {
     TabContent() {
-      Column({ space: $r('sys.float.padding_level8') }) {
+      Column({ space: $r('app.float.ds_space_sm') }) {
         if (type === SshKeyType.Rsa) {
           FormItem({
             label: $r('app.string.ssh_key_generate_bits'),
@@ -245,83 +208,69 @@ export struct SshKeyGeneratorSheet {
 
   @LocalBuilder
   private typeSelector() {
-    TabSegmentButtonV2({
+    DsSegmentedSwitch({
       items: this.typeItems,
       selectedIndex: this.segmentIndex,
-      backgroundSystemMaterial: this.typeBarMaterial,
-      $selectedIndex: (index: number) => this.selectType(index),
+      onSelect: (index: number) => this.selectType(index),
     })
   }
 
-  build() {
-    HdsNavigation() {
-      Scroll() {
-        Column({ space: $r('sys.float.padding_level8') }) {
-          FormItem({
-            label: $r('app.string.ssh_key_generate_type'),
-            labelPlacement: LabelPlacement.Top,
-            showFeedback: false,
-            contentBuilder: this.typeSelector,
-          })
+  @LocalBuilder
+  private bodyContent() {
+    Scroll() {
+      Column({ space: $r('app.float.ds_space_sm') }) {
+        FormItem({
+          label: $r('app.string.ssh_key_generate_type'),
+          labelPlacement: LabelPlacement.Top,
+          showFeedback: false,
+          contentBuilder: this.typeSelector,
+        })
 
-          Tabs({
-            barPosition: BarPosition.Start,
-            index: $$this.currentTabIndex,
-            controller: this.tabsController,
-          }) {
-            this.typeTabContent(SshKeyType.Ed25519)
-            this.typeTabContent(SshKeyType.Rsa)
-          }
-          .height('auto')
-          .width('100%')
-          .scrollable(false)
-          .barHeight(0)
-          .divider(null)
-          .customContentTransition((from: number, to: number) => this.tabContentTransition(from, to))
-          .onChange((index: number) => this.currentTabIndex = index)
-          .clip(true)
+        Tabs({
+          barPosition: BarPosition.Start,
+          index: $$this.currentTabIndex,
+          controller: this.tabsController,
+        }) {
+          this.typeTabContent(SshKeyType.Ed25519)
+          this.typeTabContent(SshKeyType.Rsa)
         }
+        .height('auto')
         .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({
-          top: this.titleBarOffset,
-          bottom: $r('sys.float.padding_level16'),
-          left: $r('sys.float.padding_level8'),
-          right: $r('sys.float.padding_level8'),
-        })
-        // 位移量取内容列实测宽度，不取 Tabs 自身：页签内容在切换瞬间会超出 Tabs 边界。
-        .onAreaChange((_oldValue: Area, newValue: Area) => {
-          this.contentWidth = newValue.width as number
-        })
-        .alignItems(HorizontalAlign.Start)
+        .scrollable(false)
+        .barHeight(0)
+        .divider(null)
+        .customContentTransition((from: number, to: number) => this.tabContentTransition(from, to))
+        .onChange((index: number) => this.currentTabIndex = index)
+        .clip(true)
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
-      .onTouch(() => this.onActivity())
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .padding({
+        top: $r('app.float.ds_space_lg'),
+        bottom: $r('app.float.ds_space_16'),
+        left: $r('app.float.ds_space_sm'),
+        right: $r('app.float.ds_space_sm'),
+      })
+      // 位移量取内容列实测宽度，不取 Tabs 自身：页签内容在切换瞬间会超出 Tabs 边界。
+      .onAreaChange((_oldValue: Area, newValue: Area) => {
+        this.contentWidth = newValue.width as number
+      })
+      .alignItems(HorizontalAlign.Start)
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        title: {
-          mainTitle: $r('app.string.ssh_key_generate'),
-        },
-        menu: {
-          value: this.menuItems(),
-        },
-      },
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .align(Alignment.Top)
+    .onTouch(() => this.onActivity())
+    .clip(false)
+  }
+
+  build() {
+    DsHalfModalSheet({
+      title: $r('app.string.ssh_key_generate'),
+      actions: this.sheetActions(),
+      bodyBuilder: this.bodyContent,
     })
   }
 }

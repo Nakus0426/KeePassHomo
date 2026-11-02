@@ -154,38 +154,29 @@ View（ArkUI）
 - 未保存内容、高风险确认或进行中任务不得因点击遮罩直接丢失。
 - 无法继续当前任务的错误才使用完整错误页；可原地恢复的错误使用半模态或行内反馈。
 
-### 4.3 沉浸光感
+### 4.3 标题栏材质与面层
 
-| 场景               | 材质档位          | 约束                |
-|------------------|---------------|-------------------|
-| 顶部标题栏、搜索栏        | `ULTRA_THIN`  | 内容延伸至其下，滚动时平滑增加模糊 |
-| 底部导航、操作坞、MiniBar | `THIN`        | 与安全区保持悬浮间距        |
-| 临时菜单、筛选面板        | `THICK`       | 关闭后不保留光效          |
-| 半模态、操作面板、阻断弹层    | `ULTRA_THICK` | 稳定对比度和明确遮罩层级      |
-| 列表、表单、密码字段、风险正文  | 无常驻强材质        | 使用稳定实色内容面         |
+| 场景                  | 材质                               | 约束                        |
+|---------------------|----------------------------------|---------------------------|
+| 顶部标题栏、搜索栏           | HDS `ADAPTIVE` + `GRADIENT_BLUR` | 全应用统一一档，滚动时内容进入标题栏背后参与模糊 |
+| 底部导航、操作坞、MiniBar    | 无系统材质                            | 设计系统实色面底，与安全区保持悬浮间距       |
+| 临时菜单、筛选面板、半模态、阻断弹层 | 无系统材质                            | 设计系统实色面底与明确遮罩层级，关闭后不保留光效  |
 
-- [ ] `[P0]` 默认使用系统 `ADAPTIVE` 材质级别，尊重系统强度和设备性能。
-- [ ] `[P0]` 除明确隐藏标题栏的页面外，标题栏默认使用 HDS 内置标题栏、系统 `ADAPTIVE` 沉浸光感材质和
-  `IMMERSIVE_GRADIENT_BLUR` 动态渐变模糊；绑定实际滚动容器，并确保默认位置的内容避让标题栏和底部导航区域，滚动后才允许内容进入标题栏背后参与模糊效果。
-- [ ] `[P0]` 同屏常驻悬浮层不超过顶部栏、底部栏和一个上下文层。
+- [ ] `[P0]` 所有 HDS 标题栏统一使用 `hdsMaterial.MaterialType.ADAPTIVE` 与 `ScrollEffectType.GRADIENT_BLUR`，不再区分主壳、搜索页和子页材质档位。
+- [ ] `[P0]` 标题栏之外的组件禁止 `systemMaterialEffect`；底部导航、菜单、筛选面板、半模态、弹层和页面内容使用 `ds_surface_*` 实色面底。
 - [ ] `[P0]` 不使用玻璃卡片嵌套、营销式渐变、装饰色球或无功能光斑。
 - [ ] `[P0]` 按压、滚动和材质变化遵循减少动态效果设置，不使用夸张弹跳。
-- [ ] `[P0]` 高级材质不可用、节能、低性能或减少透明度时，只降低材质，不改变布局与功能。
+- [ ] `[P0]` 标题栏材质不可用、节能或低性能时只降低材质，不改变布局与功能。
 
 ### 4.4 色彩、尺寸与无障碍
 
-- [x] 颜色、间距、圆角、字号、标准控件和系统组件尺寸优先复用 API 26 SDK `sysResource.js` 中语义一致的
-  `sys.color.*` 与 `sys.float.*`；新增应用 Token 前必须查官方 API 与 SDK 定义，禁止仅因数值相同进行替换。
-- [x] 所有 UI 颜色默认使用 `sys.color.*`，品牌色使用 `sys.color.brand`，成功、提醒、错误状态分别使用
-  `sys.color.confirm`、`sys.color.alert`、`sys.color.warning`；除非用户明确指定颜色，否则不新增自定义应用颜色。
-- [x] 仅在配置 schema 无法引用系统颜色（例如启动窗口配置）或用户明确指定颜色时维护应用颜色资源；业务布局约束等产品专属尺寸
-  Token 可保留，并删除已由系统资源替代或无引用的重复 Token。
+- [x] 颜色、间距、圆角、字号、标准控件和组件尺寸统一来自 pen 设计变量，落到 `app.color.ds_*` 与 `app.float.ds_*`；新增 Token 同步维护 `resources/base` 与 `resources/dark`。
+- [x] UI 颜色只使用 `app.color.ds_*`；`sys.color.*` 仅限透明与系统控件默认外观，禁止十六进制、RGB 和旧系统色新增用途。
+- [x] 品牌色使用 `ds_primary`，成功、提醒、错误分别使用 `ds_success`、`ds_warning`、`ds_error` 及其 container、hover、press 变体。
 - [x] 浅色与深色通过 `resources/base`、`resources/dark` 同名资源覆盖。
-- [x] 品牌色和业务状态色跟随 HarmonyOS 系统颜色角色及深浅色策略。
-- [x] 字符串资源按页面/功能拆分为多个 `string_<scope>.json`；跨页面文案集中到 `string_common.json`，保持资源 key 全局唯一。
-- [ ] 背景使用不透明的系统背景 Token；成功、提醒、警告使用独立语义色。
+- [ ] 背景使用不透明的设计系统表面 Token；成功、提醒、警告使用独立语义色。
 - [ ] 风险同时使用 Symbol、文字和严重度，不只依赖颜色。
-- [ ] 常见操作使用 HarmonyOS 系统 Symbol；图标按钮提供无障碍名称和触摸提示。
+- [ ] 常见操作使用自定义 Material Symbols（`app.string.symbol_*`）；图标按钮提供无障碍名称和触摸提示。
 - [ ] 固定导航、图标按钮、计数器和 TOTP 倒计时使用稳定尺寸。
 - [ ] 支持系统字体缩放、高对比度、减少透明度和减少动态效果。
 - [ ] 长库名、网址、文件名和错误文本允许换行或省略，并提供完整查看入口。
@@ -257,14 +248,10 @@ View（ArkUI）
 ### 6.4 全局 UI 基础
 
 - [x] 抽取 Phone AppShell、四模块底栏、顶部栏、页面内容面和错误状态组件；半模态在首个实际业务场景中抽取，不建立一次性空组件。
-- [x] 使用系统沉浸材质的设备算力分档能力，并完成深浅色资源和 `fp` 字体基础构建验证。
-- [x] 完成现有 `app.color`、`app.float` 审计：系统表面色、文字色、品牌色、业务状态色、间距、圆角、标准字号和 HDS MINI
-  标题栏高度改用语义一致的系统资源；仅保留配置边界和产品专属尺寸 Token。
-- [x] 统一需要标题栏的页面为 HDS 内置标题栏，默认启用系统 `ADAPTIVE` 沉浸光感与
-  `IMMERSIVE_GRADIENT_BLUR` 动态渐变模糊；使用 `bindToScrollable` 绑定滚动容器，并按标题栏高度和全局安全区配置初始内容避让。
-  当前实现：页面统一使用 `HdsNavigation`/`HdsNavDestination` 内置标题栏并绑定系统材质，滚动效果由 `scrollEffectOpts`
-  配置；用户实测 `enableScrollEffect: false` 下渐变模糊同样生效，因此按已实现记录。主壳与搜索页使用 `IMMERSIVE`、子页面使用
-  `ADAPTIVE`，档位不一致记入第 18 章。
+- [x] 完成设计系统基础组件（`DsButton`、`DsInput`、`DsField`、`DsPageHeader`）与 `ds_*` Token 的深浅色和 `fp` 字体构建验证。
+- [x] 完成旧 `app.color`、`app.float`、`sys.color`、`sys.float` 使用审计，确定新页面使用 `ds_*`、旧页面渐进迁移的范围。
+- [x] 固化 HDS 标题栏材质规则：统一 `hdsMaterial.MaterialType.ADAPTIVE` + `ScrollEffectType.GRADIENT_BLUR`；用户实测
+  `enableScrollEffect: false` 下渐变模糊同样生效。标题栏之外的组件禁用 `systemMaterialEffect`，代码收敛列入 11.4 发布收敛。
 - [x] 建立 Phone 稳定内容宽度和默认安全区规则，为 Tablet 容器替换预留页面边界。
 - [x] 清除路由与视觉占位页；未开发模块只保留明确的空状态，不添加推测性功能。
 
@@ -538,8 +525,8 @@ View（ArkUI）
 - [ ] 所有错误信息可行动且不泄露敏感数据。
 - [ ] 补齐正式 vendor、版本、签名配置、图标和发布资源。
 - [ ] 恢复调试期间临时关闭的安全能力：窗口隐私模式（`setWindowPrivacyMode(true)`）与自动锁定开关默认值。
-- [ ] 收敛标题栏材质档位：当前主壳与搜索页使用 `IMMERSIVE`，子页面使用 `ADAPTIVE`。
-- [ ] Phone `390 x 844` 与 Tablet `1280 x 800` 完成关键流程人工验收。
+- [ ] 收敛标题栏材质：统一为 `ADAPTIVE` + `GRADIENT_BLUR`，移除标题栏之外的 `systemMaterialEffect`。
+- [ ] Phone `390 x 844` 完成关键流程人工验收；Tablet 验收在 pen 平板设计稿落地后补充。
 
 退出条件：全部 P0 项实现并人工验收；Phone 与 Tablet 信息架构一致，布局、无障碍和安全状态完整。
 
@@ -695,8 +682,8 @@ M2 于 2026-10-10 依 14.0 阶段 2 架构回归结论勾选。M3 主线（登�
 - [x] 页面按一页一文件拆分（OnboardingPages/VaultPages 拆为独立页面文件），通用工具统一接入
   `@pura/harmony-utils` 并删除等价自研；字符串资源按 `string_<scope>.json` 拆分。
 - [x] 修复引导页返回与重选文件路由行为：Welcome 页返回按栈内是否有下层页面分流，重选文件原地刷新摘要，
-  “选择其他保险库”改为入栈跳转而非重置路由栈；引导页沉浸材质调整为 `REGULAR`。
-- [x] 统一需要标题栏的页面为 HDS 内置标题栏并绑定系统沉浸材质（6.4）；滚动模糊按用户实测结论记为已实现。
+  “选择其他保险库”改为入栈跳转而非重置路由栈；引导页不再使用系统材质，改为设计系统实色面底。
+- [x] 固化 HDS 标题栏材质规则为 `ADAPTIVE` + `GRADIENT_BLUR`（6.4）；标题栏之外禁用 `systemMaterialEffect`，代码收敛列入 11.4。
 - [x] 完成 14.0 阶段 2 架构回归并勾选 M2。
 - [ ] 继续阶段 3 保险库剩余工作，建议顺序：① 接通已具备能力（分组管理页入口、KDBX 3.1 升级入口、生物快速解锁入口、再认证与永久删除）；②
   六类模板与多用户名/多网址/TOTP 字段；③ 附件、历史、回收站浏览与批量操作；④ 状态与恢复入口补全。逐项完成后按 7.2 勾选。
@@ -732,12 +719,12 @@ M2 于 2026-10-10 依 14.0 阶段 2 架构回归结论勾选。M3 主线（登�
 | 2026-10-10 | SSH 私钥存放方式              | 已关闭 | 存受保护自定义字段，不采用 KeePassXC 的私钥放附件约定；后续自研桌面端复用同一结构                                                                                                                                      |
 | 2026-10-10 | SSH 密钥生成格式              | 已关闭 | RSA 用 cryptoFramework PKCS#8 PEM；Ed25519 需自研 OpenSSH 私钥容器（cipher none，无口令），cryptoFramework 不提供 OpenSSH 格式接口                                                                         |
 | 2026-10-10 | 剪贴板粘贴密钥                 | 已关闭 | 使用系统粘贴控件（PasteButton），不申请受限权限 `ohos.permission.READ_PASTEBOARD`；沿用阶段 0 决策                                                                                                           |
+| 2026-10-22 | 设计系统迁移                  | 已确认 | UI/UX 以 pen 设计稿 `KeePassHomo.pen` 为唯一视觉源；新页面与改版页面使用 `app.color.ds_*`、`app.float.ds_*` 与 `Ds*` 组件，旧页面渐进迁移；标题栏统一 `ADAPTIVE` + `GRADIENT_BLUR`，其余组件禁用 `systemMaterialEffect`；平板等待 pen 平板设计稿 |
 
 ## 19. 参考基线
 
-- [HarmonyOS 沉浸光感设计指南](https://developer.huawei.com/consumer/cn/doc/design-guides/immersivelight-0000002612101053)
 - [HarmonyOS 色彩设计指南](https://developer.huawei.com/consumer/cn/doc/design-guides/color-0000001776857164)
-- HarmonyOS 本地开发文档：状态管理 V2、MVVM V2、Navigation、Immersive Material、HDS Navigation、HDS Tabs、响应式布局、User
+- HarmonyOS 本地开发文档：状态管理 V2、MVVM V2、Navigation、HDS Navigation、响应式布局、User
   Authentication Kit、Pasteboard、隐私窗口与文件服务。
 - [1Password for Android](https://support.1password.com/getting-started-android/)
 - [1Password Watchtower](https://support.1password.com/watchtower/)

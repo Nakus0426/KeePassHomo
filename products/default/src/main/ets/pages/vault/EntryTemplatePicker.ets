@@ -1,17 +1,8 @@
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-import {
-  hdsMaterial,
-  HdsNavigation,
-  HdsNavigationIconOptions,
-  HdsNavigationMenuItemOptions,
-  HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
-} from '@kit.UIDesignKit'
 import { ItemTemplate } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { ItemTemplateDefinition, TEMPLATE_DEFINITIONS } from '../../model/EntryTemplateCatalog'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPageHeaderAction } from '../../components/DsPageHeader'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；按组件宽度切档，宽度由列数均分。
 const TEMPLATE_CARD_COLUMNS: GridRowColumnOption = {
@@ -33,30 +24,13 @@ export struct EntryTemplatePicker {
   @Event onClose: () => void = () => {
   }
   private readonly app: AppViewModel = appViewModel
-  private readonly closeIcon: SymbolGlyphModifier = new SymbolGlyphModifier($r('sys.symbol.xmark'))
-    .fontColor([$r('sys.color.titlebar_icon_color')])
 
   aboutToAppear(): void {
     this.app.loadRecentTemplates()
   }
 
-  // 单行标题栏实际高度才是内容避让量；titlebar_default_height 含单双行与材质余量，直接用会空出一大截。
-  // 与主壳页面一致：正文从标题栏底部再让 padding_level8。
-  @Computed
-  private get titleBarOffset(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.single_line_titlebar_height').id)
-    const gapPx = ResUtil.getNumber($r('sys.float.padding_level16').id)
-    return this.getUIContext().px2vp(titlebarHeightPx + gapPx)
-  }
-
-  private menuItems(): HdsNavigationMenuItemOptions[] {
-    const close: HdsNavigationIconOptions = {
-      icon: this.closeIcon,
-      type: IconStyleMode.SMALL,
-      label: $r('app.string.close'),
-      action: () => this.onClose(),
-    }
-    return [{ content: close }]
+  private templateActions(): DsPageHeaderAction[] {
+    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() }]
   }
 
   // 最近使用只加徽标，卡片顺序固定为定义表顺序。
@@ -64,7 +38,7 @@ export struct EntryTemplatePicker {
   private templateCard(definition: ItemTemplateDefinition) {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Stack({ alignContent: Alignment.TopEnd }) {
-        Column({ space: $r('sys.float.padding_level4') }) {
+        Column({ space: $r('app.float.ds_space_xs') }) {
           Image(definition.icon)
             .draggable(false)
             .width($r('app.float.template_icon_size'))
@@ -75,14 +49,14 @@ export struct EntryTemplatePicker {
             .width('100%')
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
           Text(definition.description)
             .width('100%')
             .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
+            .fontColor($r('app.color.ds_text_secondary'))
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -92,14 +66,14 @@ export struct EntryTemplatePicker {
         if (this.app.recentTemplates.includes(definition.template)) {
           Text($r('app.string.recent_used_template'))
             .fontSize($r('sys.float.Caption_S'))
-            .fontColor($r('sys.color.brand'))
+            .fontColor($r('app.color.ds_primary'))
             .padding({
-              left: $r('sys.float.padding_level8'),
-              right: $r('sys.float.padding_level8'),
-              top: $r('sys.float.padding_level2'),
-              bottom: $r('sys.float.padding_level2'),
+              left: $r('app.float.ds_space_sm'),
+              right: $r('app.float.ds_space_sm'),
+              top: $r('app.float.ds_space_2'),
+              bottom: $r('app.float.ds_space_2'),
             })
-            .backgroundColor($r('sys.color.comp_emphasize_secondary'))
+            .backgroundColor($r('app.color.ds_surface_high'))
             .borderRadius($r('sys.float.corner_radius_level16'))
         }
       }
@@ -108,68 +82,55 @@ export struct EntryTemplatePicker {
     }
     .width('100%')
     .height($r('app.float.template_card_height'))
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_sm'))
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .onClick(() => this.onPicked(definition.template))
   }
 
-  build() {
-    HdsNavigation() {
-      Scroll() {
-        Column() {
-          GridRow({
-            columns: TEMPLATE_CARD_COLUMNS,
-            gutter: { x: $r('sys.float.padding_level8'), y: $r('sys.float.padding_level8') },
-            breakpoints: {
-              value: TEMPLATE_CARD_BREAKPOINTS,
-              reference: BreakpointsReference.ComponentSize,
-            },
-          }) {
-            ForEach(TEMPLATE_DEFINITIONS, (definition: ItemTemplateDefinition) => {
-              GridCol({ span: 1 }) {
-                this.templateCard(definition)
-              }
-            }, (definition: ItemTemplateDefinition) => definition.template)
-          }
-          .width('100%')
+  @LocalBuilder
+  private bodyContent() {
+    Scroll() {
+      Column() {
+        GridRow({
+          columns: TEMPLATE_CARD_COLUMNS,
+          gutter: { x: $r('app.float.ds_space_sm'), y: $r('app.float.ds_space_sm') },
+          breakpoints: {
+            value: TEMPLATE_CARD_BREAKPOINTS,
+            reference: BreakpointsReference.ComponentSize,
+          },
+        }) {
+          ForEach(TEMPLATE_DEFINITIONS, (definition: ItemTemplateDefinition) => {
+            GridCol({ span: 1 }) {
+              this.templateCard(definition)
+            }
+          }, (definition: ItemTemplateDefinition) => definition.template)
         }
         .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({
-          top: this.titleBarOffset,
-          bottom: this.bottomOffset,
-          left: $r('sys.float.padding_level8'),
-          right: $r('sys.float.padding_level8'),
-        })
-        .alignItems(HorizontalAlign.Start)
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .padding({
+        top: $r('app.float.ds_space_lg'),
+        bottom: this.bottomOffset,
+        left: $r('app.float.ds_space_sm'),
+        right: $r('app.float.ds_space_sm'),
+      })
+      .alignItems(HorizontalAlign.Start)
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar({
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-        },
-      },
-      content: {
-        title: {
-          mainTitle: $r('app.string.new_entry'),
-        },
-        menu: {
-          value: this.menuItems(),
-        },
-      },
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .align(Alignment.Top)
+    .clip(false)
+  }
+
+  build() {
+    DsHalfModalSheet({
+      title: $r('app.string.new_entry'),
+      actions: this.templateActions(),
+      bodyBuilder: this.bodyContent,
     })
   }
 }
