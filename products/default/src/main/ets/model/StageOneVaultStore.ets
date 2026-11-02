@@ -16,10 +16,13 @@ import {
   VaultField,
   VaultFormat,
   VaultGroup,
+  VaultRepository,
   VaultRepositoryError,
   VaultRepositoryErrorCategory,
   VaultSource,
   VaultSourceType,
+  WebDavClient,
+  WebDavVaultRepository,
 } from '@ohos/common'
 
 const PREFERENCES_NAME: string = 'vault_source'
@@ -59,6 +62,15 @@ export interface VaultFileSummary {
   unreadableReason?: VaultUnreadableReason;
 }
 
+// 远端只读打开所需的现场凭据：不落盘，进程内使用。
+export interface WebDavVaultTarget {
+  username: string;
+  webDavPassword: string;
+  fileUrl: string;
+  fileName: string;
+  modifiedAt: number;
+}
+
 export enum VaultBrowseMode {
   All,
   Favorites,
@@ -75,6 +87,7 @@ export class UserCancelledError extends Error {
 export class StageOneVaultStore {
   private context: common.UIAbilityContext | undefined
   private repository: FileVaultRepository | undefined
+  private webDavRepository: WebDavVaultRepository | undefined
   private source: VaultSource | undefined
   private keyFileSource: VaultSource | undefined
   private keyFileFingerprint: string = ''
@@ -236,6 +249,9 @@ export class StageOneVaultStore {
 
   // 写权限必须现场探测：临时授权随进程退出清除，持久授权也须激活后才生效。
   private async resolveAccess(source: VaultSource, format: VaultFormat): Promise<VaultAccess> {
+    if (source.type === VaultSourceType.WebDav) {
+      return VaultAccess.ReadOnlyFileSystem
+    }
     const repository: FileVaultRepository = this.requireRepository()
     const writableSource: VaultSource = {
       type: source.type,
@@ -399,8 +415,8 @@ export class StageOneVaultStore {
   }
 
   async unlock(password: string): Promise<void> {
-    const repository: FileVaultRepository = this.requireRepository()
     const source: VaultSource = this.currentSource
+    const repository: VaultRepository = this.repositoryFor(source)
     await this.activateStoredAccess(source)
     const data: ArrayBuffer = await repository.read(source)
     const credential: VaultCredential = await this.readCredential(password)
@@ -419,8 +435,34 @@ export class StageOneVaultStore {
     this.session.unlock(document)
   }
 
+  // 远端库一次性打开：下载、解锁、登记来源；凭据只留在内存，不写最近来源。
+  async openWebDavVault(target: WebDavVaultTarget, password: string): Promise<void> {
+    const client: WebDavClient = new WebDavClient()
+    const data: ArrayBuffer = await client.download(target.fileUrl, target.username, target.webDavPassword)
+    const credential: VaultCredential = await this.readCredential(password)
+    const engine: KdbxVaultEngine = new KdbxVaultEngine()
+    const document: VaultDocument = await engine.unlock(data, credential)
+    this.webDavRepository = new WebDavVaultRepository(client, target.username, target.webDavPassword)
+    this.source = {
+      type: VaultSourceType.WebDav,
+      uri: target.fileUrl,
+      displayName: target.fileName,
+      readOnly: true,
+    }
+    this.format = document.format
+    this.sourceModifiedAt = target.modifiedAt
+    this.credential = credential
+    this.engine = engine
+    this.session.unlock(document)
+    // 远端来源不落盘：清掉上一次本地最近来源，避免下次启动误开旧库。
+    await this.persistRecentSource()
+  }
+
   // 激活必须与持久化时的模式一致，否则系统按未持久化拒绝。
   private async activateStoredAccess(source: VaultSource): Promise<void> {
+    if (source.type === VaultSourceType.WebDav) {
+      return
+    }
     const repository: FileVaultRepository = this.requireRepository()
     const writableSource: VaultSource = {
       type: source.type,
@@ -699,7 +741,7 @@ export class StageOneVaultStore {
 
   async reauthenticate(password: string): Promise<void> {
     const source: VaultSource = this.currentSource
-    const repository: FileVaultRepository = this.requireRepository()
+    const repository: VaultRepository = this.repositoryFor(source)
     const candidate: VaultCredential = await this.readCredential(password)
     try {
       await new KdbxVaultEngine().validate(await repository.read(source), candidate)
@@ -741,6 +783,16 @@ export class StageOneVaultStore {
     if (this.context === undefined || this.source === undefined) {
       throw new Error('保险库来源尚未初始化')
     }
+    // 远端库凭据不落盘：清理最近来源，避免下次启动按本地 URI 打开。
+    if (this.source.type === VaultSourceType.WebDav) {
+      PreferencesUtil.putSync(SOURCE_URI, '', PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_NAME, '', PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_FORMAT, VaultFormat.Unsupported, PREFERENCES_NAME)
+      PreferencesUtil.putSync(SOURCE_MTIME, 0, PREFERENCES_NAME)
+      PreferencesUtil.putSync(KEY_FILE_URI, '', PREFERENCES_NAME)
+      PreferencesUtil.putSync(KEY_FILE_NAME, '', PREFERENCES_NAME)
+      return
+    }
     try {
       PreferencesUtil.putSync(SOURCE_URI, this.source.uri, PREFERENCES_NAME)
       PreferencesUtil.putSync(SOURCE_NAME, this.source.displayName, PREFERENCES_NAME)
@@ -758,6 +810,16 @@ export class StageOneVaultStore {
       throw new Error('保险库仓储尚未初始化')
     }
     return this.repository
+  }
+
+  private repositoryFor(source: VaultSource): VaultRepository {
+    if (source.type === VaultSourceType.WebDav) {
+      if (this.webDavRepository === undefined) {
+        throw new Error('远端保险库连接已失效，请重新连接')
+      }
+      return this.webDavRepository
+    }
+    return this.requireRepository()
   }
 
   private requireContext(): common.UIAbilityContext {
@@ -832,14 +894,14 @@ export class StageOneVaultStore {
     const data: ArrayBuffer = await this.engine.write(document)
     const credential: VaultCredential = this.requireCredential()
     try {
-      await this.requireRepository().writeSafely(this.currentSource, data,
+      await this.repositoryFor(this.currentSource).writeSafely(this.currentSource, data,
         async (candidate: ArrayBuffer): Promise<void> => {
           await new KdbxVaultEngine().validate(candidate, credential)
         })
     } catch (error) {
       const restoredEngine: KdbxVaultEngine = new KdbxVaultEngine()
       const restoredDocument: VaultDocument = await restoredEngine.unlock(
-        await this.requireRepository().read(this.currentSource), credential)
+        await this.repositoryFor(this.currentSource).read(this.currentSource), credential)
       this.engine = restoredEngine
       this.session.unlock(restoredDocument)
       throw error as Error

@@ -84,6 +84,10 @@ export {
   WebDavProbeResult,
 } from './src/main/ets/sync/WebDavProbe'
 
+export { WebDavClient, WebDavEntry } from './src/main/ets/sync/WebDavClient'
+
+export { WebDavVaultRepository } from './src/main/ets/vault/WebDavVaultRepository'
+
 export { OtpAuthParser, OtpAuthConfig, OtpAuthType, OtpAlgorithm } from './src/main/ets/otp/OtpAuthParser'
 
 export {

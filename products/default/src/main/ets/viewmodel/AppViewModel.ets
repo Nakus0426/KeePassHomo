@@ -34,7 +34,13 @@ import {
   ROUTE_WEBDAV,
   ROUTE_WELCOME,
 } from '../constants/RouteConstants'
-import { stageOneVaultStore, UserCancelledError, VaultAccess, VaultFileSummary } from '../model/StageOneVaultStore'
+import {
+  stageOneVaultStore,
+  UserCancelledError,
+  VaultAccess,
+  VaultFileSummary,
+  WebDavVaultTarget,
+} from '../model/StageOneVaultStore'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { WelcomeParam } from '../navigation/RouteParams'
@@ -305,6 +311,21 @@ export class AppViewModel {
       }
       this.reportBoundaryError('保险库解锁失败，请重试', error)
       return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  // 远端只读打开：下载与解锁的失败原样抛给调用页做分类提示，成功后才切到首页。
+  async openWebDavVault(target: WebDavVaultTarget, masterPassword: string): Promise<void> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.openWebDavVault(target, masterPassword)
+      this.refreshVault()
+      this.session.markUnlocked()
+      appSessionState.setCurrentModule(ROUTE_VAULT)
+      appRouter.clearToHome()
+      this.setStatus('')
     } finally {
       this.busy = false
     }

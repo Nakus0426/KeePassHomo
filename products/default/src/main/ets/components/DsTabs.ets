@@ -9,6 +9,14 @@ export enum DsTabsSize {
 
 export interface DsTabsItem {
   label: ResourceStr
+  // 单项禁止：不响应点击与按压反馈，也不参与切换。
+  disabled?: boolean
+}
+
+// 自定义槽位拿到的状态：selected 表示该页签当前选中，调用方据此决定内容取色。
+export interface DsTabsSlot {
+  index: number
+  selected: boolean
 }
 
 const LABEL_LETTER_SPACING: number = 0.2
@@ -22,6 +30,10 @@ export struct DsTabs {
   @Param tabSize: DsTabsSize = DsTabsSize.Medium
   @Event onSelect: (index: number) => void = () => {
   }
+  // 提供后替代默认文本标签，槽位可放图标、图标 + 文本或任意节点；等分宽度与点击区域不变。
+  @BuilderParam slotBuilder?: (slot: DsTabsSlot) => void
+  // 全部禁止：所有页签不可切换；当前项仍保留主色标示，其余文字置灰。
+  @Param disabled: boolean = false
 
   @Local private indicatorX: number = 0
   @Local private contentWidth: number = 0
@@ -127,8 +139,16 @@ export struct DsTabs {
     })
   }
 
+  private isItemDisabled(index: number): boolean {
+    if (this.disabled) {
+      return true
+    }
+    const item: DsTabsItem | undefined = this.items[index]
+    return item !== undefined && item.disabled === true
+  }
+
   private handleSelect(index: number): void {
-    if (index === this.selectedIndex) {
+    if (index === this.selectedIndex || this.isItemDisabled(index)) {
       return
     }
     this.moveIndicator(index, true)
@@ -136,8 +156,11 @@ export struct DsTabs {
   }
 
   private labelColor(index: number): ResourceColor {
-    return index === this.selectedIndex
-      ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_secondary')
+    if (index === this.selectedIndex) {
+      return $r('app.color.ds_text_primary')
+    }
+    return this.isItemDisabled(index)
+      ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_secondary')
   }
 
   build() {
@@ -160,16 +183,20 @@ export struct DsTabs {
       Row() {
         ForEach(this.items, (item: DsTabsItem, index: number) => {
           Row() {
-            Text(item.label)
-              .fontSize(this.fontSizeRes)
-              .fontWeight(600)
-              .letterSpacing(LABEL_LETTER_SPACING)
-              .fontColor(this.labelColor(index))
-              .maxLines(1)
-              .animation({
-                duration: AnimationTokens.DURATION_FEEDBACK,
-                curve: AnimationTokens.EASE_STATE,
-              })
+            if (this.slotBuilder !== undefined) {
+              this.slotBuilder({ index: index, selected: index === this.selectedIndex })
+            } else {
+              Text(item.label)
+                .fontSize(this.fontSizeRes)
+                .fontWeight(600)
+                .letterSpacing(LABEL_LETTER_SPACING)
+                .fontColor(this.labelColor(index))
+                .maxLines(1)
+                .animation({
+                  duration: AnimationTokens.DURATION_FEEDBACK,
+                  curve: AnimationTokens.EASE_STATE,
+                })
+            }
           }
           .layoutWeight(1)
           .height(this.tabHeightVp)
