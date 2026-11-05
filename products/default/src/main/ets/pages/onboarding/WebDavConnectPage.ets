@@ -20,7 +20,8 @@ import { DsRadio, DsRadioSize } from '../../components/DsRadio'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { DsStepper } from '../../components/DsStepper'
 import { IconToggleButton } from '../../components/IconToggleButton'
-import { Tag, TagShape, TagType } from '../../components/Tag'
+import { DsInfoTile } from '../../components/DsInfoTile'
+import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import {
@@ -44,8 +45,6 @@ const NOTICE_TRANSITION: TransitionEffect = TransitionEffect.asymmetric(
     }),
 )
 
-// 设计稿 Tile 固定高 68vp（无对应 pen 变量），用于两栏 Tile 等高；内容高度推导不出该值。
-const TILE_HEIGHT: number = 68
 // 「下一步」连接成功后，按钮短暂停留「连接成功」的时长。
 const SUCCESS_FLASH_MS: number = 800
 
@@ -782,71 +781,28 @@ export struct WebDavConnectPage {
     }
     .width('100%')
     .padding($r('app.float.ds_space_16'))
-    .backgroundColor($r('app.color.ds_surface_container'))
+    .backgroundColor($r('app.color.ds_surface_low'))
     .borderRadius($r('app.float.ds_radius_none'))
     .alignItems(VerticalAlign.Center)
   }
 
-  @Builder
-  private tileLabelRow(icon: Resource, label: Resource) {
-    Row({ space: $r('app.float.ds_space_6') }) {
-      SymbolGlyph(icon)
-        .fontSize($r('app.float.ds_icon_tiny'))
-        .fontColor([$r('app.color.ds_text_tertiary')])
-        .foregroundColor($r('app.color.ds_text_tertiary'))
-      Text(label)
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
-        .letterSpacing($r('app.float.ds_tracking_wide_xs'))
+  @LocalBuilder
+  private accessTagContent() {
+    Row() {
+      DsTag({ tone: DsTagTone.Warning, tagSize: DsTagSize.Small, text: $r('app.string.read_only') })
     }
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  private valueTile(icon: Resource, label: Resource, value: ResourceStr) {
-    Column() {
-      this.tileLabelRow(icon, label)
-      Text(value)
-        .width('100%')
-        .fontSize($r('app.float.ds_font_body'))
-        .fontWeight(600)
-        .letterSpacing($r('app.float.ds_tracking_tight'))
-        .fontColor($r('app.color.ds_text_primary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-    }
-    .layoutWeight(1)
-    .height(TILE_HEIGHT)
-    .padding($r('app.float.ds_space_md'))
-    .backgroundColor($r('app.color.ds_surface_container'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .justifyContent(FlexAlign.Start)
   }
 
   // 远端保险库一律只读，状态格用 Warning 语义标签表示访问权限。
   @Builder
   private accessTile() {
-    Column() {
-      this.tileLabelRow($r('app.string.symbol_lock'), $r('app.string.webdav_access_label'))
-      Row() {
-        Tag({ type: TagType.Warning, shape: TagShape.Square }) {
-          Text($r('app.string.read_only'))
-            .fontSize($r('app.float.ds_font_label_sm'))
-            .fontWeight(600)
-            .letterSpacing($r('app.float.ds_tracking_wide_md'))
-        }
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.Start)
-    }
-    .layoutWeight(1)
-    .height(TILE_HEIGHT)
-    .padding($r('app.float.ds_space_md'))
-    .backgroundColor($r('app.color.ds_surface_container'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(HorizontalAlign.Start)
+    DsInfoTile({
+      icon: $r('app.string.symbol_lock'),
+      label: $r('app.string.webdav_access_label'),
+      valueBuilder: this.accessTagContent,
+    })
   }
 
   @Builder
@@ -860,13 +816,27 @@ export struct WebDavConnectPage {
         .fontColor($r('app.color.ds_text_tertiary'))
       this.vaultFileCard()
       Row({ space: $r('app.float.ds_space_sm') }) {
-        this.valueTile($r('app.string.symbol_database'), $r('app.string.file_size'), this.vaultSizeText)
-        this.valueTile($r('app.string.symbol_schedule'), $r('app.string.last_modified'), this.vaultModifiedText)
+        DsInfoTile({
+          icon: $r('app.string.symbol_database'),
+          label: $r('app.string.file_size'),
+          value: this.vaultSizeText,
+          monospace: true,
+        })
+        DsInfoTile({
+          icon: $r('app.string.symbol_schedule'),
+          label: $r('app.string.last_modified'),
+          value: this.vaultModifiedText,
+          monospace: true,
+        })
       }
       .width('100%')
 
       Row({ space: $r('app.float.ds_space_sm') }) {
-        this.valueTile($r('app.string.symbol_folder'), $r('app.string.webdav_dir_label'), this.vaultDirectoryText)
+        DsInfoTile({
+          icon: $r('app.string.symbol_folder'),
+          label: $r('app.string.webdav_dir_label'),
+          value: this.vaultDirectoryText,
+        })
         this.accessTile()
       }
       .width('100%')

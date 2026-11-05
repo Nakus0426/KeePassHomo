@@ -121,7 +121,7 @@ export struct DsNotice {
     Text(this.body)
       .width('100%')
       .fontSize($r('app.float.ds_font_body_sm'))
-      .lineHeight($r('app.float.ds_font_body_sm'))
+      .lineHeight(NOTICE_BODY_LINE_HEIGHT)
       .fontColor(this.bodyColor)
   }
 

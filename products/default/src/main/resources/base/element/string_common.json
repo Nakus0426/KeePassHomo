@@ -159,6 +159,14 @@
     {
       "name": "badge_saved",
       "value": "已添加"
+    },
+    {
+      "name": "number_stepper_decrease",
+      "value": "减少"
+    },
+    {
+      "name": "number_stepper_increase",
+      "value": "增加"
     }
   ]
 }

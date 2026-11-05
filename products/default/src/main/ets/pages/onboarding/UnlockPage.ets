@@ -255,10 +255,10 @@ export struct UnlockPage {
   private vaultSwitchButton() {
     DsButton({
       variant: DsButtonVariant.Text,
-      buttonSize: DsButtonSize.Small,
+      buttonSize: DsButtonSize.Medium,
       iconOnly: true,
       leadingIcon: $r('app.string.symbol_swap_horiz'),
-      iconSizeOverride: $r('app.float.ds_icon_sm'),
+      iconSizeOverride: $r('app.float.ds_icon_md'),
       iconColorOverride: $r('app.color.ds_on_surface_variant'),
       accessibilityLabelResource: $r('app.string.choose_another_vault'),
       onTap: () => {
@@ -298,7 +298,7 @@ export struct UnlockPage {
 
         Column({ space: $r('app.float.ds_space_sm') }) {
           Text(this.viewModel.currentSource().displayName)
-            .fontSize($r('app.float.ds_font_display_lg'))
+            .fontSize($r('app.float.ds_font_display'))
             .fontWeight(600)
             .fontColor($r('app.color.ds_text_primary'))
             .maxLines(1)
@@ -426,7 +426,7 @@ export struct UnlockPage {
       tone: DsButtonTone.Tonal,
       buttonSize: DsButtonSize.Medium,
       fullWidth: true,
-      backgroundColorOverride: $r('app.color.ds_surface_low'),
+      backgroundColorOverride: $r('app.color.ds_surface_inset'),
       controlHeightOverride: $r('app.float.ds_input_height_md'),
       horizontalPaddingOverride: $r('app.float.ds_space_14'),
       disabled: this.credentialsDisabled,

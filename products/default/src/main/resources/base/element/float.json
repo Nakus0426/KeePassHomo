@@ -81,6 +81,10 @@
       "value": "2vp"
     },
     {
+      "name": "ds_space_3",
+      "value": "3vp"
+    },
+    {
       "name": "ds_space_xs",
       "value": "4vp"
     },
@@ -475,6 +479,50 @@
     {
       "name": "ds_radio_stroke_lg",
       "value": "2.5vp"
+    },
+    {
+      "name": "ds_switch_width_sm",
+      "value": "32vp"
+    },
+    {
+      "name": "ds_switch_height_sm",
+      "value": "18vp"
+    },
+    {
+      "name": "ds_switch_knob_sm",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_switch_width_md",
+      "value": "36vp"
+    },
+    {
+      "name": "ds_switch_height_md",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_switch_knob_md",
+      "value": "14vp"
+    },
+    {
+      "name": "ds_switch_width_lg",
+      "value": "44vp"
+    },
+    {
+      "name": "ds_switch_height_lg",
+      "value": "24vp"
+    },
+    {
+      "name": "ds_switch_knob_lg",
+      "value": "18vp"
+    },
+    {
+      "name": "ds_switch_ring_width",
+      "value": "3vp"
+    },
+    {
+      "name": "ds_switch_knob_press_extra",
+      "value": "4vp"
     },
     {
       "name": "ds_tracking_tight",

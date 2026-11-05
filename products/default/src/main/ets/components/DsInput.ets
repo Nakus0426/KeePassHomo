@@ -78,7 +78,7 @@ export struct DsInput {
 
   @Computed
   get fillColor(): ResourceColor {
-    return this.disabled ? $r('app.color.ds_surface_high') : $r('app.color.ds_surface_low')
+    return $r('app.color.ds_surface_inset')
   }
 
   @Computed
@@ -94,7 +94,7 @@ export struct DsInput {
 
   @Computed
   get placeholderColor(): ResourceColor {
-    return this.disabled ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_tertiary')
+    return this.disabled ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_secondary')
   }
 
   @Computed

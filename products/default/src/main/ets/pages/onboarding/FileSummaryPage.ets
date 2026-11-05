@@ -9,13 +9,10 @@ import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
-import { Tag, TagShape, TagType } from '../../components/Tag'
+import { DsInfoTile } from '../../components/DsInfoTile'
+import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 
-const TILE_HEIGHT: number = 68
 const FILE_NAME_LINE_HEIGHT: number = 19
-const TRACKING_TIGHT: number = -0.3
-const TRACKING_WIDE_XS: number = 0.2
-const TRACKING_WIDE_MD: number = 0.6
 
 enum SummaryAction {
   None = 'none',
@@ -55,11 +52,11 @@ export struct FileSummaryPage {
   }
 
   @Computed
-  get statusTagType(): TagType {
+  get statusTagTone(): DsTagTone {
     if (this.access === VaultAccess.Unreadable) {
-      return TagType.Alert
+      return DsTagTone.Error
     }
-    return this.readOnly ? TagType.Warning : TagType.Confirm
+    return this.readOnly ? DsTagTone.Warning : DsTagTone.Success
   }
 
   @Computed
@@ -92,12 +89,6 @@ export struct FileSummaryPage {
     return this.viewModel.fileSummary?.unreadableReason === VaultUnreadableReason.NotKdbx
       ? $r('app.string.file_summary_error_not_kdbx')
       : $r('app.string.file_summary_error_cannot_open')
-  }
-
-  // 缺写授权不是错误，用中性面底；格式与文件系统限制才用警示底。
-  @Computed
-  get noticeWarningTone(): boolean {
-    return this.access !== VaultAccess.ReadOnlyPermission
   }
 
   @Computed
@@ -199,7 +190,7 @@ export struct FileSummaryPage {
         .fontSize($r('app.float.ds_font_title_md'))
         .fontWeight(600)
         .lineHeight(FILE_NAME_LINE_HEIGHT)
-        .letterSpacing(TRACKING_TIGHT)
+        .letterSpacing($r('app.float.ds_tracking_tight'))
         .fontColor($r('app.color.ds_text_primary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -207,70 +198,27 @@ export struct FileSummaryPage {
     }
     .width('100%')
     .padding($r('app.float.ds_space_16'))
-    .backgroundColor($r('app.color.ds_surface_container'))
+    .backgroundColor($r('app.color.ds_surface_low'))
     .borderRadius($r('app.float.ds_radius_none'))
     .alignItems(VerticalAlign.Center)
   }
 
-  @Builder
-  private tileLabelRow(icon: Resource, label: Resource) {
-    Row({ space: $r('app.float.ds_space_6') }) {
-      SymbolGlyph(icon)
-        .fontSize($r('app.float.ds_icon_tiny'))
-        .fontColor([$r('app.color.ds_text_tertiary')])
-        .foregroundColor($r('app.color.ds_text_tertiary'))
-      Text(label)
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
-        .letterSpacing(TRACKING_WIDE_XS)
+  @LocalBuilder
+  private statusTagContent() {
+    Row() {
+      DsTag({ tone: this.statusTagTone, tagSize: DsTagSize.Small, text: this.statusLabel })
     }
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  private valueTile(icon: Resource, label: Resource, value: ResourceStr) {
-    Column() {
-      this.tileLabelRow(icon, label)
-      Text(value)
-        .width('100%')
-        .fontSize($r('app.float.ds_font_body'))
-        .fontWeight(600)
-        .letterSpacing(TRACKING_TIGHT)
-        .fontColor($r('app.color.ds_text_primary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-    }
-    .layoutWeight(1)
-    .height(TILE_HEIGHT)
-    .padding($r('app.float.ds_space_md'))
-    .backgroundColor($r('app.color.ds_surface_container'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .justifyContent(FlexAlign.Start)
   }
 
   @Builder
   private statusTile() {
-    Column() {
-      this.tileLabelRow(this.statusTileIcon, $r('app.string.file_status'))
-      Row() {
-        Tag({ type: this.statusTagType, shape: TagShape.Square }) {
-          Text(this.statusLabel)
-            .fontSize($r('app.float.ds_font_label_sm'))
-            .fontWeight(600)
-            .letterSpacing(TRACKING_WIDE_MD)
-        }
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.Start)
-    }
-    .layoutWeight(1)
-    .height(TILE_HEIGHT)
-    .padding($r('app.float.ds_space_md'))
-    .backgroundColor($r('app.color.ds_surface_container'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .justifyContent(FlexAlign.SpaceBetween)
-    .alignItems(HorizontalAlign.Start)
+    DsInfoTile({
+      icon: this.statusTileIcon,
+      label: $r('app.string.file_status'),
+      valueBuilder: this.statusTagContent,
+    })
   }
 
   @Computed
@@ -298,13 +246,27 @@ export struct FileSummaryPage {
   private detailGrid() {
     Column({ space: $r('app.float.ds_space_sm') }) {
       Row({ space: $r('app.float.ds_space_sm') }) {
-        this.valueTile($r('app.string.symbol_data_object'), $r('app.string.file_format'), this.formatText)
-        this.valueTile($r('app.string.symbol_database'), $r('app.string.file_size'), this.sizeText)
+        DsInfoTile({
+          icon: $r('app.string.symbol_data_object'),
+          label: $r('app.string.file_format'),
+          value: this.formatText,
+        })
+        DsInfoTile({
+          icon: $r('app.string.symbol_database'),
+          label: $r('app.string.file_size'),
+          value: this.sizeText,
+          monospace: true,
+        })
       }
       .width('100%')
 
       Row({ space: $r('app.float.ds_space_sm') }) {
-        this.valueTile($r('app.string.symbol_schedule'), $r('app.string.last_modified'), this.modifiedText)
+        DsInfoTile({
+          icon: $r('app.string.symbol_schedule'),
+          label: $r('app.string.last_modified'),
+          value: this.modifiedText,
+          monospace: true,
+        })
         this.statusTile()
       }
       .width('100%')
@@ -315,7 +277,7 @@ export struct FileSummaryPage {
   @Builder
   private notice() {
     DsNotice({
-      tone: this.noticeWarningTone ? DsNoticeTone.Warning : DsNoticeTone.Default,
+      tone: DsNoticeTone.Default,
       title: this.noticeTitle,
       body: this.noticeBody,
     })

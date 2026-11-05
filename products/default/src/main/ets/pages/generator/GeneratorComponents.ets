@@ -9,21 +9,19 @@ import {
 } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 import { DsButton, DsButtonSize, DsButtonTone } from '../../components/DsButton'
+import { DsNumberStepper, DsNumberStepperSize } from '../../components/DsNumberStepper'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsStrengthMeter } from '../../components/DsStrengthMeter'
+import { DsSwitch } from '../../components/DsSwitch'
 import { DsTabs, DsTabsItem, DsTabsSize } from '../../components/DsTabs'
 import { strengthLabel } from '../../components/PasswordStrengthIndicator'
 import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 
-// Stepper / Switch 公共组件尚未落地，先用现有控件按其设计位置占位。
-const SETTING_CONTROL_WIDTH_VP: number = 100
-const SETTING_SWITCH_WIDTH_VP: number = 36
-const SETTING_SWITCH_HEIGHT_VP: number = 20
 const SETTING_LABEL_LETTER_SPACING: number = 0.2
 
-// 设置行左侧「标签 + 可选描述」列，GeneratorSliderRow / GeneratorToggleRow 复用，避免结构重复。
+// 设置行左侧「标签 + 可选描述」列，GeneratorStepperRow / GeneratorToggleRow 复用，避免结构重复。
 @Builder
 function generatorSettingLabel(label: ResourceStr, description: ResourceStr | undefined) {
   Column({ space: $r('app.float.ds_space_2') }) {
@@ -44,7 +42,7 @@ function generatorSettingLabel(label: ResourceStr, description: ResourceStr | un
 }
 
 @ComponentV2
-struct GeneratorSliderRow {
+struct GeneratorStepperRow {
   @Param label: ResourceStr = ''
   @Param description: ResourceStr | undefined = undefined
   @Param value: number = 0
@@ -58,18 +56,14 @@ struct GeneratorSliderRow {
     Row({ space: $r('app.float.ds_space_md') }) {
       generatorSettingLabel(this.label, this.description)
 
-      Slider({
+      DsNumberStepper({
         value: this.value,
         min: this.min,
         max: this.max,
         step: this.step,
-        style: SliderStyle.InSet,
+        stepperSize: DsNumberStepperSize.Small,
+        onChange: (value: number) => this.onChange(value),
       })
-        .width(SETTING_CONTROL_WIDTH_VP)
-        .height($r('app.float.ds_seg_height'))
-        .showTips(true, this.value.toString())
-        .showSteps(true)
-        .onChange((value: number) => this.onChange(value))
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -88,12 +82,11 @@ struct GeneratorToggleRow {
     Row({ space: $r('app.float.ds_space_md') }) {
       generatorSettingLabel(this.label, this.description)
 
-      Toggle({ type: ToggleType.Switch, isOn: this.value })
-        .width(SETTING_SWITCH_WIDTH_VP)
-        .height(SETTING_SWITCH_HEIGHT_VP)
-        .selectedColor($r('app.color.ds_primary'))
-        .switchPointColor($r('app.color.ds_on_primary'))
-        .onChange((value: boolean) => this.onChange(value))
+      DsSwitch({
+        checked: this.value,
+        accessibilityLabel: this.label,
+        onChange: (value: boolean) => this.onChange(value),
+      })
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -290,7 +283,7 @@ export struct GeneratorContent {
   @Builder
   private randomOptions() {
     Column({ space: $r('app.float.ds_space_md') }) {
-      GeneratorSliderRow({
+      GeneratorStepperRow({
         label: $r('app.string.password_length_value'),
         description: $r('app.string.password_length_range'),
         value: this.viewModel.randomLength,
@@ -300,7 +293,7 @@ export struct GeneratorContent {
         onChange: (value: number) => this.viewModel.setRandomLength(value),
       })
 
-      GeneratorSliderRow({
+      GeneratorStepperRow({
         label: $r('app.string.minimum_digits_value'),
         description: $r('app.string.minimum_count_range'),
         value: this.viewModel.randomMinimumDigits,
@@ -310,7 +303,7 @@ export struct GeneratorContent {
         onChange: (value: number) => this.viewModel.setRandomMinimumDigits(value),
       })
 
-      GeneratorSliderRow({
+      GeneratorStepperRow({
         label: $r('app.string.minimum_symbols_value'),
         description: $r('app.string.minimum_count_range'),
         value: this.viewModel.randomMinimumSymbols,
@@ -367,7 +360,7 @@ export struct GeneratorContent {
   @Builder
   private memorableOptions() {
     Column({ space: $r('app.float.ds_space_md') }) {
-      GeneratorSliderRow({
+      GeneratorStepperRow({
         label: $r('app.string.word_count_value'),
         description: $r('app.string.word_count_range'),
         value: this.viewModel.memorableWordCount,
@@ -412,7 +405,7 @@ export struct GeneratorContent {
   @Builder
   private pinOptions() {
     Column({ space: $r('app.float.ds_space_md') }) {
-      GeneratorSliderRow({
+      GeneratorStepperRow({
         label: $r('app.string.pin_length_value'),
         description: $r('app.string.pin_length_range'),
         value: this.viewModel.pinLength,

@@ -5,12 +5,9 @@ import { MorphIcon } from './MorphIcon'
 const MARKER_SIZE: number = 20
 const MARKER_ICON_SIZE: number = 12
 const NUMBER_FONT_SIZE: number = 11
-const ITEM_GAP: number = 4
-const CONNECTOR_INSET: number = 8
 const CONNECTOR_THICKNESS: number = 1.5
 const DASH_WIDTH: number = 3
 const DASHES: number[] = [0, 1, 2, 3, 4]
-const LABEL_FONT_SIZE: number = 12
 
 // 序号 1..n 直角方框串联的步骤条：完成=实心主色+对勾，进行中=主色描边+序号，未开始=淡色实心+灰序号。
 // 连接线完成段实线、未完成段虚线；步骤推进时实线自左向右填充。
@@ -97,7 +94,7 @@ export struct DsStepper {
 
   @Builder
   private stepItem(label: ResourceStr, index: number) {
-    Row({ space: ITEM_GAP }) {
+    Row({ space: $r('app.float.ds_space_xs') }) {
       Stack() {
         if (index < this.icons.length) {
           MorphIcon({
@@ -126,7 +123,7 @@ export struct DsStepper {
       })
 
       Text(label)
-        .fontSize(LABEL_FONT_SIZE)
+        .fontSize($r('app.float.ds_font_label_md'))
         .fontWeight(this.labelWeight(index))
         .fontColor(this.labelColor(index))
         .maxLines(1)
@@ -171,7 +168,7 @@ export struct DsStepper {
     }
     .layoutWeight(1)
     .height(MARKER_SIZE)
-    .padding({ left: CONNECTOR_INSET, right: CONNECTOR_INSET })
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
     .alignItems(VerticalAlign.Center)
   }
 
