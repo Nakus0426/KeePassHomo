@@ -1,5 +1,5 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { VaultFormat } from '@ohos/common'
+import { DelayedVisibility, VaultFormat } from '@ohos/common'
 import { DsPageHeader } from '../../components/DsPageHeader'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { appRouter } from '../../navigation/AppRouter'
@@ -28,7 +28,19 @@ enum SummaryAction {
 export struct FileSummaryPage {
   private readonly viewModel: AppViewModel = appViewModel
   @Local private busyAction: SummaryAction = SummaryAction.None
+  @Local private busyGate: DelayedVisibility = new DelayedVisibility()
   @Local private bottomBarHeight: number = 0
+
+  @Monitor('busyGate.visible')
+  onBusyGateVisibleChanged(): void {
+    if (!this.busyGate.visible) {
+      this.busyAction = SummaryAction.None
+    }
+  }
+
+  aboutToDisappear(): void {
+    this.busyGate.dispose()
+  }
 
   @Computed
   get access(): VaultAccess | undefined {
@@ -127,12 +139,24 @@ export struct FileSummaryPage {
     return this.readOnly ? $r('app.string.read_only') : $r('app.string.writable')
   }
 
+  private beginBusy(action: SummaryAction): void {
+    this.busyAction = action
+    this.busyGate.setActive(true)
+  }
+
+  private finishBusy(): void {
+    this.busyGate.setActive(false)
+    if (!this.busyGate.visible) {
+      this.busyAction = SummaryAction.None
+    }
+  }
+
   private async reselectFile(): Promise<void> {
-    this.busyAction = SummaryAction.Reselect
+    this.beginBusy(SummaryAction.Reselect)
     try {
       await this.viewModel.chooseLocalVault()
     } finally {
-      this.busyAction = SummaryAction.None
+      this.finishBusy()
     }
   }
 
@@ -145,11 +169,12 @@ export struct FileSummaryPage {
     }
   }
 
-  private async saveAsOtherLocation(): Promise<void> {    this.busyAction = SummaryAction.SaveAs
+  private async saveAsOtherLocation(): Promise<void> {
+    this.beginBusy(SummaryAction.SaveAs)
     try {
       await this.viewModel.saveAsLocalVault()
     } finally {
-      this.busyAction = SummaryAction.None
+      this.finishBusy()
     }
   }
 
@@ -324,7 +349,7 @@ export struct FileSummaryPage {
         label: $r('app.string.continue_action'),
         onTap: () => this.viewModel.openUnlock(),
       })
-    } else if (this.busyAction === SummaryAction.Reselect) {
+    } else if (this.busyGate.visible && this.busyAction === SummaryAction.Reselect) {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
@@ -376,7 +401,7 @@ export struct FileSummaryPage {
 
   @Builder
   private saveAsButton() {
-    if (this.busyAction === SummaryAction.SaveAs) {
+    if (this.busyGate.visible && this.busyAction === SummaryAction.SaveAs) {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,

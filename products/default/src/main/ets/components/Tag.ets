@@ -17,7 +17,8 @@ export enum TagShape {
 
 const PILL_VERTICAL_PADDING: number = 4
 const INITIAL_CORNER_RADIUS: number = 14
-const SQUARE_CORNER_RADIUS: number = 4
+// 设计系统方角标签无圆角。
+const SQUARE_CORNER_RADIUS: number = 0
 const TAG_BACKGROUND_OPACITY: number = 0.2
 
 @ComponentV2

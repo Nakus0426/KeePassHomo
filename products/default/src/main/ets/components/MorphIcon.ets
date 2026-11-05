@@ -58,6 +58,12 @@ export struct MorphIcon {
     this.draw()
   }
 
+  // color 由调用方随状态切换（如步骤未开始→进行中），Canvas 不会自动跟随，需重绘
+  @Monitor('color')
+  private onColorChanged(): void {
+    this.draw()
+  }
+
   private draw(): void {
     if (this.shape === undefined) {
       return

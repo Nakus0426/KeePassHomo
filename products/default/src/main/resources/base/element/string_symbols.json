@@ -25,6 +25,10 @@
       "value": "0x100004"
     },
     {
+      "name": "symbol_arrow_upward",
+      "value": "0x100040"
+    },
+    {
       "name": "symbol_attach_file",
       "value": "0x100005"
     },
@@ -127,6 +131,10 @@
     {
       "name": "symbol_eye_off",
       "value": "0x10001E"
+    },
+    {
+      "name": "symbol_fact_check",
+      "value": "0x100041"
     },
     {
       "name": "symbol_fingerprint",

@@ -415,6 +415,82 @@
     {
       "name": "ds_loading_pulse_gap_lg",
       "value": "10vp"
+    },
+    {
+      "name": "ds_breadcrumb_height_sm",
+      "value": "24vp"
+    },
+    {
+      "name": "ds_breadcrumb_height_md",
+      "value": "32vp"
+    },
+    {
+      "name": "ds_breadcrumb_height_lg",
+      "value": "40vp"
+    },
+    {
+      "name": "ds_breadcrumb_icon_sm",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_breadcrumb_icon_md",
+      "value": "14vp"
+    },
+    {
+      "name": "ds_breadcrumb_icon_lg",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_radio_size_sm",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_radio_size_md",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_radio_size_lg",
+      "value": "24vp"
+    },
+    {
+      "name": "ds_radio_dot_sm",
+      "value": "8vp"
+    },
+    {
+      "name": "ds_radio_dot_md",
+      "value": "10vp"
+    },
+    {
+      "name": "ds_radio_dot_lg",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_radio_stroke_sm",
+      "value": "1.5vp"
+    },
+    {
+      "name": "ds_radio_stroke_md",
+      "value": "2vp"
+    },
+    {
+      "name": "ds_radio_stroke_lg",
+      "value": "2.5vp"
+    },
+    {
+      "name": "ds_tracking_tight",
+      "value": "-0.3fp"
+    },
+    {
+      "name": "ds_tracking_wide_xs",
+      "value": "0.2fp"
+    },
+    {
+      "name": "ds_tracking_wide_md",
+      "value": "0.6fp"
+    },
+    {
+      "name": "ds_tracking_wide_2xl",
+      "value": "1.2fp"
     }
   ]
 }

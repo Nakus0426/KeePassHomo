@@ -1,16 +1,26 @@
-import { UIUtils } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { AnimationTokens, WebDavEntry, WebDavProbeErrorCategory } from '@ohos/common'
+import {
+  AnimationTokens,
+  ContentSlideTransition,
+  DelayedVisibility,
+  SlideFrame,
+  WebDavEntry,
+  WebDavProbeErrorCategory,
+} from '@ohos/common'
+import { ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
+import { DsBreadcrumb, DsBreadcrumbItemData, DsBreadcrumbSize } from '../../components/DsBreadcrumb'
 import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
 import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsPageHeader } from '../../components/DsPageHeader'
+import { DsRadio, DsRadioSize } from '../../components/DsRadio'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
-import { DsTabs, DsTabsItem } from '../../components/DsTabs'
+import { DsStepper } from '../../components/DsStepper'
 import { IconToggleButton } from '../../components/IconToggleButton'
+import { Tag, TagShape, TagType } from '../../components/Tag'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import {
@@ -18,13 +28,7 @@ import {
   WebDavConnectViewModel,
   WebDavListStatus,
   WebDavStep,
-  WebDavUnlockFailure,
 } from '../../viewmodel/WebDavConnectViewModel'
-
-// 起始帧必须独立渲染一帧才能成为动画起点：与 animateTo 写在同一帧时起点会被同步刷新吃掉。
-const TAB_TRANSITION_START_FRAME_DELAY: number = 16
-// 页签内容横移取外层稳定容器宽度的比例，不读 Tabs 自身宽度，避免转场时宽度被污染。
-const TAB_TRANSITION_OFFSET_RATIO: number = 0.2
 
 // 提示条在表单内就地出现/消失：轻微位移 + 淡入淡出，避免高度插入显得生硬。
 const NOTICE_TRANSITION: TransitionEffect = TransitionEffect.asymmetric(
@@ -40,6 +44,134 @@ const NOTICE_TRANSITION: TransitionEffect = TransitionEffect.asymmetric(
     }),
 )
 
+// 设计稿 Tile 固定高 68vp（无对应 pen 变量），用于两栏 Tile 等高；内容高度推导不出该值。
+const TILE_HEIGHT: number = 68
+// 「下一步」连接成功后，按钮短暂停留「连接成功」的时长。
+const SUCCESS_FLASH_MS: number = 800
+
+// 文件行：hover/press 状态下沉到行内，避免整页随悬停重建。
+@ComponentV2
+struct WebDavFileRow {
+  @Require @Param entry: WebDavEntry
+  @Param selected: boolean = false
+  @Param metaText: string = ''
+  @Event onActivate: () => void = () => {
+  }
+  @Local private hovered: boolean = false
+  @Local private pressed: boolean = false
+
+  private isKdbx(): boolean {
+    return !this.entry.isCollection && this.entry.name.toLowerCase().endsWith('.kdbx')
+  }
+
+  private clickable(): boolean {
+    return this.entry.isCollection || this.isKdbx()
+  }
+
+  private rowFill(): ResourceColor {
+    if (!this.clickable()) {
+      return $r('app.color.ds_surface_low')
+    }
+    if (this.pressed) {
+      return $r('app.color.ds_surface_highest')
+    }
+    if (this.hovered) {
+      return $r('app.color.ds_surface_container')
+    }
+    return this.selected ? $r('app.color.ds_surface_high') : $r('app.color.ds_surface_low')
+  }
+
+  private rowIcon(): Resource {
+    if (this.entry.isCollection) {
+      return $r('app.string.symbol_folder')
+    }
+    return this.isKdbx() ? $r('app.string.symbol_description') : $r('app.string.symbol_key')
+  }
+
+  private rowIconColor(): ResourceColor {
+    if (this.entry.isCollection) {
+      return $r('app.color.ds_on_surface_variant')
+    }
+    return this.isKdbx() ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary')
+  }
+
+  private rowTextColor(): ResourceColor {
+    return this.entry.isCollection || this.isKdbx()
+      ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary')
+  }
+
+  build() {
+    Row({ space: $r('app.float.ds_space_10') }) {
+      SymbolGlyph(this.rowIcon())
+        .fontSize($r('app.float.ds_icon_sm'))
+        .fontColor([this.rowIconColor()])
+        .foregroundColor(this.rowIconColor())
+      Column({ space: $r('app.float.ds_space_2') }) {
+        Text(this.entry.name)
+          .width('100%')
+          .fontSize($r('app.float.ds_font_body'))
+          .fontWeight(600)
+          .fontColor(this.rowTextColor())
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.entry.isCollection ? $r('app.string.webdav_folder') : this.metaText)
+          .width('100%')
+          .fontSize($r('app.float.ds_font_label_sm'))
+          .fontColor($r('app.color.ds_text_tertiary'))
+          .maxLines(1)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      if (this.entry.isCollection) {
+        SymbolGlyph($r('app.string.symbol_chevron_right'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_on_surface_variant')])
+          .foregroundColor($r('app.color.ds_on_surface_variant'))
+      } else if (this.isKdbx()) {
+        DsRadio({
+          checked: this.selected,
+          hovered: this.hovered,
+          pressed: this.pressed,
+          radioSize: DsRadioSize.Medium,
+        })
+      }
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_space_16'),
+      right: $r('app.float.ds_space_16'),
+    })
+    .backgroundColor(this.rowFill())
+    .borderRadius($r('app.float.ds_radius_none'))
+    .animation({
+      duration: AnimationTokens.DURATION_FEEDBACK,
+      curve: AnimationTokens.EASE_STATE,
+    })
+    .onHover((isHover: boolean) => {
+      if (!this.clickable()) {
+        return
+      }
+      this.hovered = isHover
+    })
+    .onTouch((event: TouchEvent) => {
+      if (!this.clickable()) {
+        return
+      }
+      if (event.type === TouchType.Down) {
+        this.pressed = true
+        return
+      }
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressed = false
+      }
+    })
+    .onClick(() => this.onActivate())
+  }
+}
+
 @ComponentV2
 export struct WebDavConnectPage {
   @Local private viewModel: WebDavConnectViewModel = new WebDavConnectViewModel()
@@ -47,16 +179,48 @@ export struct WebDavConnectPage {
   @Local private passwordVisible: boolean = false
   @Local private bottomBarHeight: number = 0
   @Local private contentWidth: number = 0
-  @Local private tabOpacity: number[] = [1, 0, 0]
-  @Local private tabOffsetX: number[] = [0, 0, 0]
-  @Local private tabZIndex: number[] = [1, 0, 0]
+  @Local private stepOpacity: number[] = [1, 0, 0]
+  @Local private stepOffsetX: number[] = [0, 0, 0]
+  @Local private stepZIndex: number[] = [1, 0, 0]
   private readonly stepTabsController: TabsController = new TabsController()
   private startFrameTimer: number = -1
+  // 目录层级转场：旧列表与新列表两层交替，方向由「进入下级 / 返回上级」决定。
+  @Local private listOpacity: number[] = [1, 0]
+  @Local private listOffsetX: number[] = [0, 0]
+  @Local private listZIndex: number[] = [1, 0]
+  @Local private layerA: WebDavEntry[] = []
+  @Local private layerB: WebDavEntry[] = []
+  private activeLayer: number = 0
+  // 转场期间由 navigateDirectory 接管图层写入，避免 entries 监视回调提前覆盖起始帧。
+  private listTransitioning: boolean = false
+  private listFrameTimer: number = -1
+  @Local private testGate: DelayedVisibility = new DelayedVisibility()
+  @Local private nextGate: DelayedVisibility = new DelayedVisibility()
+  @Local private listGate: DelayedVisibility = new DelayedVisibility()
+  // 「下一步」连接成功后的短暂反馈，先提示成功再进入下一步；时序属视图层。
+  @Local private successFlash: boolean = false
+  private successTimer: number = -1
+
+  @Monitor('viewModel.connectStatus')
+  onConnectStatusChanged(): void {
+    this.testGate.setActive(this.viewModel.connectStatus === WebDavConnectStatus.Testing)
+  }
+
+  @Monitor('viewModel.advancing')
+  onAdvancingChanged(): void {
+    this.nextGate.setActive(this.viewModel.advancing)
+  }
+
+  @Monitor('viewModel.listStatus')
+  onListStatusChanged(): void {
+    this.listGate.setActive(this.viewModel.listStatus === WebDavListStatus.Loading)
+  }
 
   @Monitor('viewModel.step')
   onStepChanged(): void {
     // 页签下标只由 step 驱动；Tabs 不绑定 index，避免重渲染打断转场。
     this.stepTabsController.changeIndex(this.viewModel.step)
+    this.cancelSuccessFlash()
   }
 
   @Computed
@@ -64,19 +228,28 @@ export struct WebDavConnectPage {
     switch (this.viewModel.step) {
       case WebDavStep.File:
         return $r('app.string.webdav_step_file')
-      case WebDavStep.Unlock:
-        return $r('app.string.webdav_step_unlock')
+      case WebDavStep.Confirm:
+        return $r('app.string.webdav_step_confirm')
       default:
         return $r('app.string.webdav_connect_title')
     }
   }
 
   @Computed
-  get tabsItems(): DsTabsItem[] {
+  get stepLabels(): ResourceStr[] {
     return [
-      { label: $r('app.string.webdav_connect_title') },
-      { label: $r('app.string.webdav_step_file') },
-      { label: $r('app.string.webdav_step_unlock') },
+      $r('app.string.webdav_connect_title'),
+      $r('app.string.webdav_step_file'),
+      $r('app.string.webdav_step_confirm'),
+    ]
+  }
+
+  @Computed
+  get stepIcons(): Resource[] {
+    return [
+      $r('app.string.symbol_cloud_sync'),
+      $r('app.string.symbol_folder'),
+      $r('app.string.symbol_fact_check'),
     ]
   }
 
@@ -120,64 +293,138 @@ export struct WebDavConnectPage {
   }
 
   @Computed
-  get unlockNoticeTitle(): Resource {
-    return this.viewModel.unlockFailure === WebDavUnlockFailure.Network
-      ? $r('app.string.webdav_server_error_title') : $r('app.string.webdav_unlock_error_title')
+  get vaultSizeText(): ResourceStr {
+    const size: number = this.viewModel.selected?.size ?? 0
+    return size > 0 ? this.app.formatSize(size) : $r('app.string.file_value_unknown')
   }
 
   @Computed
-  get unlockNoticeBody(): Resource {
-    return this.viewModel.unlockFailure === WebDavUnlockFailure.Network
-      ? $r('app.string.webdav_server_error_body') : $r('app.string.webdav_unlock_error_body')
+  get vaultModifiedText(): ResourceStr {
+    const modifiedAt: number = this.viewModel.selected?.modifiedAt ?? 0
+    return modifiedAt > 0 ? this.app.formatTime(modifiedAt * 1000) : $r('app.string.file_value_unknown')
   }
 
   @Computed
-  get hasCredential(): boolean {
-    return this.viewModel.masterPassword.length > 0 || this.app.currentKeyFileName().length > 0
+  get vaultDirectoryText(): string {
+    const root: string = ResUtil.getStringSync($r('app.string.webdav_root_directory'))
+    return this.viewModel.pathNames.length > 0 ? [root].concat(this.viewModel.pathNames).join(' / ') : root
+  }
+
+  // 面包屑项：根目录恒在首位，其后按当前层级名称排列，末项即当前层。
+  @Computed
+  get breadcrumbItems(): DsBreadcrumbItemData[] {
+    const items: DsBreadcrumbItemData[] = [{
+      key: 'root',
+      label: $r('app.string.webdav_root_directory'),
+      icon: $r('app.string.symbol_folder'),
+    }]
+    this.viewModel.pathNames.forEach((name: string, index: number) => {
+      items.push({ key: `level_${index}`, label: name })
+    })
+    return items
   }
 
   aboutToDisappear(): void {
     clearTimeout(this.startFrameTimer)
+    clearTimeout(this.listFrameTimer)
+    clearTimeout(this.successTimer)
+    this.testGate.dispose()
+    this.nextGate.dispose()
+    this.listGate.dispose()
     this.viewModel.clearSensitive()
   }
 
-  private get tabTransitionOffset(): number {
-    return this.contentWidth * TAB_TRANSITION_OFFSET_RATIO
+  private cancelSuccessFlash(): void {
+    clearTimeout(this.successTimer)
+    this.successTimer = -1
+    this.successFlash = false
+  }
+
+  // 连接成功先播 800ms 成功态再进入选文件步；失败由 VM 就地报错。
+  private async nextFromServer(): Promise<void> {
+    if (!await this.viewModel.probeServer()) {
+      return
+    }
+    this.successFlash = true
+    this.successTimer = setTimeout(() => {
+      this.successTimer = -1
+      this.successFlash = false
+      this.viewModel.enterFiles()
+    }, SUCCESS_FLASH_MS)
+  }
+
+  @Monitor('viewModel.entries')
+  onEntriesChanged(): void {
+    if (!this.listTransitioning) {
+      this.syncActiveLayer()
+    }
+  }
+
+  // Tabs 转场状态：直接持有数组，V2 才能观测到逐项写入；SlideFrame 仅作传参视图。
+  private stepFrame(): SlideFrame {
+    return { opacity: this.stepOpacity, offsetX: this.stepOffsetX, zIndex: this.stepZIndex }
+  }
+
+  private listFrame(): SlideFrame {
+    return { opacity: this.listOpacity, offsetX: this.listOffsetX, zIndex: this.listZIndex }
   }
 
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
-    if (from === to) {
-      return {
-        timeout: 0,
-        transition: (proxy: TabContentTransitionProxy) => proxy.finishTransition(),
-      }
+    return ContentSlideTransition.tabTransition(this.getUIContext(), this.stepFrame(), from, to, this.contentWidth,
+      (timer: number) => {
+        this.startFrameTimer = timer
+      })
+  }
+
+  private activeLayerEntries(): WebDavEntry[] {
+    return this.activeLayer === 0 ? this.layerA : this.layerB
+  }
+
+  private setLayerEntries(index: number, entries: WebDavEntry[]): void {
+    if (index === 0) {
+      this.layerA = entries
+    } else {
+      this.layerB = entries
     }
-    const direction: number = to > from ? 1 : -1
-    const offset: number = this.tabTransitionOffset
-    return {
-      timeout: TAB_TRANSITION_START_FRAME_DELAY + AnimationTokens.STATE_TRANSITION_DURATION + 100,
-      transition: (proxy: TabContentTransitionProxy) => {
-        UIUtils.applySync(() => {
-          this.tabOpacity[from] = 1
-          this.tabOffsetX[from] = 0
-          this.tabOpacity[to] = 0
-          this.tabOffsetX[to] = direction * offset
-          this.tabZIndex[from] = 0
-          this.tabZIndex[to] = 1
-        })
-        this.startFrameTimer = setTimeout(() => {
-          this.getUIContext().animateTo({
-            duration: AnimationTokens.STATE_TRANSITION_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-            onFinish: () => proxy.finishTransition(),
-          }, () => {
-            this.tabOpacity[from] = 0
-            this.tabOffsetX[from] = -direction * offset
-            this.tabOpacity[to] = 1
-            this.tabOffsetX[to] = 0
-          })
-        }, TAB_TRANSITION_START_FRAME_DELAY)
-      },
+  }
+
+  private syncActiveLayer(): void {
+    this.setLayerEntries(this.activeLayer, this.viewModel.entries)
+    ContentSlideTransition.reset(this.listFrame(), this.activeLayer)
+  }
+
+  // 目录切换：成功后把新列表放进另一层，旧层滑出、新层滑入，与页签转场同向同效。
+  // 目录切换：成功后把新列表放进另一层，旧层滑出、新层滑入，与页签转场同向同效。
+  private async navigateDirectory(direction: number, action: () => Promise<void>): Promise<void> {
+    if (this.viewModel.listStatus === WebDavListStatus.Loading || this.listTransitioning) {
+      return
+    }
+    this.listTransitioning = true
+    await action()
+    if (direction === 0 || this.viewModel.listStatus !== WebDavListStatus.Ready
+      || this.viewModel.entries.length === 0) {
+      this.listTransitioning = false
+      this.syncActiveLayer()
+      return
+    }
+    const from: number = this.activeLayer
+    const to: number = 1 - from
+    this.setLayerEntries(to, this.viewModel.entries)
+    this.listFrameTimer = ContentSlideTransition.play(this.getUIContext(), this.listFrame(), from, to, direction,
+      this.contentWidth, () => {
+        this.setLayerEntries(from, [])
+        this.activeLayer = to
+        this.listTransitioning = false
+        ContentSlideTransition.reset(this.listFrame(), to)
+      })
+  }
+
+  // 行点击：文件夹进入下级，.kdbx 选中；其余文件 selectFile 内部会忽略。
+  private activateEntry(entry: WebDavEntry): void {
+    if (entry.isCollection) {
+      this.navigateDirectory(1, () => this.viewModel.enterFolder(entry))
+    } else {
+      this.viewModel.selectFile(entry)
     }
   }
 
@@ -187,9 +434,6 @@ export struct WebDavConnectPage {
       title: this.pageTitle,
       showBack: true,
       onBack: () => {
-        if (this.viewModel.opening) {
-          return
-        }
         if (!this.viewModel.backStep()) {
           appRouter.pop()
         }
@@ -198,13 +442,31 @@ export struct WebDavConnectPage {
   }
 
   @Builder
-  private tabsBuilder() {
-    DsTabs({
-      items: this.tabsItems,
-      selectedIndex: this.viewModel.step,
-      disabled: true,
-      onSelect: (index: number) => this.viewModel.goToStep(index),
+  private stepBarBuilder() {
+    Column({ space: $r('app.float.ds_space_10') }) {
+      DsStepper({
+        steps: this.stepLabels,
+        icons: this.stepIcons,
+        currentIndex: this.viewModel.step,
+        onSelect: (index: number) => this.viewModel.goToStep(index),
+      })
+      // 面包屑行恒定占位：仅在选择保险库步填内容，避免步骤条随步骤上下跳动。
+      Row() {
+        if (this.viewModel.step === WebDavStep.File) {
+          this.directoryBar()
+        }
+      }
+      .width('100%')
+      .height($r('app.float.ds_button_height'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_sm'),
+      bottom: $r('app.float.ds_space_sm'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
     })
+    .alignItems(HorizontalAlign.Start)
   }
 
   @LocalBuilder
@@ -228,6 +490,7 @@ export struct WebDavConnectPage {
       placeholder: $r('app.string.webdav_server_placeholder'),
       prefix: 'https://',
       tone: this.serverFieldTone,
+      disabled: this.viewModel.advancing,
       onChange: (value: string) => this.viewModel.setHost(value),
     })
   }
@@ -237,6 +500,7 @@ export struct WebDavConnectPage {
     DsInput({
       text: this.viewModel.username,
       placeholder: $r('app.string.text_input_placeholder'),
+      disabled: this.viewModel.advancing,
       onChange: (value: string) => this.viewModel.setUsername(value),
     })
   }
@@ -249,6 +513,7 @@ export struct WebDavConnectPage {
       type: InputType.Password,
       showPassword: this.passwordVisible,
       tone: this.passwordFieldTone,
+      disabled: this.viewModel.advancing,
       trailingBuilder: this.passwordToggle,
       onChange: (value: string) => this.viewModel.setPassword(value),
     })
@@ -256,7 +521,7 @@ export struct WebDavConnectPage {
 
   @LocalBuilder
   private testButtonContent() {
-    if (this.viewModel.isTesting) {
+    if (this.testGate.visible) {
       Row({ space: $r('app.float.ds_space_xs') }) {
         DsLoadingIndicator({
           indicatorSize: DsLoadingIndicatorSize.Small,
@@ -271,7 +536,41 @@ export struct WebDavConnectPage {
       Text($r('app.string.webdav_test_connection'))
         .fontSize($r('app.float.ds_font_title'))
         .fontWeight(600)
-        .fontColor($r('app.color.ds_text_primary'))
+        .fontColor(this.viewModel.canTest
+          ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_disabled'))
+    }
+  }
+
+  @LocalBuilder
+  private nextButtonContent() {
+    if (this.successFlash) {
+      Row({ space: $r('app.float.ds_space_sm') }) {
+        Text($r('app.string.webdav_status_success'))
+          .fontSize($r('app.float.ds_font_title'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_success'))
+        SymbolGlyph($r('app.string.symbol_check'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_success')])
+          .foregroundColor($r('app.color.ds_success'))
+      }
+    } else if (this.nextGate.visible) {
+      Row({ space: $r('app.float.ds_space_sm') }) {
+        Text($r('app.string.webdav_testing'))
+          .fontSize($r('app.float.ds_font_title'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_text_primary'))
+        DsLoadingIndicator({
+          indicatorSize: DsLoadingIndicatorSize.Small,
+          tone: DsLoadingIndicatorTone.Surface,
+        })
+      }
+    } else {
+      Text($r('app.string.webdav_next'))
+        .fontSize($r('app.float.ds_font_title'))
+        .fontWeight(600)
+        .fontColor(this.viewModel.canGoNextFromServer
+          ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_disabled'))
     }
   }
 
@@ -347,22 +646,27 @@ export struct WebDavConnectPage {
         variant: DsButtonVariant.Text,
         buttonSize: DsButtonSize.Small,
         iconOnly: true,
-        leadingIcon: $r('app.string.symbol_chevron_up'),
+        leadingIcon: $r('app.string.symbol_arrow_upward'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
         iconColorOverride: $r('app.color.ds_on_surface_variant'),
         disabled: !this.viewModel.canGoUp || this.viewModel.listStatus === WebDavListStatus.Loading,
         accessibilityLabelResource: $r('app.string.webdav_up'),
         onTap: () => {
-          this.viewModel.goUp()
+          this.navigateDirectory(-1, () => this.viewModel.goUp())
         },
       })
-      Text(this.viewModel.displayPath)
-        .layoutWeight(1)
-        .fontSize($r('app.float.ds_font_label_md'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_on_surface_variant'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Row() {
+        DsBreadcrumb({
+          items: this.breadcrumbItems,
+          breadcrumbSize: DsBreadcrumbSize.Medium,
+          disabled: this.viewModel.listStatus === WebDavListStatus.Loading,
+          onSelect: (index: number) => {
+            const direction: number = index < this.viewModel.pathNames.length ? -1 : 1
+            this.navigateDirectory(direction, () => this.viewModel.goToDepth(index))
+          },
+        })
+      }
+      .layoutWeight(1)
       DsButton({
         variant: DsButtonVariant.Text,
         buttonSize: DsButtonSize.Small,
@@ -373,7 +677,7 @@ export struct WebDavConnectPage {
         disabled: this.viewModel.listStatus === WebDavListStatus.Loading,
         accessibilityLabelResource: $r('app.string.webdav_refresh'),
         onTap: () => {
-          this.viewModel.refresh()
+          this.navigateDirectory(0, () => this.viewModel.refresh())
         },
       })
     }
@@ -383,85 +687,62 @@ export struct WebDavConnectPage {
   }
 
   @Builder
-  private fileRow(entry: WebDavEntry) {
-    Row({ space: $r('app.float.ds_space_10') }) {
-      SymbolGlyph(this.fileIcon(entry))
-        .fontSize($r('app.float.ds_icon_sm'))
-        .fontColor([this.fileIconColor(entry)])
-        .foregroundColor(this.fileIconColor(entry))
-      Column({ space: $r('app.float.ds_space_2') }) {
-        Text(entry.name)
-          .width('100%')
-          .fontSize($r('app.float.ds_font_body'))
-          .fontWeight(600)
-          .fontColor(this.fileTextColor(entry))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(entry.isCollection ? $r('app.string.webdav_folder') : this.viewModel.fileMeta(entry))
-          .width('100%')
-          .fontSize($r('app.float.ds_font_label_sm'))
-          .fontColor($r('app.color.ds_text_tertiary'))
-          .maxLines(1)
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      if (entry.isCollection) {
-        SymbolGlyph($r('app.string.symbol_chevron_right'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_on_surface_variant')])
-          .foregroundColor($r('app.color.ds_on_surface_variant'))
-      } else if (this.isKdbx(entry)) {
-        SymbolGlyph(this.isSelected(entry)
-          ? $r('app.string.symbol_radio_selected') : $r('app.string.symbol_radio_unselected'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([this.isSelected(entry) ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary')])
-          .foregroundColor(this.isSelected(entry)
-            ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary'))
-      }
-    }
-    .width('100%')
-    .padding({
-      top: $r('app.float.ds_space_md'),
-      bottom: $r('app.float.ds_space_md'),
-      left: $r('app.float.ds_space_16'),
-      right: $r('app.float.ds_space_16'),
-    })
-    .backgroundColor(this.isSelected(entry) ? $r('app.color.ds_surface_high') : $r('app.color.ds_surface_low'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .onClick(() => {
-      if (entry.isCollection) {
-        this.viewModel.enterFolder(entry)
-      } else if (this.isKdbx(entry)) {
-        this.viewModel.selectFile(entry)
-      }
-    })
-  }
-
-  @Builder
   private fileStep() {
     Column({ space: $r('app.float.ds_space_sm') }) {
-      this.directoryBar()
-      if (this.viewModel.listStatus === WebDavListStatus.Loading) {
+      if (this.viewModel.listStatus === WebDavListStatus.Loading && this.activeLayerEntries().length === 0) {
         Column() {
-          DsLoadingIndicator({
-            indicatorSize: DsLoadingIndicatorSize.Medium,
-            tone: DsLoadingIndicatorTone.Surface,
-          })
+          if (this.listGate.visible) {
+            DsLoadingIndicator({
+              indicatorSize: DsLoadingIndicatorSize.Medium,
+              tone: DsLoadingIndicatorTone.Surface,
+            })
+          }
         }
         .width('100%')
         .height(180)
         .justifyContent(FlexAlign.Center)
-      } else if (this.viewModel.entries.length === 0) {
+      } else if (this.activeLayerEntries().length === 0) {
         Text($r('app.string.webdav_empty_directory'))
           .width('100%')
           .fontSize($r('app.float.ds_font_body'))
           .fontColor($r('app.color.ds_text_tertiary'))
           .padding({ top: $r('app.float.ds_space_xl') })
       } else {
-        ForEach(this.viewModel.entries, (entry: WebDavEntry) => {
-          this.fileRow(entry)
-        }, (entry: WebDavEntry) => entry.url)
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column({ space: $r('app.float.ds_space_sm') }) {
+            ForEach(this.layerA, (entry: WebDavEntry) => {
+              WebDavFileRow({
+                entry: entry,
+                selected: this.isSelected(entry),
+                metaText: this.viewModel.fileMeta(entry),
+                onActivate: () => this.activateEntry(entry),
+              })
+            }, (entry: WebDavEntry) => entry.url)
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .translate({ x: this.listOffsetX[0] })
+          .opacity(this.listOpacity[0])
+          .zIndex(this.listZIndex[0])
+
+          Column({ space: $r('app.float.ds_space_sm') }) {
+            ForEach(this.layerB, (entry: WebDavEntry) => {
+              WebDavFileRow({
+                entry: entry,
+                selected: this.isSelected(entry),
+                metaText: this.viewModel.fileMeta(entry),
+                onActivate: () => this.activateEntry(entry),
+              })
+            }, (entry: WebDavEntry) => entry.url)
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .translate({ x: this.listOffsetX[1] })
+          .opacity(this.listOpacity[1])
+          .zIndex(this.listZIndex[1])
+        }
+        .width('100%')
+        .clip(true)
       }
       if (this.viewModel.listStatus === WebDavListStatus.Failed) {
         Column() {
@@ -482,34 +763,8 @@ export struct WebDavConnectPage {
     .alignItems(HorizontalAlign.Start)
   }
 
-  @LocalBuilder
-  private masterPasswordToggle() {
-    IconToggleButton({
-      symbol: $r('app.string.symbol_eye_off'),
-      symbolChecked: $r('app.string.symbol_eye'),
-      checked: this.passwordVisible,
-      symbolColor: $r('app.color.ds_on_surface_variant'),
-      boxSize: $r('app.float.ds_input_icon_box_md'),
-      iconSizeOverride: $r('app.float.ds_input_icon_size_md'),
-      accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
-      onToggle: () => this.passwordVisible = !this.passwordVisible,
-    })
-  }
-
   @Builder
-  private masterPasswordInput() {
-    DsInput({
-      text: this.viewModel.masterPassword,
-      placeholder: $r('app.string.unlock_password_placeholder'),
-      type: InputType.Password,
-      showPassword: this.passwordVisible,
-      trailingBuilder: this.masterPasswordToggle,
-      onChange: (value: string) => this.viewModel.setMasterPassword(value),
-    })
-  }
-
-  @Builder
-  private vaultSummary() {
+  private vaultFileCard() {
     Row({ space: $r('app.float.ds_space_10') }) {
       SymbolGlyph($r('app.string.symbol_description'))
         .fontSize($r('app.float.ds_icon_sm'))
@@ -517,130 +772,107 @@ export struct WebDavConnectPage {
         .foregroundColor($r('app.color.ds_text_tertiary'))
       Text(this.viewModel.selected?.name ?? '')
         .layoutWeight(1)
-        .fontSize($r('app.float.ds_font_body'))
+        .fontSize($r('app.float.ds_font_title_md'))
         .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_tight'))
         .fontColor($r('app.color.ds_text_primary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(this.viewModel.vaultFileSize())
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
+        .ellipsisMode(EllipsisMode.CENTER)
     }
     .width('100%')
     .padding($r('app.float.ds_space_16'))
     .backgroundColor($r('app.color.ds_surface_container'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .alignItems(VerticalAlign.Center)
   }
 
   @Builder
-  private keyFileRow() {
-    Row({ space: $r('app.float.ds_space_10') }) {
-      SymbolGlyph($r('app.string.symbol_key'))
-        .fontSize($r('app.float.ds_icon_xs'))
-        .fontColor([$r('app.color.ds_on_surface_variant')])
-        .foregroundColor($r('app.color.ds_on_surface_variant'))
-      Column({ space: $r('app.float.ds_space_2') }) {
-        Text($r('app.string.webdav_key_file_label'))
-          .fontSize($r('app.float.ds_font_body'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_text_primary'))
-        Text(this.app.currentKeyFileName().length > 0
-          ? this.app.currentKeyFileName() : $r('app.string.webdav_key_file_none'))
-          .fontSize($r('app.float.ds_font_label_sm'))
-          .fontColor($r('app.color.ds_text_tertiary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      if (this.app.currentKeyFileName().length > 0) {
-        DsButton({
-          variant: DsButtonVariant.Text,
-          tone: DsButtonTone.Error,
-          buttonSize: DsButtonSize.Small,
-          label: $r('app.string.webdav_key_file_remove'),
-          onTap: () => {
-            this.app.clearKeyFile()
-          },
-        })
-      }
-      DsButton({
-        variant: DsButtonVariant.Filled,
-        tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Small,
-        label: this.app.currentKeyFileName().length > 0
-          ? $r('app.string.webdav_key_file_change') : $r('app.string.webdav_key_file_add'),
-        onTap: () => {
-          this.app.chooseKeyFile()
-        },
-      })
+  private tileLabelRow(icon: Resource, label: Resource) {
+    Row({ space: $r('app.float.ds_space_6') }) {
+      SymbolGlyph(icon)
+        .fontSize($r('app.float.ds_icon_tiny'))
+        .fontColor([$r('app.color.ds_text_tertiary')])
+        .foregroundColor($r('app.color.ds_text_tertiary'))
+      Text(label)
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_tertiary'))
+        .letterSpacing($r('app.float.ds_tracking_wide_xs'))
     }
-    .width('100%')
-    .padding($r('app.float.ds_space_16'))
-    .backgroundColor($r('app.color.ds_surface_low'))
     .alignItems(VerticalAlign.Center)
   }
 
   @Builder
-  private unlockNotice() {
-    if (this.viewModel.unlockFailure !== WebDavUnlockFailure.None) {
-      Column() {
-        DsNotice({
-          tone: DsNoticeTone.Error,
-          title: this.unlockNoticeTitle,
-          body: this.unlockNoticeBody,
-        })
-      }
-      .width('100%')
-      .transition(NOTICE_TRANSITION)
-    }
-  }
-
-  @Builder
-  private unlockStep() {
-    Column({ space: $r('app.float.ds_space_lg') }) {
-      this.vaultSummary()
-      DsField({
-        label: $r('app.string.master_password'),
-        contentBuilder: () => {
-          this.masterPasswordInput()
-        },
-      })
-      this.keyFileRow()
-      Text($r('app.string.webdav_credential_hint'))
+  private valueTile(icon: Resource, label: Resource, value: ResourceStr) {
+    Column() {
+      this.tileLabelRow(icon, label)
+      Text(value)
         .width('100%')
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
-      Text($r('app.string.webdav_read_only_hint'))
-        .width('100%')
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
-      this.unlockNotice()
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_tight'))
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
-    .width('100%')
+    .layoutWeight(1)
+    .height(TILE_HEIGHT)
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor($r('app.color.ds_surface_container'))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .justifyContent(FlexAlign.SpaceBetween)
     .alignItems(HorizontalAlign.Start)
   }
 
-  @LocalBuilder
-  private openButtonContent() {
-    if (this.viewModel.opening) {
-      Row({ space: $r('app.float.ds_space_xs') }) {
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Inverse,
-        })
-        Text($r('app.string.unlocking'))
-          .fontSize($r('app.float.ds_font_title'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_on_primary'))
+  // 远端保险库一律只读，状态格用 Warning 语义标签表示访问权限。
+  @Builder
+  private accessTile() {
+    Column() {
+      this.tileLabelRow($r('app.string.symbol_lock'), $r('app.string.webdav_access_label'))
+      Row() {
+        Tag({ type: TagType.Warning, shape: TagShape.Square }) {
+          Text($r('app.string.read_only'))
+            .fontSize($r('app.float.ds_font_label_sm'))
+            .fontWeight(600)
+            .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        }
       }
-    } else {
-      Text($r('app.string.webdav_open_vault'))
-        .fontSize($r('app.float.ds_font_title'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_on_primary'))
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
     }
+    .layoutWeight(1)
+    .height(TILE_HEIGHT)
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor($r('app.color.ds_surface_container'))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private vaultInfo() {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      Text($r('app.string.webdav_vault_section'))
+        .width('100%')
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
+        .fontColor($r('app.color.ds_text_tertiary'))
+      this.vaultFileCard()
+      Row({ space: $r('app.float.ds_space_sm') }) {
+        this.valueTile($r('app.string.symbol_database'), $r('app.string.file_size'), this.vaultSizeText)
+        this.valueTile($r('app.string.symbol_schedule'), $r('app.string.last_modified'), this.vaultModifiedText)
+      }
+      .width('100%')
+
+      Row({ space: $r('app.float.ds_space_sm') }) {
+        this.valueTile($r('app.string.symbol_folder'), $r('app.string.webdav_dir_label'), this.vaultDirectoryText)
+        this.accessTile()
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -649,11 +881,12 @@ export struct WebDavConnectPage {
       DsButton({
         buttonSize: DsButtonSize.Large,
         fullWidth: true,
-        trailingIcon: $r('app.string.symbol_arrow_forward'),
-        label: $r('app.string.webdav_next'),
-        disabled: !this.viewModel.canGoNextFromServer,
+        trailingIcon: this.nextGate.visible || this.successFlash
+          ? undefined : $r('app.string.symbol_arrow_forward'),
+        disabled: !this.viewModel.canGoNextFromServer || this.successFlash,
+        contentBuilder: this.nextButtonContent,
         onTap: () => {
-          this.viewModel.nextFromServer()
+          this.nextFromServer()
         },
       })
     } else if (this.viewModel.step === WebDavStep.File) {
@@ -671,10 +904,10 @@ export struct WebDavConnectPage {
       DsButton({
         buttonSize: DsButtonSize.Large,
         fullWidth: true,
-        disabled: this.viewModel.opening || !this.hasCredential,
-        contentBuilder: this.openButtonContent,
+        trailingIcon: $r('app.string.symbol_arrow_forward'),
+        label: $r('app.string.webdav_next'),
         onTap: () => {
-          this.viewModel.openVault()
+          this.viewModel.goToUnlock()
         },
       })
     }
@@ -699,7 +932,7 @@ export struct WebDavConnectPage {
     } else if (step === WebDavStep.File) {
       this.fileStep()
     } else {
-      this.unlockStep()
+      this.vaultInfo()
     }
   }
 
@@ -710,11 +943,11 @@ export struct WebDavConnectPage {
         this.stepPanel(step)
       }
       .width('100%')
-      .translate({ x: this.tabOffsetX[step] })
+      .translate({ x: this.stepOffsetX[step] })
     }
     .align(Alignment.Top)
-    .opacity(this.tabOpacity[step])
-    .zIndex(this.tabZIndex[step])
+    .opacity(this.stepOpacity[step])
+    .zIndex(this.stepZIndex[step])
     .clip(true)
   }
 
@@ -723,7 +956,7 @@ export struct WebDavConnectPage {
     Tabs({ barPosition: BarPosition.Start, controller: this.stepTabsController }) {
       this.stepTabContent(WebDavStep.Server)
       this.stepTabContent(WebDavStep.File)
-      this.stepTabContent(WebDavStep.Unlock)
+      this.stepTabContent(WebDavStep.Confirm)
     }
     .width('100%')
     .height('auto')
@@ -732,32 +965,6 @@ export struct WebDavConnectPage {
     .divider(null)
     .customContentTransition((from: number, to: number) => this.tabContentTransition(from, to))
     .clip(true)
-  }
-
-  private fileIcon(entry: WebDavEntry): Resource {
-    if (entry.isCollection) {
-      return $r('app.string.symbol_folder')
-    }
-    if (this.isKdbx(entry)) {
-      return $r('app.string.symbol_description')
-    }
-    return $r('app.string.symbol_key')
-  }
-
-  private fileIconColor(entry: WebDavEntry): ResourceColor {
-    if (entry.isCollection) {
-      return $r('app.color.ds_on_surface_variant')
-    }
-    return this.isKdbx(entry) ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary')
-  }
-
-  private fileTextColor(entry: WebDavEntry): ResourceColor {
-    return entry.isCollection || this.isKdbx(entry)
-      ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_tertiary')
-  }
-
-  private isKdbx(entry: WebDavEntry): boolean {
-    return !entry.isCollection && entry.name.toLowerCase().endsWith('.kdbx')
   }
 
   private isSelected(entry: WebDavEntry): boolean {
@@ -773,7 +980,7 @@ export struct WebDavConnectPage {
           }
           .width('100%')
           .padding({
-            top: $r('app.float.ds_space_lg'),
+            top: $r('app.float.ds_space_24'),
             bottom: this.bottomBarHeight,
             left: $r('app.float.ds_gutter'),
             right: $r('app.float.ds_gutter'),
@@ -797,7 +1004,7 @@ export struct WebDavConnectPage {
     }
     .titleBar(dsNavPageTitleBarOptions(
       (): void => this.pageHeaderBuilder(),
-      (): void => this.tabsBuilder()))
+      (): void => this.stepBarBuilder()))
     .hideBackButton(true)
     .backgroundColor($r('app.color.ds_surface_canvas'))
   }

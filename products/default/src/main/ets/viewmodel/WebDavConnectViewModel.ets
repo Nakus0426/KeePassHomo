@@ -1,6 +1,4 @@
 import {
-  VaultEngineError,
-  VaultEngineErrorCategory,
   WebDavClient,
   WebDavEntry,
   WebDavProbeError,
@@ -13,7 +11,7 @@ import { appViewModel } from './AppViewModel'
 export enum WebDavStep {
   Server = 0,
   File = 1,
-  Unlock = 2
+  Confirm = 2
 }
 
 export enum WebDavConnectStatus {
@@ -28,13 +26,6 @@ export enum WebDavListStatus {
   Loading = 'loading',
   Ready = 'ready',
   Failed = 'failed'
-}
-
-export enum WebDavUnlockFailure {
-  None = 'none',
-  InvalidCredential = 'invalidCredential',
-  Network = 'network',
-  Other = 'other'
 }
 
 const DAY_MS: number = 24 * 60 * 60 * 1000
@@ -52,20 +43,24 @@ export class WebDavConnectViewModel {
   @Trace listStatus: WebDavListStatus = WebDavListStatus.Idle
   @Trace listFailure: WebDavProbeErrorCategory | undefined = undefined
   @Trace selected: WebDavEntry | undefined = undefined
-  @Trace masterPassword: string = ''
-  @Trace opening: boolean = false
-  @Trace unlockFailure: WebDavUnlockFailure = WebDavUnlockFailure.None
+  // 「下一步」触发的连接尝试，测试连接为可选操作，不经测试也可直接下一步。
+  @Trace advancing: boolean = false
+  // 面包屑层级名称：与 urlStack 一一对应（不含根层），供路径导航展示。
+  @Trace pathNames: string[] = []
   private readonly client: WebDavClient = new WebDavClient()
   private urlStack: string[] = []
 
   @Computed
   get canTest(): boolean {
-    return this.host.trim().length > 0 && this.connectStatus !== WebDavConnectStatus.Testing
+    return this.host.trim().length > 0 && this.username.trim().length > 0 && this.password.length > 0
+      && this.connectStatus !== WebDavConnectStatus.Testing && !this.advancing
   }
 
+  // 必填项填完即可下一步，无需先测试连接；实际连接在下一步时进行，失败就地报错。
   @Computed
   get canGoNextFromServer(): boolean {
-    return this.connectStatus === WebDavConnectStatus.Ready && this.listStatus !== WebDavListStatus.Loading
+    return this.host.trim().length > 0 && this.username.trim().length > 0 && this.password.length > 0
+      && this.connectStatus !== WebDavConnectStatus.Testing && !this.advancing
   }
 
   @Computed
@@ -75,20 +70,8 @@ export class WebDavConnectViewModel {
 
   @Computed
   get canGoUp(): boolean {
-    return this.urlStack.length > 1
-  }
-
-  @Computed
-  get displayPath(): string {
-    if (this.currentUrl.length === 0) {
-      return ''
-    }
-    return this.pathOf(this.currentUrl)
-  }
-
-  @Computed
-  get isTesting(): boolean {
-    return this.connectStatus === WebDavConnectStatus.Testing
+    // urlStack 非响应式；pathNames 与层级一一对应，用它驱动按钮可用态。
+    return this.pathNames.length > 0
   }
 
   setHost(value: string): void {
@@ -107,11 +90,6 @@ export class WebDavConnectViewModel {
     this.resetConnection()
   }
 
-  setMasterPassword(value: string): void {
-    this.masterPassword = value
-    this.unlockFailure = WebDavUnlockFailure.None
-  }
-
   async testConnection(): Promise<void> {
     if (!this.canTest) {
       return
@@ -128,12 +106,31 @@ export class WebDavConnectViewModel {
     }
   }
 
-  async nextFromServer(): Promise<void> {
+  // 只做连接探测，失败当场写 connectFailure；成功后由页面先播反馈再调用 enterFiles。
+  async probeServer(): Promise<boolean> {
     if (!this.canGoNextFromServer) {
-      return
+      return false
     }
+    this.advancing = true
+    this.connectStatus = WebDavConnectStatus.Idle
+    this.connectFailure = undefined
+    try {
+      await this.client.probe(this.baseUrl(), this.username.trim(), this.password)
+    } catch (error) {
+      this.connectFailure = this.categoryOf(error)
+      this.connectStatus = WebDavConnectStatus.Failed
+      this.logFailure('WebDAV 连接失败', error)
+      this.advancing = false
+      return false
+    }
+    this.advancing = false
+    return true
+  }
+
+  async enterFiles(): Promise<void> {
     const base: string = this.baseUrl()
     this.urlStack = [base]
+    this.pathNames = []
     this.currentUrl = base
     this.selected = undefined
     this.step = WebDavStep.File
@@ -156,7 +153,26 @@ export class WebDavConnectViewModel {
       return
     }
     this.urlStack.push(next)
+    this.pathNames = this.pathNames.concat([entry.name])
     this.currentUrl = next
+    this.selected = undefined
+  }
+
+  // 面包屑跳转：depth 为保留的层数，0 回根层，与 urlStack 下标一致。
+  async goToDepth(depth: number): Promise<void> {
+    if (this.listStatus === WebDavListStatus.Loading || depth < 0 || depth >= this.urlStack.length) {
+      return
+    }
+    if (depth === this.urlStack.length - 1) {
+      return
+    }
+    const target: string = this.urlStack[depth]
+    if (!await this.loadDirectory(target)) {
+      return
+    }
+    this.urlStack = this.urlStack.slice(0, depth + 1)
+    this.pathNames = this.pathNames.slice(0, depth)
+    this.currentUrl = target
     this.selected = undefined
   }
 
@@ -169,6 +185,7 @@ export class WebDavConnectViewModel {
       return
     }
     this.urlStack.pop()
+    this.pathNames = this.pathNames.slice(0, this.pathNames.length - 1)
     this.currentUrl = parent
     this.selected = undefined
   }
@@ -182,7 +199,7 @@ export class WebDavConnectViewModel {
 
   nextFromFile(): void {
     if (this.selected !== undefined) {
-      this.step = WebDavStep.Unlock
+      this.step = WebDavStep.Confirm
     }
   }
 
@@ -192,8 +209,8 @@ export class WebDavConnectViewModel {
       return
     }
     this.step = index
-    if (index < WebDavStep.Unlock) {
-      this.unlockFailure = WebDavUnlockFailure.None
+    if (index === WebDavStep.Server) {
+      this.resetServerStepState()
     }
   }
 
@@ -202,42 +219,25 @@ export class WebDavConnectViewModel {
       return false
     }
     this.step--
-    this.unlockFailure = WebDavUnlockFailure.None
+    if (this.step === WebDavStep.Server) {
+      this.resetServerStepState()
+    }
     return true
   }
 
-  async openVault(): Promise<void> {
-    if (this.opening || this.selected === undefined) {
+  // 确认保险库后进入通用解锁页：仅登记远端目标，密码/密钥文件与失败提示都在解锁页完成。
+  goToUnlock(): void {
+    if (this.selected === undefined) {
       return
     }
-    this.opening = true
-    this.unlockFailure = WebDavUnlockFailure.None
-    try {
-      const target: WebDavVaultTarget = {
-        username: this.username.trim(),
-        webDavPassword: this.password,
-        fileUrl: this.selected.url,
-        fileName: this.selected.name,
-        modifiedAt: this.selected.modifiedAt,
-      }
-      await appViewModel.openWebDavVault(target, this.masterPassword)
-    } catch (error) {
-      if (error instanceof VaultEngineError && error.category === VaultEngineErrorCategory.InvalidCredential) {
-        this.unlockFailure = WebDavUnlockFailure.InvalidCredential
-      } else if (error instanceof WebDavProbeError) {
-        this.unlockFailure = error.category === WebDavProbeErrorCategory.Authentication
-          ? WebDavUnlockFailure.InvalidCredential : WebDavUnlockFailure.Network
-      } else {
-        this.unlockFailure = WebDavUnlockFailure.Other
-      }
-      this.logFailure('WebDAV 保险库打开失败', error)
-    } finally {
-      this.opening = false
+    const target: WebDavVaultTarget = {
+      username: this.username.trim(),
+      webDavPassword: this.password,
+      fileUrl: this.selected.url,
+      fileName: this.selected.name,
+      modifiedAt: this.selected.modifiedAt,
     }
-  }
-
-  hasKeyFile(): boolean {
-    return appViewModel.currentKeyFileName().length > 0
+    appViewModel.openWebDavUnlock(target)
   }
 
   fileMeta(entry: WebDavEntry): string {
@@ -245,15 +245,8 @@ export class WebDavConnectViewModel {
     return `${size} · ${this.relativeTime(entry.modifiedAt)}`
   }
 
-  vaultFileSize(): string {
-    return this.selected === undefined ? '' : FileUtil.getFormatFileSize(this.selected.size, 1)
-  }
-
   clearSensitive(): void {
     this.password = ''
-    this.masterPassword = ''
-    this.unlockFailure = WebDavUnlockFailure.None
-    this.opening = false
   }
 
   private baseUrl(): string {
@@ -289,6 +282,19 @@ export class WebDavConnectViewModel {
     this.listFailure = undefined
     this.selected = undefined
     this.urlStack = []
+    this.pathNames = []
+  }
+
+  // 返回「连接服务器」时隐藏连接结果，保留已填写的表单，按钮恢复可点击。
+  private resetServerStepState(): void {
+    this.connectStatus = WebDavConnectStatus.Idle
+    this.connectFailure = undefined
+    this.entries = []
+    this.listStatus = WebDavListStatus.Idle
+    this.listFailure = undefined
+    this.selected = undefined
+    this.urlStack = []
+    this.pathNames = []
   }
 
   private categoryOf(error: Object): WebDavProbeErrorCategory {
@@ -314,20 +320,6 @@ export class WebDavConnectViewModel {
       return `${weeks} 周前更新`
     }
     return `${Math.floor(days / 30)} 个月前更新`
-  }
-
-  private pathOf(value: string): string {
-    let path: string = value
-    const scheme: number = value.indexOf('://')
-    if (scheme >= 0) {
-      const slash: number = value.indexOf('/', scheme + 3)
-      path = slash < 0 ? '/' : value.substring(slash)
-    }
-    try {
-      return decodeURIComponent(path)
-    } catch (error) {
-      return path
-    }
   }
 
   private logFailure(operation: string, error: Object): void {

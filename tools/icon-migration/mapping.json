@@ -355,6 +355,16 @@
       "key": "symbol_swap_horiz",
       "material": "swap_horiz",
       "fill": 0
+    },
+    {
+      "key": "symbol_arrow_upward",
+      "material": "arrow_upward",
+      "fill": 0
+    },
+    {
+      "key": "symbol_fact_check",
+      "material": "fact_check",
+      "fill": 0
     }
   ]
 }

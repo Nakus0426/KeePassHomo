@@ -65,8 +65,10 @@
   }
 ```
 
-`tabContentTransition(from, to)` 与 `customContentTransition` 的写法照抄上述两个实现：`UIUtils.applySync` 摆初始位移与透明度，再
-`animateTo` 播放，`onFinish` 里 `proxy.finishTransition()`；`from === to` 时返回 `timeout: 0` 并直接 `finishTransition()`。
+`tabContentTransition(from, to)` 不再在页面内各写一份：统一调用 `common/src/main/ets/animation/ContentSlideTransition.ets` 的
+`ContentSlideTransition.tabTransition(uiContext, frame, from, to, containerWidth, onStartTimer)`。参数（位移比例 0.2、300ms、
+`cubic-bezier(0.2, 0, 0, 1)`、16ms 起始帧延迟与超时余量）在该文件唯一定义，对应 pen 公共组件 `Band · 06 · 动效`；页面只保留三个
+`@Local` 数组并组装 `SlideFrame` 传入。`from === to` 的早退同样由该函数处理。
 
 ## 约束
 
@@ -83,6 +85,9 @@
    里再写一次，否则一次点击执行两遍。
 8. **`onSelect` 是 @Event 回调，不是双向绑定**；`selectedIndex` 是只读 @Param。回调里必须自己写状态，组件才会按新的
    `selectedIndex` 播指示块动画。
+9. **图层数据不要通过 `@Builder` 参数传入**。`@Builder` 的入参按值捕获，数组引用变化后不会可靠重算子节点，表现为转场结束、
+   状态已更新但新列表不渲染（本页目录层级转场踩过）。列表图层要直接写在 `build()` 里读 `@Local` 数组，或在独立
+   `@ComponentV2` 内读取。
 
 ## 症状速查
 

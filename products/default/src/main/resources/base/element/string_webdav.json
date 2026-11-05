@@ -81,16 +81,12 @@
       "value": "选择保险库"
     },
     {
-      "name": "webdav_step_unlock",
-      "value": "解锁保险库"
+      "name": "webdav_step_confirm",
+      "value": "确认保险库"
     },
     {
       "name": "webdav_next",
       "value": "下一步"
-    },
-    {
-      "name": "webdav_open_vault",
-      "value": "打开保险库"
     },
     {
       "name": "webdav_server_error_title",
@@ -109,14 +105,6 @@
       "value": "系统证书校验失败，不会忽略证书错误。请核对地址或改用受信任的证书后点「测试连接」。"
     },
     {
-      "name": "webdav_unlock_error_title",
-      "value": "无法解锁保险库"
-    },
-    {
-      "name": "webdav_unlock_error_body",
-      "value": "文件已下载，但凭据不匹配。请检查主密码与密钥文件后重试。"
-    },
-    {
       "name": "webdav_folder",
       "value": "文件夹"
     },
@@ -133,36 +121,24 @@
       "value": "返回上级"
     },
     {
-      "name": "webdav_read_only_hint",
-      "value": "远端保险库为只读，可查看和复制，不能编辑保存。"
-    },
-    {
-      "name": "webdav_key_file_remove",
-      "value": "移除"
-    },
-    {
-      "name": "webdav_key_file_label",
-      "value": "密钥文件（可选）"
-    },
-    {
-      "name": "webdav_key_file_none",
-      "value": "未添加"
-    },
-    {
-      "name": "webdav_key_file_add",
-      "value": "添加"
-    },
-    {
-      "name": "webdav_key_file_change",
-      "value": "更换"
-    },
-    {
-      "name": "webdav_credential_hint",
-      "value": "主密码与密钥文件至少提供一项。"
-    },
-    {
       "name": "webdav_error_generic",
       "value": "操作失败，请重试。"
+    },
+    {
+      "name": "webdav_root_directory",
+      "value": "根目录"
+    },
+    {
+      "name": "webdav_vault_section",
+      "value": "已选保险库"
+    },
+    {
+      "name": "webdav_dir_label",
+      "value": "所在目录"
+    },
+    {
+      "name": "webdav_access_label",
+      "value": "访问权限"
     }
   ]
 }

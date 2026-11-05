@@ -1,6 +1,6 @@
-import { LengthMetrics, UIUtils } from '@kit.ArkUI'
+import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { AnimationTokens, VaultAuthMode } from '@ohos/common'
+import { AnimationTokens, ContentSlideTransition, SlideFrame, VaultAuthMode } from '@ohos/common'
 import { DateUtil, ResUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { CreateVaultViewModel } from '../../viewmodel/CreateVaultViewModel'
@@ -34,14 +34,9 @@ const AUTH_MODE_SEQUENCE: VaultAuthMode[] = [
 const KEY_FILE_SUFFIX: string = '.keyx'
 // 设计稿 12fp 正文行高 1.4。
 const KEY_FILE_DESCRIPTION_LINE_HEIGHT: number = 17
-// 与密码生成器、SSH 密钥半模态同款：页签宽度的一小段横向滑入。
-const TYPE_TRANSITION_OFFSET_RATIO: number = 0.2
 // 页签内容按自己的下标决定显示哪些凭据字段，不能读当前鉴权方式：Tabs 会预渲染离屏页签。
 const PASSWORD_ONLY_INDEX: number = AUTH_MODE_SEQUENCE.indexOf(VaultAuthMode.PasswordOnly)
 const KEY_ONLY_INDEX: number = AUTH_MODE_SEQUENCE.indexOf(VaultAuthMode.KeyOnly)
-// 起始帧必须独立渲染一帧才能成为动画起点：与 animateTo 写在同一帧时起点会被同步刷新吃掉，
-// 页签直接跳变成终态，表现为首次之后再也看不到转场。
-const TAB_TRANSITION_START_FRAME_DELAY: number = 16
 
 // 未绑定与已绑定是就地换内容：不做位移与缩放，暗示方向或进出场都会失真。
 const KEY_FILE_STATE_TRANSITION: TransitionEffect = TransitionEffect.OPACITY
@@ -62,9 +57,10 @@ export struct CreateVaultPage {
   // 页签由 tabsController.changeIndex 驱动，不绑定 Tabs.index：绑定后重渲染会按旧值再跳一次，
   // 而自定义切换动画不支持打断，转场会被取消且此后不再触发。
   @Local private tabContentWidth: number = 0
-  @Local private tabOpacity: number[] = [1, 0, 0]
-  @Local private tabOffsetX: number[] = [0, 0, 0]
-  @Local private tabZIndex: number[] = [1, 0, 0]
+  // 直接持有数组，V2 才能观测逐项写入；SlideFrame 仅作传参视图。
+  @Local private stepOpacity: number[] = [1, 0, 0]
+  @Local private stepOffsetX: number[] = [0, 0, 0]
+  @Local private stepZIndex: number[] = [1, 0, 0]
   private readonly tabsController: TabsController = new TabsController()
   @Local private generatorSheetVisible: boolean = false
   @Local private generatorBottomBarHeight: number = 0
@@ -114,45 +110,12 @@ export struct CreateVaultPage {
     this.closeGenerator()
   }
 
+  private stepFrame(): SlideFrame {
+    return { opacity: this.stepOpacity, offsetX: this.stepOffsetX, zIndex: this.stepZIndex }
+  }
+
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
-    if (from === to) {
-      return {
-        timeout: 0,
-        transition: (proxy: TabContentTransitionProxy) => proxy.finishTransition(),
-      }
-    }
-
-    const direction: number = to > from ? 1 : -1
-    const offset: number = this.tabContentWidth * TYPE_TRANSITION_OFFSET_RATIO
-
-    return {
-      // 超时必须覆盖「起始帧延迟 + 动画时长」，否则 Tabs 会在动画播完前强制结束本次转场。
-      timeout: TAB_TRANSITION_START_FRAME_DELAY + AnimationTokens.STATE_TRANSITION_DURATION + 100,
-      transition: (proxy: TabContentTransitionProxy) => {
-        UIUtils.applySync(() => {
-          this.tabOpacity[from] = 1
-          this.tabOffsetX[from] = 0
-          this.tabOpacity[to] = 0
-          this.tabOffsetX[to] = direction * offset
-          this.tabZIndex[from] = 0
-          this.tabZIndex[to] = 1
-        })
-
-        // 起始帧先落地成真实渲染结果，下一帧再改终态，起点才成立。
-        setTimeout(() => {
-          this.getUIContext().animateTo({
-            duration: AnimationTokens.STATE_TRANSITION_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-            onFinish: () => proxy.finishTransition(),
-          }, () => {
-            this.tabOpacity[from] = 0
-            this.tabOffsetX[from] = -direction * offset
-            this.tabOpacity[to] = 1
-            this.tabOffsetX[to] = 0
-          })
-        }, TAB_TRANSITION_START_FRAME_DELAY)
-      },
-    }
+    return ContentSlideTransition.tabTransition(this.getUIContext(), this.stepFrame(), from, to, this.tabContentWidth)
   }
 
   // 只写鉴权方式：页签切换由 changeIndex 在同一处发起，不额外维护页签下标。
@@ -274,11 +237,11 @@ export struct CreateVaultPage {
       .width('100%')
       .alignItems(HorizontalAlign.Start)
       // 位移必须落在页签内容上：TabContent 只承担透明度与层级。
-      .translate({ x: this.tabOffsetX[index] })
+      .translate({ x: this.stepOffsetX[index] })
     }
     .align(Alignment.Top)
-    .opacity(this.tabOpacity[index])
-    .zIndex(this.tabZIndex[index])
+    .opacity(this.stepOpacity[index])
+    .zIndex(this.stepZIndex[index])
     .clip(true)
   }
 

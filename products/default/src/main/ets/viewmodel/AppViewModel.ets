@@ -248,6 +248,13 @@ export class AppViewModel {
     this.setStatus('')
   }
 
+  // 远端解锁：先登记远端来源与仓储（不下载），再进入通用解锁页；解锁由解锁页的 unlockVault 统一完成。
+  openWebDavUnlock(target: WebDavVaultTarget): void {
+    stageOneVaultStore.prepareWebDavTarget(target)
+    this.refreshVault()
+    this.openUnlock()
+  }
+
   clearKeyFile(): void {
     stageOneVaultStore.clearKeyFile()
     this.refreshVault()
@@ -311,21 +318,6 @@ export class AppViewModel {
       }
       this.reportBoundaryError('保险库解锁失败，请重试', error)
       return false
-    } finally {
-      this.busy = false
-    }
-  }
-
-  // 远端只读打开：下载与解锁的失败原样抛给调用页做分类提示，成功后才切到首页。
-  async openWebDavVault(target: WebDavVaultTarget, masterPassword: string): Promise<void> {
-    this.busy = true
-    try {
-      await stageOneVaultStore.openWebDavVault(target, masterPassword)
-      this.refreshVault()
-      this.session.markUnlocked()
-      appSessionState.setCurrentModule(ROUTE_VAULT)
-      appRouter.clearToHome()
-      this.setStatus('')
     } finally {
       this.busy = false
     }

@@ -1,5 +1,4 @@
-import { UIUtils } from '@kit.ArkUI'
-import { AnimationTokens, SshKeyAlgorithm } from '@ohos/common'
+import { ContentSlideTransition, SlideFrame, SshKeyAlgorithm } from '@ohos/common'
 import { FormItem, LabelPlacement } from '../../components/FormItem'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
@@ -11,8 +10,6 @@ const RSA_BITS_STEP: number = 1024
 const RSA_BITS_DEFAULT: number = 3072
 // 提示文案里必须加粗的推荐位长，数字不进资源。
 const RSA_RECOMMENDED_BITS: string = '3072'
-// 与密码生成器同款切换位移比例：页签宽度的一小段横向滑入。
-const TYPE_TRANSITION_OFFSET_RATIO: number = 0.2
 
 // 页签下标即密钥类型，用数值枚举避免在页签索引与类型之间来回转换。
 enum SshKeyType {
@@ -44,10 +41,11 @@ export struct SshKeyGeneratorSheet {
   @Local private segmentIndex: number = SshKeyType.Ed25519
   @Local private bits: number = RSA_BITS_DEFAULT
   @Local private contentWidth: number = 0
-  // 与密码生成器一致：切换时旧页签淡出并向反方向滑走，新页签从切换方向滑入。
+  // 直接持有数组，V2 才能观测逐项写入；SlideFrame 仅作传参视图。
   @Local private tabOpacity: number[] = [1, 0]
   @Local private tabOffsetX: number[] = [0, 0]
   @Local private tabZIndex: number[] = [1, 0]
+  private startFrameTimer: number = -1
   private readonly typeItems: DsSegmentedSwitchItem[] = [
     { label: $r('app.string.ssh_algorithm_ed25519'), enabled: true },
     { label: $r('app.string.ssh_key_algorithm_rsa'), enabled: true },
@@ -58,14 +56,11 @@ export struct SshKeyGeneratorSheet {
     this.currentTabIndex = SshKeyType.Ed25519
     this.segmentIndex = SshKeyType.Ed25519
     this.bits = RSA_BITS_DEFAULT
-    this.tabOpacity = [1, 0]
-    this.tabOffsetX = [0, 0]
-    this.tabZIndex = [1, 0]
+    ContentSlideTransition.reset(this.tabFrame(), 0)
   }
 
-  @Computed
-  private get typeTransitionOffset(): number {
-    return this.contentWidth * TYPE_TRANSITION_OFFSET_RATIO
+  aboutToDisappear(): void {
+    clearTimeout(this.startFrameTimer)
   }
 
   private sheetActions(): DsPageHeaderAction[] {
@@ -79,41 +74,15 @@ export struct SshKeyGeneratorSheet {
     ]
   }
 
+  private tabFrame(): SlideFrame {
+    return { opacity: this.tabOpacity, offsetX: this.tabOffsetX, zIndex: this.tabZIndex }
+  }
+
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
-    if (from === to) {
-      return {
-        timeout: 0,
-        transition: (proxy: TabContentTransitionProxy) => proxy.finishTransition(),
-      }
-    }
-
-    const direction: number = to > from ? 1 : -1
-    const offset: number = this.typeTransitionOffset
-
-    return {
-      timeout: AnimationTokens.STATE_TRANSITION_DURATION,
-      transition: (proxy: TabContentTransitionProxy) => {
-        UIUtils.applySync(() => {
-          this.tabOpacity[from] = 1
-          this.tabOffsetX[from] = 0
-          this.tabOpacity[to] = 0
-          this.tabOffsetX[to] = direction * offset
-          this.tabZIndex[from] = 0
-          this.tabZIndex[to] = 1
-        })
-
-        this.getUIContext().animateTo({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-          onFinish: () => proxy.finishTransition(),
-        }, () => {
-          this.tabOpacity[from] = 0
-          this.tabOffsetX[from] = -direction * offset
-          this.tabOpacity[to] = 1
-          this.tabOffsetX[to] = 0
-        })
-      },
-    }
+    return ContentSlideTransition.tabTransition(this.getUIContext(), this.tabFrame(), from, to, this.contentWidth,
+      (timer: number) => {
+        this.startFrameTimer = timer
+      })
   }
 
   @LocalBuilder

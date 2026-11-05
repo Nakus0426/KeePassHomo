@@ -4,9 +4,16 @@ export { ColorUtil } from './src/main/ets/utils/ColorUtil'
 
 export { AppToast } from './src/main/ets/utils/AppToast'
 
+export { DelayedVisibility } from './src/main/ets/utils/DelayedVisibility'
+
 export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
 
 export { AnimationTokens } from './src/main/ets/animation/AnimationTokens'
+
+export {
+  ContentSlideTransition,
+  SlideFrame,
+} from './src/main/ets/animation/ContentSlideTransition'
 
 export {
   VaultSourceType,

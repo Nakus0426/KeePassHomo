@@ -7,6 +7,7 @@ export class AnimationTokens {
   static readonly DURATION_STRUCTURAL: number = 500
   static readonly DURATION_LOADING_BEAT: number = 455
   static readonly DURATION_LOADING_FADE: number = 240
+  static readonly DURATION_LOADING_DELAY: number = 400
 
   static readonly EASE_STATE: ICurve = curves.cubicBezierCurve(0.2, 0, 0, 1)
   static readonly EASE_ENTER: ICurve = curves.cubicBezierCurve(0, 0, 0, 1)

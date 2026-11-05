@@ -1,10 +1,10 @@
-import { UIUtils } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
 import {
-  AnimationTokens,
   AppToast,
+  ContentSlideTransition,
   MemorableCase,
   PasswordStrengthCalculator,
+  SlideFrame,
   StrengthLevel,
 } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
@@ -17,8 +17,6 @@ import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorView
 import { appViewModel } from '../../viewmodel/AppViewModel'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 
-// 起始帧必须独立渲染一帧才能成为动画起点：与 animateTo 写在同一帧时起点会被同步刷新吃掉；这是时序常量非视觉 token。
-const TAB_TRANSITION_START_FRAME_DELAY: number = 16
 // Stepper / Switch 公共组件尚未落地，先用现有控件按其设计位置占位。
 const SETTING_CONTROL_WIDTH_VP: number = 100
 const SETTING_SWITCH_WIDTH_VP: number = 36
@@ -171,12 +169,12 @@ export struct GeneratorContent {
   }
   @Local private currentTabIndex: number = GeneratorMode.Random
   @Local private tabsWidth: number = 0
+  // 直接持有数组，V2 才能观测逐项写入；SlideFrame 仅作传参视图。
   @Local private tabOpacity: number[] = [1, 0, 0]
   @Local private tabOffsetX: number[] = [0, 0, 0]
   @Local private tabZIndex: number[] = [1, 0, 0]
   private static readonly TAB_MODES: GeneratorMode[] =
     [GeneratorMode.Random, GeneratorMode.Memorable, GeneratorMode.Pin]
-  private static readonly TAB_TRANSITION_OFFSET_RATIO: number = 0.2
   private static readonly CASE_MODES: MemorableCase[] =
     [MemorableCase.Upper, MemorableCase.Lower, MemorableCase.Capitalized]
   private static readonly SEPARATORS: string[] = ['-', '_', '.', '']
@@ -266,55 +264,21 @@ export struct GeneratorContent {
     return GeneratorContent.CASE_MODES.indexOf(this.viewModel.memorableCase)
   }
 
-  private get tabTransitionOffset(): number {
-    return this.tabsWidth * GeneratorContent.TAB_TRANSITION_OFFSET_RATIO
-  }
-
   // 只写模式：页签切换统一由 changeIndex 发起，Tabs 不绑定 index，避免重渲染打断转场。
   private selectMode(index: number): void {
     this.viewModel.setMode(GeneratorContent.TAB_MODES[index])
     this.tabsController.changeIndex(index)
   }
 
+  private tabFrame(): SlideFrame {
+    return { opacity: this.tabOpacity, offsetX: this.tabOffsetX, zIndex: this.tabZIndex }
+  }
+
   private tabContentTransition(from: number, to: number): TabContentAnimatedTransition {
-    if (from === to) {
-      return {
-        timeout: 0,
-        transition: (proxy: TabContentTransitionProxy) => proxy.finishTransition(),
-      }
-    }
-
-    const direction: number = to > from ? 1 : -1
-    const offset: number = this.tabTransitionOffset
-
-    return {
-      // 超时必须覆盖「起始帧延迟 + 动画时长」，否则 Tabs 会在动画播完前强制结束本次转场。
-      timeout: TAB_TRANSITION_START_FRAME_DELAY + AnimationTokens.STATE_TRANSITION_DURATION + 100,
-      transition: (proxy: TabContentTransitionProxy) => {
-        UIUtils.applySync(() => {
-          this.tabOpacity[from] = 1
-          this.tabOffsetX[from] = 0
-          this.tabOpacity[to] = 0
-          this.tabOffsetX[to] = direction * offset
-          this.tabZIndex[from] = 0
-          this.tabZIndex[to] = 1
-        })
-
-        // 起始帧先落地成真实渲染结果，下一帧再改终态，起点才成立。
-        this.startFrameTimer = setTimeout(() => {
-          this.getUIContext().animateTo({
-            duration: AnimationTokens.STATE_TRANSITION_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-            onFinish: () => proxy.finishTransition(),
-          }, () => {
-            this.tabOpacity[from] = 0
-            this.tabOffsetX[from] = -direction * offset
-            this.tabOpacity[to] = 1
-            this.tabOffsetX[to] = 0
-          })
-        }, TAB_TRANSITION_START_FRAME_DELAY)
-      },
-    }
+    return ContentSlideTransition.tabTransition(this.getUIContext(), this.tabFrame(), from, to, this.tabsWidth,
+      (timer: number) => {
+        this.startFrameTimer = timer
+      })
   }
 
   @Builder

@@ -47,7 +47,7 @@ export class AppRouter {
     this.stack.pushPathByName(route, param, animated)
   }
 
-  // 首页不是 NavDestination，uiObserver 收不到事件，需手动标记 currentRoute
+  // 首页不是 NavDestination，uiObserver 收不到事件，需手动标记 currentRoute。
   clearToHome(): void {
     this.lockedStack = []
     this.stack.clear()

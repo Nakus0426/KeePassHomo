@@ -435,27 +435,20 @@ export class StageOneVaultStore {
     this.session.unlock(document)
   }
 
-  // 远端库一次性打开：下载、解锁、登记来源；凭据只留在内存，不写最近来源。
-  async openWebDavVault(target: WebDavVaultTarget, password: string): Promise<void> {
-    const client: WebDavClient = new WebDavClient()
-    const data: ArrayBuffer = await client.download(target.fileUrl, target.username, target.webDavPassword)
-    const credential: VaultCredential = await this.readCredential(password)
-    const engine: KdbxVaultEngine = new KdbxVaultEngine()
-    const document: VaultDocument = await engine.unlock(data, credential)
-    this.webDavRepository = new WebDavVaultRepository(client, target.username, target.webDavPassword)
+  // 进入解锁页前登记远端来源与仓储（不下载、不落盘）。解锁时 unlock() 经 repository.read 按需下载，
+  // 与本地来源共用同一条解锁与失败处理路径。
+  prepareWebDavTarget(target: WebDavVaultTarget): void {
+    this.webDavRepository = new WebDavVaultRepository(
+      new WebDavClient(), target.username, target.webDavPassword)
     this.source = {
       type: VaultSourceType.WebDav,
       uri: target.fileUrl,
       displayName: target.fileName,
       readOnly: true,
     }
-    this.format = document.format
+    this.format = VaultFormat.Unsupported
     this.sourceModifiedAt = target.modifiedAt
-    this.credential = credential
-    this.engine = engine
-    this.session.unlock(document)
-    // 远端来源不落盘：清掉上一次本地最近来源，避免下次启动误开旧库。
-    await this.persistRecentSource()
+    this.clearKeyFile()
   }
 
   // 激活必须与持久化时的模式一致，否则系统按未持久化拒绝。

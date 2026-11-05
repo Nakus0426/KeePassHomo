@@ -1,6 +1,6 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens, AppErrorModel, AppToast } from '@ohos/common'
+import { AnimationTokens, AppErrorModel, AppToast, DelayedVisibility } from '@ohos/common'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
@@ -32,6 +32,12 @@ export struct UnlockPage {
   private enterPending: boolean = false
   // 解锁请求进行中不再叠加 Toast，失败统一由页内提示条呈现。
   private submittingUnlock: boolean = false
+  @Local private busyGate: DelayedVisibility = new DelayedVisibility()
+
+  @Monitor('viewModel.busy')
+  onBusyChanged(): void {
+    this.busyGate.setActive(this.viewModel.busy)
+  }
 
   @Computed
   get bottomSafeAreaHeight(): number {
@@ -128,6 +134,10 @@ export struct UnlockPage {
     }
   }
 
+  aboutToDisappear(): void {
+    this.busyGate.dispose()
+  }
+
   private startEnterIfReady(): void {
     if (!this.enterPending || this.pageHeight <= 0 || this.bandHeight <= 0) {
       return
@@ -161,6 +171,8 @@ export struct UnlockPage {
       this.submittingUnlock = false
     }
     if (unlocked) {
+      // 成功转场优先，不再为最短显示时长保留加载态。
+      this.busyGate.hideImmediately()
       this.playExitAnimation()
       return
     }
@@ -447,7 +459,7 @@ export struct UnlockPage {
 
   @LocalBuilder
   private unlockButtonContent() {
-    if (this.viewModel.busy) {
+    if (this.busyGate.visible) {
       Row({ space: $r('app.float.ds_space_xs') }) {
         DsLoadingIndicator({
           indicatorSize: DsLoadingIndicatorSize.Small,

@@ -8,6 +8,8 @@
 2. `generate_morph_points.py`：按 morphicons 的 region morph 管线，从 `symbol_all.ttf` 的
    `symbol_eye` / `symbol_eye_off` 字形生成逐点形变数据，产出
    `products/default/src/main/ets/components/morph/EyeMorphData.ets`。
+3. `generate_step_morph.py`：同一管线，为步骤图标 → 对勾生成形变数据，产出
+   `products/default/src/main/ets/components/morph/StepMorphData.ets`。子路径数不一致时把每个源轮廓收拢到对勾轮廓。
 
 ## 用法
 
@@ -15,6 +17,7 @@
 pip install fonttools
 python tools/icon-migration/generate_symbols.py
 python tools/icon-migration/generate_morph_points.py
+python tools/icon-migration/generate_step_morph.py
 ```
 
 `generate_morph_points.py --preview` 会额外输出 t=0 / 0.5 / 0.8 / 1 的对照图到 `.screenshots/`。

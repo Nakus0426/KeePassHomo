@@ -194,6 +194,12 @@
     "symbol_swap_horiz": {
       "unicode": "􀀿"
     },
+    "symbol_arrow_upward": {
+      "unicode": "􀁀"
+    },
+    "symbol_fact_check": {
+      "unicode": "􀁁"
+    },
     "symbol_archive_filled": {
       "unicode": "􀄀"
     },
