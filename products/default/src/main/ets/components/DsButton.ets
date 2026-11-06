@@ -56,6 +56,10 @@ export struct DsButton {
   @Param iconColorOverride: ResourceColor | undefined = undefined
   // 仅覆盖实心态常态面底；hover / press 仍按 tone 取反馈色。
   @Param backgroundColorOverride: ResourceColor | undefined = undefined
+  // 仅覆盖内容色，用于语义容器底色上的深色文字。
+  @Param contentColorOverride: ResourceColor | undefined = undefined
+  @Param labelFontSizeOverride: Resource | undefined = undefined
+  @Param labelWeightOverride: FontWeight | undefined = undefined
   // 不能命名为 accessibilityText：与同名通用属性方法冲突；仅无可见文本时使用。
   @Param accessibilityLabel: string = ''
   @Param accessibilityLabelResource: Resource | undefined = undefined
@@ -177,6 +181,9 @@ export struct DsButton {
     if (this.disabled) {
       return $r('app.color.ds_text_disabled')
     }
+    if (this.contentColorOverride !== undefined) {
+      return this.contentColorOverride
+    }
     if (this.variant === DsButtonVariant.Filled) {
       return DsButton.TONE_TABLE[this.tone]!.onColor
     }
@@ -201,6 +208,9 @@ export struct DsButton {
 
   @Computed
   get labelSize(): Resource {
+    if (this.labelFontSizeOverride !== undefined) {
+      return this.labelFontSizeOverride
+    }
     switch (this.buttonSize) {
       case DsButtonSize.Large:
         return $r('app.float.ds_font_title')
@@ -310,7 +320,7 @@ export struct DsButton {
             curve: AnimationTokens.EASE_STATE,
           })
           .fontSize(this.labelSize)
-          .fontWeight(600)
+          .fontWeight(this.labelWeightOverride ?? 600)
           .letterSpacing(LABEL_LETTER_SPACING)
           .maxLines(1)
       }

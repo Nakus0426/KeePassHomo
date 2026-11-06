@@ -33,6 +33,10 @@
       "value": "#E7E8E9"
     },
     {
+      "name": "ds_surface_hover",
+      "value": "#E9ECEF"
+    },
+    {
       "name": "ds_surface_highest",
       "value": "#E1E3E4"
     },

@@ -404,7 +404,7 @@ export struct CreateVaultPage {
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Default,
             buttonSize: DsButtonSize.Small,
-            leadingIcon: $r('app.string.symbol_refresh'),
+            trailingIcon: $r('app.string.symbol_refresh'),
             label: $r('app.string.key_file_regenerate'),
             onTap: () => this.viewModel.generateKeyFile(this.keyFileDefaultName()),
           })
@@ -413,7 +413,7 @@ export struct CreateVaultPage {
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Default,
             buttonSize: DsButtonSize.Small,
-            leadingIcon: $r('app.string.symbol_upload_file'),
+            trailingIcon: $r('app.string.symbol_upload_file'),
             label: $r('app.string.key_file_replace'),
             onTap: () => this.viewModel.chooseKeyFile(),
           })
@@ -424,7 +424,7 @@ export struct CreateVaultPage {
           tone: DsButtonTone.Error,
           buttonSize: DsButtonSize.Small,
           horizontalPaddingOverride: $r('app.float.ds_space_md'),
-          leadingIcon: $r('app.string.symbol_close'),
+          trailingIcon: $r('app.string.symbol_close'),
           label: $r('app.string.key_file_remove'),
           onTap: () => this.viewModel.clearKeyFile(),
         })
@@ -468,7 +468,7 @@ export struct CreateVaultPage {
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Default,
             fullWidth: true,
-            leadingIcon: $r('app.string.symbol_upload_file'),
+            trailingIcon: $r('app.string.symbol_upload_file'),
             label: $r('app.string.key_file_import'),
             onTap: () => this.viewModel.chooseKeyFile(),
           })
@@ -478,7 +478,7 @@ export struct CreateVaultPage {
         Row() {
           DsButton({
             fullWidth: true,
-            leadingIcon: $r('app.string.symbol_add'),
+            trailingIcon: $r('app.string.symbol_add'),
             label: $r('app.string.key_file_generate'),
             onTap: () => this.viewModel.generateKeyFile(this.keyFileDefaultName()),
           })
@@ -569,7 +569,7 @@ export struct CreateVaultPage {
         DsButton({
           label: $r('app.string.regenerate_password'),
           tone: DsButtonTone.Default,
-          leadingIcon: $r('app.string.symbol_refresh'),
+          trailingIcon: $r('app.string.symbol_refresh'),
           fullWidth: true,
           onTap: () => this.viewModel.generator.regenerate(),
         })
@@ -579,7 +579,7 @@ export struct CreateVaultPage {
       Row() {
         DsButton({
           label: $r('app.string.fill_current_entry'),
-          leadingIcon: $r('app.string.symbol_check'),
+          trailingIcon: $r('app.string.symbol_check'),
           fullWidth: true,
           onTap: () => this.fillPasswordFromGenerator(),
         })

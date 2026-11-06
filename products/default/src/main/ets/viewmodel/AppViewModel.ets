@@ -159,6 +159,9 @@ export class AppViewModel {
     if (appSessionState.currentModule === ROUTE_GENERATOR) {
       this.generator.clearSensitiveState()
     }
+    if (route !== ROUTE_VAULT && vaultHomeViewModel.batchMode) {
+      vaultHomeViewModel.exitBatch()
+    }
     appSessionState.setCurrentModule(route)
     if (route === ROUTE_GENERATOR) {
       this.generator.regenerate()
@@ -368,10 +371,10 @@ export class AppViewModel {
     }
   }
 
-  loadNewEntry(editor: EntryEditorViewModel, template: ItemTemplate): void {
+  loadNewEntry(editor: EntryEditorViewModel, template: ItemTemplate, groupUuid: string = ''): void {
     editor.reset()
     editor.template = template
-    editor.setGroup(this.requireGroup(stageOneVaultStore.defaultGroupUuid()))
+    editor.setGroup(this.requireGroup(groupUuid.length > 0 ? groupUuid : stageOneVaultStore.defaultGroupUuid()))
     this.appendMissingTemplateFields(editor, template)
     editor.initialValue = editor.currentValue()
     this.recordActivity()
@@ -588,6 +591,38 @@ export class AppViewModel {
     }
   }
 
+  async deleteEntries(entryUuids: string[]): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.deleteEntries(entryUuids)
+      this.revision++
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError('批量删除条目失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
+  async setArchivedMany(entryUuids: string[], archived: boolean): Promise<boolean> {
+    this.busy = true
+    try {
+      await stageOneVaultStore.setArchivedMany(entryUuids, archived)
+      this.revision++
+      this.setStatus('')
+      this.recordActivity()
+      return true
+    } catch (error) {
+      this.reportBoundaryError(archived ? '批量归档条目失败' : '批量恢复条目失败', error)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
+
   async createGroup(parentGroupUuid: string, name: string): Promise<boolean> {
     this.busy = true
     try {
@@ -717,6 +752,10 @@ export class AppViewModel {
     return format === VaultFormat.Kdbx31 ? 'KDBX 3.1' : 'KDBX 4.x'
   }
 
+  currentFormatLabel(): string {
+    return this.formatName(this.currentFormat())
+  }
+
   formatTime(time: number): string {
     return formatISO9075(new Date(time))
   }
@@ -738,6 +777,15 @@ export class AppViewModel {
   currentSource(): VaultSource {
     this.revision
     return stageOneVaultStore.currentSource
+  }
+
+  isReadOnly(): boolean {
+    return this.hasRecentVault() ? this.currentSource().readOnly : true
+  }
+
+  vaultDisplayName(): string {
+    const raw: string = this.currentSource().displayName
+    return raw.toLowerCase().endsWith('.kdbx') ? raw.slice(0, raw.length - 5) : raw
   }
 
   currentKeyFileName(): string {
@@ -763,6 +811,10 @@ export class AppViewModel {
   currentFormat(): VaultFormat {
     this.revision
     return stageOneVaultStore.currentFormat
+  }
+
+  isKdbx31(): boolean {
+    return this.currentFormat() === VaultFormat.Kdbx31
   }
 
   groups(): VaultGroup[] {

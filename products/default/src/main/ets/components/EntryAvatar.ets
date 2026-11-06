@@ -11,6 +11,11 @@ export struct EntryAvatar {
   @Param avatarData: ArrayBuffer | undefined = undefined
   @Param avatarSize: Length = $r('app.float.entry_card_avatar_size')
   @Param initialsFontSize: Length = $r('sys.float.Body_L')
+  // 方形瓦片供密集列表使用，圆角为 0。
+  @Param square: boolean = false
+  // 无自定义头像时优先显示的模板图标，仍无则退回首字。
+  @Param fallbackIcon: Resource | undefined = undefined
+  @Param fallbackIconSize: Length = $r('app.float.ds_icon_sm')
   @Local private avatarPixelMap: image.PixelMap | undefined = undefined
   // 已解码的来源字节：列表节点换条目复用时据此判断旧图需先清空
   private decodedSource: ArrayBuffer | undefined = undefined
@@ -62,18 +67,23 @@ export struct EntryAvatar {
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+      } else if (this.fallbackIcon !== undefined) {
+        SymbolGlyph(this.fallbackIcon)
+          .fontSize(this.fallbackIconSize)
+          .fontColor([$r('app.color.ds_text_secondary')])
+          .foregroundColor($r('app.color.ds_text_secondary'))
       } else {
         Text(this.initials)
           .fontSize(this.initialsFontSize)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(this.square ? $r('app.color.ds_text_secondary') : Color.White)
       }
     }
     .width(this.avatarSize)
     .height(this.avatarSize)
     .aspectRatio(1)
-    .borderRadius('50%')
-    .backgroundColor($r('sys.color.background_emphasize'))
+    .borderRadius(this.square ? $r('app.float.ds_radius_none') : '50%')
+    .backgroundColor(this.square ? $r('app.color.ds_surface_high') : $r('sys.color.background_emphasize'))
     .clip(true)
   }
 }

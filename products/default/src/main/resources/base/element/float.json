@@ -381,8 +381,48 @@
       "value": "6vp"
     },
     {
+      "name": "ds_entry_row_height",
+      "value": "64vp"
+    },
+    {
+      "name": "ds_entry_avatar_size",
+      "value": "36vp"
+    },
+    {
+      "name": "ds_empty_icon_size",
+      "value": "56vp"
+    },
+    {
+      "name": "ds_empty_body_width",
+      "value": "280vp"
+    },
+    {
+      "name": "ds_template_shortcut_height",
+      "value": "96vp"
+    },
+    {
+      "name": "ds_swipe_action_width",
+      "value": "64vp"
+    },
+    {
+      "name": "ds_line_height_body_sm",
+      "value": "17vp"
+    },
+    {
+      "name": "ds_line_height_micro",
+      "value": "14vp"
+    },
+    {
       "name": "ds_icon_xs",
       "value": "16vp"
+    },
+    {
+      "name": "ds_icon_lg",
+      "value": "28vp"
+    },
+    {
+      "name": "ds_checkbox_check_size",
+      "value": "12vp"
     },
     {
       "name": "ds_loading_pulse_w_sm",

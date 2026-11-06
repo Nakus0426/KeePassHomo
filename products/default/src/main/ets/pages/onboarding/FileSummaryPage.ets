@@ -286,14 +286,14 @@ export struct FileSummaryPage {
   @LocalBuilder
   private busyButtonContent(label: ResourceStr) {
     Row({ space: $r('app.float.ds_space_sm') }) {
-      DsLoadingIndicator({
-        indicatorSize: DsLoadingIndicatorSize.Small,
-        tone: DsLoadingIndicatorTone.Surface,
-      })
       Text(label)
         .fontSize($r('app.float.ds_font_title'))
         .fontWeight(600)
         .fontColor($r('app.color.ds_text_tertiary'))
+      DsLoadingIndicator({
+        indicatorSize: DsLoadingIndicatorSize.Small,
+        tone: DsLoadingIndicatorTone.Surface,
+      })
     }
   }
 
@@ -306,7 +306,7 @@ export struct FileSummaryPage {
         tone: DsButtonTone.Tonal,
         buttonSize: DsButtonSize.Large,
         fullWidth: true,
-        leadingIcon: $r('app.string.symbol_arrow_forward'),
+        trailingIcon: $r('app.string.symbol_arrow_forward'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
         label: $r('app.string.continue_action'),
         onTap: () => this.viewModel.openUnlock(),
@@ -325,7 +325,7 @@ export struct FileSummaryPage {
         tone: DsButtonTone.Tonal,
         buttonSize: DsButtonSize.Large,
         fullWidth: true,
-        leadingIcon: $r('app.string.symbol_folder_open'),
+        trailingIcon: $r('app.string.symbol_folder_open'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
         label: $r('app.string.reselect_file'),
         disabled: this.busyAction !== SummaryAction.None,
@@ -377,7 +377,7 @@ export struct FileSummaryPage {
         tone: DsButtonTone.Tonal,
         buttonSize: DsButtonSize.Large,
         fullWidth: true,
-        leadingIcon: $r('app.string.symbol_save'),
+        trailingIcon: $r('app.string.symbol_save'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
         label: $r('app.string.save_to_other_location'),
         disabled: this.busyAction !== SummaryAction.None,
@@ -409,7 +409,7 @@ export struct FileSummaryPage {
     DsButton({
       buttonSize: DsButtonSize.Large,
       fullWidth: true,
-      leadingIcon: $r('app.string.symbol_folder_open'),
+      trailingIcon: $r('app.string.symbol_folder_open'),
       iconSizeOverride: iconSize,
       label: $r('app.string.reselect_file'),
       disabled: disabled,
@@ -429,7 +429,7 @@ export struct FileSummaryPage {
             tone: DsButtonTone.Tonal,
             buttonSize: DsButtonSize.Large,
             fullWidth: true,
-            leadingIcon: $r('app.string.symbol_refresh'),
+            trailingIcon: $r('app.string.symbol_refresh'),
             iconSizeOverride: $r('app.float.ds_icon_sm'),
             label: $r('app.string.retry_action'),
             disabled: this.busyAction !== SummaryAction.None,

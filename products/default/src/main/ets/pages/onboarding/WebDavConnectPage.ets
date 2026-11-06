@@ -521,15 +521,15 @@ export struct WebDavConnectPage {
   @LocalBuilder
   private testButtonContent() {
     if (this.testGate.visible) {
-      Row({ space: $r('app.float.ds_space_xs') }) {
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Surface,
-        })
+      Row({ space: $r('app.float.ds_space_sm') }) {
         Text($r('app.string.webdav_testing'))
           .fontSize($r('app.float.ds_font_title'))
           .fontWeight(600)
           .fontColor($r('app.color.ds_text_primary'))
+        DsLoadingIndicator({
+          indicatorSize: DsLoadingIndicatorSize.Small,
+          tone: DsLoadingIndicatorTone.Surface,
+        })
       }
     } else {
       Text($r('app.string.webdav_test_connection'))

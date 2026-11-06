@@ -581,6 +581,36 @@ export class StageOneVaultStore {
     await this.persistDocument(document)
   }
 
+  // 批量删除只落盘一次，避免多条操作反复写整库。
+  async deleteEntries(entryUuids: string[]): Promise<void> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能删除条目')
+    }
+    if (entryUuids.length === 0) {
+      return
+    }
+    const document: VaultDocument = this.session.getDocument()
+    for (const uuid of entryUuids) {
+      this.engine.removeEntry(document, uuid)
+    }
+    await this.persistDocument(document)
+  }
+
+  // 批量归档/恢复同样只落盘一次。
+  async setArchivedMany(entryUuids: string[], archived: boolean): Promise<void> {
+    if (this.currentSource.readOnly) {
+      throw new Error('只读保险库不能归档条目')
+    }
+    if (entryUuids.length === 0) {
+      return
+    }
+    const document: VaultDocument = this.session.getDocument()
+    for (const uuid of entryUuids) {
+      this.engine.setEntryArchived(document, uuid, archived)
+    }
+    await this.persistDocument(document)
+  }
+
   async createGroup(parentGroupUuid: string, name: string): Promise<VaultGroup> {
     if (this.currentSource.readOnly) {
       throw new Error('只读保险库不能新建分组')

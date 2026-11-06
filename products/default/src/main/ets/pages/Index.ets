@@ -3,6 +3,7 @@ import { AppShell } from '../components/AppShell'
 import { LaunchPage } from './onboarding/LaunchPage'
 import { appRouter } from '../navigation/AppRouter'
 import { appViewModel, AppViewModel } from '../viewmodel/AppViewModel'
+import { vaultHomeViewModel } from '../viewmodel/VaultHomeViewModel'
 import { ROUTE_HOME } from '../constants/RouteConstants'
 
 @Entry
@@ -20,6 +21,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (appRouter.isHomePage() && vaultHomeViewModel.batchMode) {
+      vaultHomeViewModel.exitBatch()
+      return true
+    }
     if (appRouter.isHomePage()) {
       appRouter.handleRootBack(ROUTE_HOME)
       return true

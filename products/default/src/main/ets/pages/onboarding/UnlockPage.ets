@@ -87,7 +87,7 @@ export struct UnlockPage {
   @Computed
   get buttonTrailingIcon(): Resource {
     if (this.unlockSucceeded) {
-      return $r('app.string.symbol_check_circle')
+      return $r('app.string.symbol_check')
     }
     if (this.noticeVisible && this.noticeTone === DsNoticeTone.Error) {
       return $r('app.string.symbol_refresh')
@@ -460,15 +460,15 @@ export struct UnlockPage {
   @LocalBuilder
   private unlockButtonContent() {
     if (this.busyGate.visible) {
-      Row({ space: $r('app.float.ds_space_xs') }) {
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Inverse,
-        })
+      Row({ space: $r('app.float.ds_space_10') }) {
         Text($r('app.string.unlocking'))
           .fontSize($r('app.float.ds_font_title'))
           .fontWeight(600)
           .fontColor($r('app.color.ds_on_primary'))
+        DsLoadingIndicator({
+          indicatorSize: DsLoadingIndicatorSize.Small,
+          tone: DsLoadingIndicatorTone.Inverse,
+        })
       }
     } else {
       Text(this.buttonLabel)
@@ -484,7 +484,7 @@ export struct UnlockPage {
     DsButton({
       buttonSize: DsButtonSize.Large,
       fullWidth: true,
-      trailingIcon: this.buttonTrailingIcon,
+      trailingIcon: this.busyGate.visible ? undefined : this.buttonTrailingIcon,
       accessibilityLabelResource: this.buttonLabel,
       contentBuilder: this.unlockButtonContent,
       onTap: () => this.handleSubmit(),

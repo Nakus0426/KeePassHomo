@@ -4,103 +4,52 @@ import { VaultEntry } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
+import {
+  EntryGroupHeaderModel,
+  EntryListItem,
+  EntryListItemKind,
+  EntryRowModel,
+} from './EntryRowModel'
 
-// 列表的 UI 回调出口：ViewModel 只声明「该做什么」，不持有 UIContext，由页面继承并覆写。
-// 用类而非接口承载：ArkTS 不允许用对象字面量实现接口（arkts-no-untyped-obj-literals）。
-export class VaultEntryListHost {
-  animateRowExit(uuid: string): void {
-    throw new Error(`列表动画出口未实现：animateRowExit(${uuid})`)
-  }
-
-  refreshSnapshot(): void {
-    throw new Error('列表动画出口未实现：refreshSnapshot')
-  }
-
-  notifyDeleted(): void {
-    throw new Error('列表动画出口未实现：notifyDeleted')
-  }
-
-  animateFabSide(right: boolean): void {
-    throw new Error(`列表动画出口未实现：animateFabSide(${right})`)
-  }
-}
-
-// 列表行模型：一次渲染要用的行数据（含头像、收藏）在此备齐，行组件不再查库。
-// 依据官方 FAQ faqs-arkui-609：列表项生命周期里做数据加载会因节点复用而出错。
-@ObservedV2
-export class EntryRowModel {
-  readonly uuid: string
-  readonly entry: VaultEntry
-  @Trace avatarData: ArrayBuffer | undefined = undefined
-  @Trace favorite: boolean = false
-
-  constructor(entry: VaultEntry, avatarData: ArrayBuffer | undefined) {
-    this.uuid = entry.uuid
-    this.entry = entry
-    this.avatarData = avatarData
-    this.favorite = entry.favorite
-  }
-
-  setFavorite(favorite: boolean): void {
-    this.favorite = favorite
-  }
-}
-
-// 首页条目列表 ViewModel（模块级单例）：行模型的唯一来源、列表动作的唯一入口。
-// 不引用 AppViewModel（避免两个 ViewModel 互相依赖）；组件侧不留业务逻辑，依据 arkts-mvvm-v2。
+// 首页条目列表 ViewModel（模块级单例）：列表项和分组段的唯一来源，组件侧不持有业务逻辑。
 @ObservedV2
 export class HomeEntryListViewModel {
-  // 只在重建时整体替换，绝不在渲染过程中逐项改动：逐项改动会让复用节点读到半成品。
-  @Trace rows: EntryRowModel[] = []
+  // 整体替换列表项；行模型与段头模型跨刷新复用，@Trace 字段负责局部更新。
+  @Trace items: EntryListItem[] = []
   // 悬浮按钮贴右还是贴左：跟随握持手，初始与设备不支持智感握姿时固定贴右。
   @Trace fabRight: boolean = true
   // 握持手回调需要固定引用，退订时才能配对。
   private readonly onHoldingHandChanged: (status: motion.HoldingHandStatus) => void =
     (status: motion.HoldingHandStatus) => this.applyHoldingHand(status)
   private handListening: boolean = false
-  private host: VaultEntryListHost | undefined = undefined
+  private readonly rowCache: Map<string, EntryRowModel> = new Map()
+  private readonly headerCache: Map<string, EntryGroupHeaderModel> = new Map()
 
   // 快照变化、解锁刷新、条目增删保存后都必须调用，否则列表与快照脱节。
   refresh(): void {
-    this.rows = this.entryRows()
+    if (stageOneVaultStore.locked) {
+      this.items = []
+      this.rowCache.clear()
+      this.headerCache.clear()
+      return
+    }
+    this.items = this.buildItems(this.buildRows())
   }
 
   // 先乐观更新行模型让图标立即响应，再落盘。
   toggleFavorite(uuid: string): void {
-    const row: EntryRowModel | undefined = this.rows.find((item: EntryRowModel) => item.uuid === uuid)
+    const row: EntryRowModel | undefined = this.rowCache.get(uuid)
     if (row === undefined) {
       return
     }
-    const next: boolean = !row.favorite
-    LogUtil.info(`[收藏调试] 请求切换，uuid=${uuid}，当前=${row.favorite}，目标=${next}`)
-    row.setFavorite(next)
-    this.persistFavorite(uuid, next).then((applied: boolean) => {
-      // 主表在收藏筛选下会整体重排，回写必须按 uuid 重新定位，不持有旧行模型的引用。
-      this.refresh()
-      const refreshedRow: EntryRowModel | undefined = this.rows.find((item: EntryRowModel) => item.uuid === uuid)
-      refreshedRow?.setFavorite(applied)
-      LogUtil.info(`[收藏调试] 列表回写完成，uuid=${uuid}，状态=${applied}，找到行=${refreshedRow !== undefined}`)
+    const previous: boolean = row.favorite
+    row.setFavorite(!previous)
+    this.persistFavorite(uuid, !previous).then((applied: boolean) => {
+      this.rowCache.get(uuid)?.setFavorite(applied)
     })
   }
 
-  deleteEntry(uuid: string, host: VaultEntryListHost): void {
-    this.persistDelete(uuid).then((deleted: boolean) => {
-      if (!deleted) {
-        return
-      }
-      host.animateRowExit(uuid)
-      host.notifyDeleted()
-    })
-  }
-
-  private entryRows(): EntryRowModel[] {
-    return vaultHomeViewModel.entries.map((entry: VaultEntry): EntryRowModel => {
-      return new EntryRowModel(entry, entry.hasAvatar ? stageOneVaultStore.loadEntryAvatar(entry.uuid) : undefined)
-    })
-  }
-
-  subscribeHoldingHand(host: VaultEntryListHost): void {
-    this.host = host
+  subscribeHoldingHand(): void {
     if (!canIUse('SystemCapability.MultimodalAwareness.Motion')) {
       LogUtil.info('当前设备不支持动作感知，新增条目悬浮按钮固定贴右')
       return
@@ -115,7 +64,6 @@ export class HomeEntryListViewModel {
   }
 
   unsubscribeHoldingHand(): void {
-    this.host = undefined
     if (!this.handListening) {
       return
     }
@@ -127,11 +75,78 @@ export class HomeEntryListViewModel {
     }
   }
 
+  private buildRows(): EntryRowModel[] {
+    const rows: EntryRowModel[] = []
+    const liveUuids: Set<string> = new Set()
+    const appendGroupName: boolean = vaultHomeViewModel.searchQuery.length > 0
+    for (const entry of vaultHomeViewModel.entries) {
+      liveUuids.add(entry.uuid)
+      let row: EntryRowModel | undefined = this.rowCache.get(entry.uuid)
+      if (row === undefined) {
+        row = new EntryRowModel(entry, appendGroupName)
+        this.rowCache.set(entry.uuid, row)
+      } else {
+        row.update(entry, appendGroupName)
+      }
+      rows.push(row)
+    }
+    for (const uuid of Array.from(this.rowCache.keys())) {
+      if (!liveUuids.has(uuid)) {
+        this.rowCache.delete(uuid)
+      }
+    }
+    return rows
+  }
+
+  // 搜索态按设计隐藏分组段头；常规态按文档分组顺序展开为扁平的段头 + 行列表。
+  private buildItems(rows: EntryRowModel[]): EntryListItem[] {
+    const items: EntryListItem[] = []
+    if (vaultHomeViewModel.searchQuery.length > 0) {
+      this.headerCache.clear()
+      for (const row of rows) {
+        items.push(new EntryListItem(`row:${row.uuid}`, EntryListItemKind.Row, undefined, row))
+      }
+      return items
+    }
+
+    const rowsByGroup: Map<string, EntryRowModel[]> = new Map()
+    for (const row of rows) {
+      const groupRows: EntryRowModel[] | undefined = rowsByGroup.get(row.groupUuid)
+      if (groupRows === undefined) {
+        rowsByGroup.set(row.groupUuid, [row])
+      } else {
+        groupRows.push(row)
+      }
+    }
+
+    const liveHeaderKeys: Set<string> = new Set()
+    for (const group of stageOneVaultStore.groups()) {
+      const groupRows: EntryRowModel[] = rowsByGroup.get(group.uuid) ?? []
+      if (groupRows.length === 0) {
+        continue
+      }
+      liveHeaderKeys.add(group.uuid)
+      let header: EntryGroupHeaderModel | undefined = this.headerCache.get(group.uuid)
+      if (header === undefined) {
+        header = new EntryGroupHeaderModel(group.uuid)
+        this.headerCache.set(group.uuid, header)
+      }
+      header.update(group.name, groupRows.length)
+      items.push(new EntryListItem(`header:${group.uuid}`, EntryListItemKind.Header, header))
+      for (const row of groupRows) {
+        items.push(new EntryListItem(`row:${row.uuid}`, EntryListItemKind.Row, undefined, row))
+      }
+    }
+    for (const groupUuid of Array.from(this.headerCache.keys())) {
+      if (!liveHeaderKeys.has(groupUuid)) {
+        this.headerCache.delete(groupUuid)
+      }
+    }
+    return items
+  }
+
   // 只有明确的左/右手握持才翻转，其余状态保持当前侧，避免识别抖动让按钮来回跳。
   private applyHoldingHand(status: motion.HoldingHandStatus): void {
-    if (this.host === undefined) {
-      return
-    }
     if (status === motion.HoldingHandStatus.LEFT_HAND_HELD) {
       this.switchFabSide(false)
       return
@@ -142,32 +157,19 @@ export class HomeEntryListViewModel {
   }
 
   private switchFabSide(right: boolean): void {
-    if (this.fabRight === right) {
-      return
+    if (this.fabRight !== right) {
+      this.fabRight = right
     }
-    this.fabRight = right
-    this.host!.animateFabSide(right)
   }
 
   private async persistFavorite(uuid: string, favorite: boolean): Promise<boolean> {
     try {
       const entry: VaultEntry = await stageOneVaultStore.setFavorite(uuid, favorite)
       vaultHomeViewModel.invalidate()
-      LogUtil.info(`[收藏调试] 落盘完成，uuid=${uuid}，状态=${entry.favorite}`)
       return entry.favorite
     } catch (error) {
       LogUtil.error(`更新收藏状态失败，错误码=${(error as BusinessError).code}`)
-      return favorite
-    }
-  }
-
-  private async persistDelete(uuid: string): Promise<boolean> {
-    try {
-      await stageOneVaultStore.deleteEntry(uuid)
-      return true
-    } catch (error) {
-      LogUtil.error(`删除条目失败，错误码=${(error as BusinessError).code}`)
-      return false
+      return !favorite
     }
   }
 }

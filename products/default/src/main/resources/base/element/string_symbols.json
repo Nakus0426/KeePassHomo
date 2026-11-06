@@ -26,7 +26,7 @@
     },
     {
       "name": "symbol_arrow_upward",
-      "value": "0x100040"
+      "value": "0x100041"
     },
     {
       "name": "symbol_attach_file",
@@ -134,7 +134,7 @@
     },
     {
       "name": "symbol_fact_check",
-      "value": "0x100041"
+      "value": "0x100042"
     },
     {
       "name": "symbol_fingerprint",
@@ -253,12 +253,16 @@
       "value": "0x100037"
     },
     {
-      "name": "symbol_space_bar",
+      "name": "symbol_settings",
       "value": "0x100038"
     },
     {
-      "name": "symbol_star",
+      "name": "symbol_space_bar",
       "value": "0x100039"
+    },
+    {
+      "name": "symbol_star",
+      "value": "0x10003A"
     },
     {
       "name": "symbol_star_filled",
@@ -266,27 +270,27 @@
     },
     {
       "name": "symbol_swap_horiz",
-      "value": "0x10003F"
+      "value": "0x100040"
     },
     {
       "name": "symbol_sync",
-      "value": "0x10003A"
-    },
-    {
-      "name": "symbol_upload",
       "value": "0x10003B"
     },
     {
-      "name": "symbol_upload_file",
+      "name": "symbol_upload",
       "value": "0x10003C"
     },
     {
-      "name": "symbol_verified_user",
+      "name": "symbol_upload_file",
       "value": "0x10003D"
     },
     {
-      "name": "symbol_warning",
+      "name": "symbol_verified_user",
       "value": "0x10003E"
+    },
+    {
+      "name": "symbol_warning",
+      "value": "0x10003F"
     }
   ]
 }

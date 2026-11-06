@@ -312,6 +312,11 @@
       "fill": 0
     },
     {
+      "key": "symbol_settings",
+      "material": "settings",
+      "fill": 0
+    },
+    {
       "key": "symbol_space_bar",
       "material": "space_bar",
       "fill": 0

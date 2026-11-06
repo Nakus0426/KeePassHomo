@@ -26,7 +26,7 @@ export struct GeneratorPage {
         DsButton({
           label: $r('app.string.regenerate_password'),
           tone: DsButtonTone.Default,
-          leadingIcon: $r('app.string.symbol_refresh'),
+          trailingIcon: $r('app.string.symbol_refresh'),
           fullWidth: true,
           onTap: () => appViewModel.generator.regenerate(),
         })
@@ -36,7 +36,7 @@ export struct GeneratorPage {
       Row() {
         DsButton({
           label: $r('app.string.copy_password'),
-          leadingIcon: $r('app.string.symbol_copy'),
+          trailingIcon: $r('app.string.symbol_copy'),
           fullWidth: true,
           onTap: () => generatorContentController.copyPassword(),
         })

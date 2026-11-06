@@ -27,9 +27,12 @@ export struct DsSegmentedSwitch {
   }
   // 提供后替代默认文本标签，槽位可放图标、图标 + 文本或任意节点；等分宽度不变。
   @BuilderParam slotBuilder?: (slot: DsSegmentedSwitchSlot) => void
+  // 无底色模式：只画滑块与文字，不画凹槽底色，供内联筛选条复用。
+  @Param transparentBackground: boolean = false
 
   @Local private thumbX: number = 0
   @Local private hoveredIndex: number = -1
+  @Local private pressedIndex: number = -1
   @Local private contentWidth: number = 0
   @Local private slotHeight: number = 0
   @Local private shellPad: number = 0
@@ -127,6 +130,7 @@ export struct DsSegmentedSwitch {
     if (this.slotWidth <= 0) {
       return
     }
+    this.pressedIndex = -1
     const step: number = this.slotWidth + this.shellGap
     const index: number = this.nearestEnabled(Math.round((this.thumbX - this.shellPad) / step))
     this.moveThumbTo(index, true)
@@ -140,6 +144,8 @@ export struct DsSegmentedSwitch {
       this.suppressClick = false
       return
     }
+    // onClick 可能早于触摸 Up 回调，先清掉按下态，避免按下底色压住新滑块。
+    this.pressedIndex = -1
     if (!this.isEnabled(index) || index === this.selectedIndex) {
       return
     }
@@ -150,6 +156,7 @@ export struct DsSegmentedSwitch {
   private handleTouch(event: TouchEvent): void {
     // 松手/取消时 touches 可能为空，收尾不能依赖 touches[0]。
     if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      this.pressedIndex = -1
       if (this.dragMoved) {
         this.dragMoved = false
         this.suppressClick = true
@@ -172,6 +179,8 @@ export struct DsSegmentedSwitch {
       return
     }
     this.dragMoved = true
+    this.pressedIndex = -1
+    this.hoveredIndex = -1
     this.thumbX = this.clampThumbX(this.dragStartThumbX + touch.x - this.dragStartX)
   }
 
@@ -187,20 +196,69 @@ export struct DsSegmentedSwitch {
     return Math.max(0, overlap) / this.slotWidth > COVER_RATIO
   }
 
+  // 只要滑块与槽位有重叠，就不再画悬停/按下底色，避免反馈层盖住移动中的滑块。
+  private isThumbOverSlot(index: number): boolean {
+    if (this.slotWidth <= 0) {
+      return index === this.selectedIndex
+    }
+    const slotLeft: number = this.slotLeft(index)
+    const overlap: number = Math.min(this.thumbX + this.slotWidth, slotLeft + this.slotWidth)
+      - Math.max(this.thumbX, slotLeft)
+    return overlap > 0
+  }
+
   private labelColor(index: number): ResourceColor {
     if (!this.isEnabled(index)) {
       return $r('app.color.ds_text_disabled')
     }
-    return this.isCovered(index)
-      ? $r('app.color.ds_on_primary') : $r('app.color.ds_on_surface_variant')
+    if (this.isCovered(index)) {
+      return $r('app.color.ds_on_primary')
+    }
+    return this.hoveredIndex === index || this.pressedIndex === index
+      ? $r('app.color.ds_text_primary') : $r('app.color.ds_on_surface_variant')
+  }
+
+  // 选中槽被滑块压住时不叠加反馈底色；按下优先于悬停。
+  // 常态必须有实色底：透明色与实色之间的插值会经过灰色，看起来像闪两次。
+  private baseFill(): ResourceColor {
+    return this.transparentBackground ? Color.Transparent : $r('app.color.ds_surface_low')
   }
 
   private slotFill(index: number): ResourceColor {
-    return this.hoveredIndex === index ? $r('app.color.ds_surface_high') : Color.Transparent
+    if (this.isThumbOverSlot(index)) {
+      return Color.Transparent
+    }
+    if (this.isEnabled(index)) {
+      if (this.pressedIndex === index) {
+        return $r('app.color.ds_surface_highest')
+      }
+      if (this.hoveredIndex === index) {
+        return $r('app.color.ds_surface_high')
+      }
+    }
+    return this.baseFill()
   }
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
+      // 反馈底色放在滑块下层：滑块滑入时直接盖住未退完的底色，两段动画不互相遮挡。
+      Row({ space: this.shellGap }) {
+        ForEach(this.items, (item: DsSegmentedSwitchItem, index: number) => {
+          Row()
+            .layoutWeight(1)
+            .height(this.slotHeight)
+            .backgroundColor(this.slotFill(index))
+            .animation({
+              duration: this.transparentBackground ? 0 : AnimationTokens.DURATION_FEEDBACK,
+              curve: AnimationTokens.EASE_STATE,
+            })
+        }, (item: DsSegmentedSwitchItem, index: number) => `${index}_${item.enabled}_${item.label}`)
+      }
+      .width('100%')
+      .height(this.grooveHeight)
+      .padding(this.shellPad)
+      .hitTestBehavior(HitTestMode.None)
+
       if (this.slotWidth > 0) {
         Column()
           .width(this.slotWidth)
@@ -221,23 +279,36 @@ export struct DsSegmentedSwitch {
                 .fontWeight(600)
                 .letterSpacing(LABEL_LETTER_SPACING)
                 .fontColor(this.labelColor(index))
+                .animation({
+                  duration: AnimationTokens.DURATION_FEEDBACK,
+                  curve: AnimationTokens.EASE_STATE,
+                })
                 .maxLines(1)
             }
           }
           .layoutWeight(1)
           .height(this.slotHeight)
           .justifyContent(FlexAlign.Center)
-          .backgroundColor(this.slotFill(index))
-          .animation({
-            duration: AnimationTokens.DURATION_FEEDBACK,
-            curve: AnimationTokens.EASE_STATE,
-          })
           .enabled(this.isEnabled(index))
           .onHover((isHover: boolean) => {
             if (!this.isEnabled(index)) {
               return
             }
             this.hoveredIndex = isHover ? index : -1
+          })
+          .onTouch((event: TouchEvent) => {
+            if (!this.isEnabled(index)) {
+              return
+            }
+            if (event.type === TouchType.Down) {
+              this.pressedIndex = index
+              return
+            }
+            if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+              if (this.pressedIndex === index) {
+                this.pressedIndex = -1
+              }
+            }
           })
           .onClick(() => this.handleSlotClick(index))
         }, (item: DsSegmentedSwitchItem, index: number) => `${index}_${item.enabled}_${item.label}`)
@@ -248,7 +319,7 @@ export struct DsSegmentedSwitch {
     }
     .width('100%')
     .height(this.grooveHeight)
-    .backgroundColor($r('app.color.ds_surface_low'))
+    .backgroundColor(this.transparentBackground ? Color.Transparent : $r('app.color.ds_surface_low'))
     .onAreaChange((_oldValue: Area, newValue: Area) => {
       this.contentWidth = Math.max(0, (newValue.width as number) - this.shellPad * 2)
       if (!this.dragMoved) {

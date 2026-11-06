@@ -695,6 +695,118 @@
     {
       "name": "delete_group",
       "value": "删除"
+    },
+    {
+      "name": "entry_menu_copy_username",
+      "value": "复制用户名"
+    },
+    {
+      "name": "entry_menu_copy_password",
+      "value": "复制密码"
+    },
+    {
+      "name": "entry_menu_edit",
+      "value": "编辑"
+    },
+    {
+      "name": "entry_menu_archive",
+      "value": "归档"
+    },
+    {
+      "name": "entry_menu_restore",
+      "value": "恢复"
+    },
+    {
+      "name": "entry_menu_select",
+      "value": "多选"
+    },
+    {
+      "name": "entry_menu_delete",
+      "value": "删除"
+    },
+    {
+      "name": "entry_batch_title",
+      "value": "已选 %s 项"
+    },
+    {
+      "name": "entry_batch_note",
+      "value": "点击行继续选择"
+    },
+    {
+      "name": "entry_batch_select_all",
+      "value": "全选"
+    },
+    {
+      "name": "entry_batch_cancel",
+      "value": "取消"
+    },
+    {
+      "name": "entry_batch_archive",
+      "value": "归档"
+    },
+    {
+      "name": "entry_batch_restore",
+      "value": "恢复"
+    },
+    {
+      "name": "entry_batch_delete",
+      "value": "删除"
+    },
+    {
+      "name": "entry_batch_delete_title",
+      "value": "删除所选条目"
+    },
+    {
+      "name": "entry_batch_delete_message",
+      "value": "所选条目将移入回收站，可在回收站内找回"
+    },
+    {
+      "name": "vault_readonly_title",
+      "value": "只读保险库"
+    },
+    {
+      "name": "vault_readonly_kdbx31",
+      "value": "此保险库使用 KDBX 3.1，升级前只能查看和复制。"
+    },
+    {
+      "name": "vault_readonly_permission",
+      "value": "当前没有写权限，只能查看和复制。"
+    },
+    {
+      "name": "entry_empty_title",
+      "value": "保险库还是空的"
+    },
+    {
+      "name": "entry_empty_body",
+      "value": "创建第一个条目，或从下面的模板开始。"
+    },
+    {
+      "name": "entry_search_no_result_title",
+      "value": "没有匹配的条目"
+    },
+    {
+      "name": "entry_search_no_result_body",
+      "value": "试试其他关键词，或清除当前筛选。"
+    },
+    {
+      "name": "entry_clear_filter",
+      "value": "清除筛选"
+    },
+    {
+      "name": "entry_favorites_empty_title",
+      "value": "还没有收藏条目"
+    },
+    {
+      "name": "entry_archived_empty_title",
+      "value": "还没有归档条目"
+    },
+    {
+      "name": "entry_view_all",
+      "value": "查看全部条目"
+    },
+    {
+      "name": "group_filter_all",
+      "value": "全部分组"
     }
   ]
 }

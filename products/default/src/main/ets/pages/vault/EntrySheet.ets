@@ -54,7 +54,7 @@ export struct EntrySheet {
     this.childHandler = undefined
   }
 
-  // 半模态内容底部 = 窗口安全区 + 安全间距：与 SearchPage 同档，只让出安全区时最后一项仍压在导航条上。
+  // 半模态内容底部 = 窗口安全区 + 安全间距：只让出安全区时最后一项仍压在导航条上。
   @Computed
   get contentBottomOffset(): number {
     const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)

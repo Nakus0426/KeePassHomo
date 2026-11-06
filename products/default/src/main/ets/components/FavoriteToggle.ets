@@ -1,6 +1,6 @@
 import { IconToggleButton } from './IconToggleButton'
 
-// 星标色用 app.color.favorite：系统色板无收藏语义，橘黄为产品指定色
+// 收藏只换图标与主色，不换按钮形态；独占交互避免同时触发所在行点击。
 @ComponentV2
 export struct FavoriteToggle {
   @Param favorite: boolean = false
@@ -13,7 +13,7 @@ export struct FavoriteToggle {
     if (this.visible) {
       IconToggleButton({
         symbol: this.favorite ? $r('sys.symbol.star_fill') : $r('sys.symbol.star'),
-        symbolColor: this.favorite ? $r('app.color.favorite') : $r('sys.color.font_secondary'),
+        symbolColor: this.favorite ? $r('app.color.ds_primary') : $r('app.color.ds_text_tertiary'),
         accessibilityLabel: this.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
         clickable: this.clickable,
         // 收藏按钮嵌在整卡可点区域里，独占交互才能避免同时触发卡片点击。

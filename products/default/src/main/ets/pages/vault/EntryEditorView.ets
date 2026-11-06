@@ -66,7 +66,7 @@ export struct EntryEditorView {
       this.viewModel.loadEntryForEdit(this.editor, this.sheet.entryUuid)
       return
     }
-    this.viewModel.loadNewEntry(this.editor, this.sheet.newEntryTemplate)
+    this.viewModel.loadNewEntry(this.editor, this.sheet.newEntryTemplate, this.sheet.newEntryGroupUuid)
   }
 
   @Computed
@@ -424,7 +424,7 @@ export struct EntryEditorView {
         DsButton({
           label: $r('app.string.regenerate_password'),
           tone: DsButtonTone.Default,
-          leadingIcon: $r('app.string.symbol_refresh'),
+          trailingIcon: $r('app.string.symbol_refresh'),
           fullWidth: true,
           onTap: () => this.viewModel.generator.regenerate(),
         })
@@ -434,7 +434,7 @@ export struct EntryEditorView {
       Row() {
         DsButton({
           label: $r('app.string.fill_current_entry'),
-          leadingIcon: $r('app.string.symbol_check'),
+          trailingIcon: $r('app.string.symbol_check'),
           fullWidth: true,
           onTap: () => this.fillPasswordFromGenerator(),
         })

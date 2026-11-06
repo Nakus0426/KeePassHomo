@@ -105,6 +105,16 @@ HdsNavDestination() {
 
 这些页面只保留普通内容间距，不再计算状态栏高度、标题栏高度和 gap。
 
+## 保险库首页的 HdsNavigation 接线
+
+`AppShell` 的根 `HdsNavigation(appRouter.stack)` 只承载全局路由与 `HdsTabs`；四个一级页各自持有 `HdsNavigation()`，其中 `VaultHomePage` 的滚动列表与标题栏导航容器位于同一组件内。
+
+- `VaultHomePage` 的 `titleBar` 开启 `enableComponentSafeArea: true`，`bottomBuilder` 承载搜索与筛选区（高度 112vp）或批量选择头（高度 56vp）。
+- `HdsNavigation.bindToScrollable([scroller])` 绑定首页 `List`；标题栏渐变模糊与动态显隐都基于这条绑定。
+- `dynamicHideTitleBar` 使用 `hideTitleArea: false`（标题行常驻）和 `hideBottomBuilder: true`（搜索/筛选区收起），模式为 `HideMode.SCROLL_UP`。
+- `List` 使用 `EdgeEffect.Spring` 并在 `START | END` 两侧开启 `effectEdge`，保留触底回弹。HDS 在滚动到顶部/底部时会立即触发标题栏显示，这是官方文档明确的预期行为。
+- 其他一级页的标题栏走 `dsPageTitleBarOptions`，不套用该配置；解锁、搜索、分组管理等二级页始终作为根栈的 `HdsNavDestination`，入栈后覆盖整个页签容器。
+
 ## 检查项
 
 - 首屏第一个内容位于标题栏下方，并保留设计稿要求的内容间距。
@@ -117,7 +127,7 @@ HdsNavDestination() {
 - 不要在页面内写 `topInset + 标题栏高度 + gap` 的避让公式。
 - 不要把 `maskExtraHeight` 设成 `DS_PAGE_HEADER_HEIGHT_VP`。
 - 需要滚动穿透时，不要只设置 `enableComponentSafeArea: true` 而漏掉 `Scroll.clip(false)`。
-- 不要给 `HdsNavigation` 根容器的 Tab 内容直接套用本方案；`AppShell`、`SearchPage`、`VaultHomePage` 的标题栏结构不同，迁移前先单独核对。
+- 不要给其他模块直接套用本方案；保险库首页的 `HdsNavigation`、滚动列表和自定义标题栏在同一组件内，迁移前先核对结构。已接入页面见上一节。
 
 ## 参考
 

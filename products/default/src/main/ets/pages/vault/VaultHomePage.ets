@@ -1,135 +1,75 @@
-import { curves, ListItemModifier, SymbolGlyphModifier, UIContext } from '@kit.ArkUI'
-import { HdsListItem } from '@kit.UIDesignKit'
-import { AnimationTokens, AppToast, ItemTemplate, VaultEntry } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
-import { EntryCard } from '../../components/EntryCard'
-import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
-import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
-import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { AnimationTokens, AppToast, ItemTemplate } from '@ohos/common'
 import {
-  EntryRowModel,
-  HomeEntryListViewModel,
-  homeEntryListViewModel,
-  VaultEntryListHost,
-} from '../../viewmodel/HomeEntryListViewModel'
+  hdsMaterial,
+  HideMode,
+  HdsNavigation,
+  HdsNavigationTitleBarOptions,
+  HdsNavigationTitleMode,
+  ScrollEffectType,
+} from '@kit.UIDesignKit'
+import { ResUtil } from '@pura/harmony-utils'
+import { DsBottomActionBar } from '../../components/DsBottomActionBar'
+import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
+import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
+import {
+  VAULT_FILTER_BAR_HEIGHT_VP,
+  VAULT_TITLE_BAR_MASK_EXTRA_HEIGHT_VP,
+} from '../../constants/VaultHeaderMetrics'
+import { appSessionState, AppSessionState } from '../../state/AppSessionState'
+import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { ENTRY_FIELD_PASSWORD, ENTRY_FIELD_USERNAME } from '../../viewmodel/EntryPresentation'
+import { EntryGroupHeaderModel, EntryListItem, EntryListItemKind, EntryRowModel } from '../../viewmodel/EntryRowModel'
+import { HomeEntryListViewModel, homeEntryListViewModel } from '../../viewmodel/HomeEntryListViewModel'
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntrySheet } from './EntrySheet'
 import { EntryTemplatePicker } from './EntryTemplatePicker'
+import { VaultEntryRow } from './VaultEntryRow'
+import { vaultTabChrome } from './VaultTabChrome'
 
-const TITLE_BAR_FILTER_ROW_HEIGHT_VP: number = 56
-
-// 与卡片内边距同档，保持纵向节奏一致。
-const CARD_SPACING_VP: number = 8
-
-// 一屏约 7 张卡片，官方长列表最佳实践建议预加载一屏条数的 1/2。
-const CARD_CACHED_COUNT: number = 3
-
-// ViewModel 只发语义动作，动作体需要页面 UIContext，故先建实例再回填。
-class HomeListHost extends VaultEntryListHost {
-  onRowExit: (uuid: string) => void = () => {
-  }
-  onSnapshotRefresh: () => void = () => {
-  }
-  onDeleted: () => void = () => {
-  }
-  onFabSide: (right: boolean) => void = () => {
-  }
-
-  animateRowExit(uuid: string): void {
-    this.onRowExit(uuid)
-  }
-
-  refreshSnapshot(): void {
-    this.onSnapshotRefresh()
-  }
-
-  notifyDeleted(): void {
-    this.onDeleted()
-  }
-
-  animateFabSide(right: boolean): void {
-    this.onFabSide(right)
-  }
-}
-
-// 视图层只渲染行模型与列表动画，头像解析、收藏、删除编排都在 HomeEntryListViewModel。
 @ComponentV2
 export struct VaultHomePage {
-  @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
+  private readonly scroller: Scroller = new Scroller()
+  @Local private session: AppSessionState = appSessionState
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private list: HomeEntryListViewModel = homeEntryListViewModel
   @Local private app: AppViewModel = appViewModel
   @Local private templatePickerVisible: boolean = false
-  // 选择器未收起前不打开编辑半模态，避免两个半模态叠加。
+  @Local private batchBarHeight: number = 0
   private pickedTemplate: ItemTemplate | undefined = undefined
-  // HdsListItem 不支持通用属性，增删转场只能经 ListItemModifier 下发。
-  // animation 写在组合链首个效果上，按官方规则会同时作用于后面的 scale 效果。
-  private readonly entryCardItemModifier: ListItemModifier = new ListItemModifier()
-    .transition(TransitionEffect.asymmetric(
-      TransitionEffect.OPACITY
-        .animation({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        })
-        .combine(TransitionEffect.scale({
-          x: AnimationTokens.CARD_ENTER_SCALE,
-          y: AnimationTokens.CARD_ENTER_SCALE,
-        })),
-      TransitionEffect.OPACITY
-        .animation({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        })
-        .combine(TransitionEffect.scale({
-          x: AnimationTokens.CARD_EXIT_SCALE,
-          y: AnimationTokens.CARD_EXIT_SCALE,
-        })),
-    ))
-  // 列表与空态整屏切换只做交叉淡化，缩放留给卡片本身。
+  private pickedGroupUuid: string = ''
   private readonly stateSwitchTransition: TransitionEffect = TransitionEffect.OPACITY
     .animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
     })
-  @Local private removingEntryUuid: string = ''
-  @Local private fabAppeared: boolean = false
-  private readonly fabRulesRight: AlignRuleOption = {
-    right: { anchor: '__container__', align: HorizontalAlign.End },
-    bottom: { anchor: '__container__', align: VerticalAlign.Bottom },
-  }
-  private readonly fabRulesLeft: AlignRuleOption = {
-    left: { anchor: '__container__', align: HorizontalAlign.Start },
-    bottom: { anchor: '__container__', align: VerticalAlign.Bottom },
-  }
-  private readonly fabAppearCurve: ICurve = curves.interpolatingSpring(0, 1, 200, 17)
-  private readonly fabHandSwitchCurve: ICurve = curves.interpolatingSpring(0, 1, 170, 17)
-  private readonly listHost: HomeListHost = new HomeListHost()
-  // 快照由 vaultHomeViewModel 持有：锁定时清空、解锁与筛选变化时重建。
-  // 用引用本身作比较：每次重建都换新数组，否则会出现「快照有条目、列表为空」。
-  private syncedEntries: VaultEntry[] | undefined = undefined
+  private readonly itemTransition: TransitionEffect = TransitionEffect.asymmetric(
+    TransitionEffect.OPACITY
+      .animation({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      }),
+    TransitionEffect.OPACITY
+      .animation({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      }),
+  )
 
   aboutToAppear(): void {
-    this.listHost.onRowExit = (uuid: string): void => this.animateRowExit(uuid)
-    this.listHost.onSnapshotRefresh = (): void => this.app.refreshHomeSnapshot()
-    this.listHost.onDeleted =
-      (): void => AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
-    this.listHost.onFabSide = (right: boolean): void => this.animateFabSide(right)
-    this.list.subscribeHoldingHand(this.listHost)
+    this.list.subscribeHoldingHand()
+    this.list.refresh()
   }
 
   aboutToDisappear(): void {
     this.list.unsubscribeHoldingHand()
   }
 
-  // 比较快照引用而不是「列表为空就重建」：空库与筛选无命中本来就是空的。
-  private syncRows(): number {
-    const entries: VaultEntry[] = this.home.entries
-    if (this.syncedEntries !== entries) {
-      this.syncedEntries = entries
-      this.list.refresh()
-    }
-    return this.list.rows.length
+  @Monitor('home.entries')
+  onEntriesChanged(): void {
+    this.list.refresh()
   }
 
   @Monitor('app.status')
@@ -140,41 +80,87 @@ export struct VaultHomePage {
   }
 
   @Computed
-  get topAvoidAreaHeight(): number {
-    const titlebarHeightPx = ResUtil.getNumber($r('sys.float.titlebar_default_height').id)
-    const gapPx = ResUtil.getNumber($r('app.float.ds_space_sm').id)
-    const systemOffsetVp = this.getUIContext()
-      .px2vp(this.immersiveLayout.topAvoidAreaHeightPx + titlebarHeightPx + gapPx)
-    return systemOffsetVp + TITLE_BAR_FILTER_ROW_HEIGHT_VP
-  }
-
-  @Computed
   get bottomAvoidHeight(): number {
-    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
-    const gapVp: number = this.getUIContext().px2vp(gapPx)
-    // 悬浮按钮显示时，底部再让出按钮直径与按钮到内容的同档间距，避免压住最后一张卡片。
-    const fabInsetVp: number = this.showNewEntryFab ? this.newEntryFabDiameter + gapVp : 0
-    return TAB_BAR_FLOAT_TOP_INSET_VP + gapVp + fabInsetVp
-  }
-
-  // 空库入口由空态自带的「新建条目」按钮承担，只读保险库不提供新建入口。
-  @Computed
-  get showNewEntryFab(): boolean {
-    return this.home.hasAnyEntry && !this.app.currentSource().readOnly
-  }
-
-  @Computed
-  get newEntryFabDiameter(): number {
-    return this.getUIContext().px2vp(ResUtil.getNumber($r('sys.float.ohos_id_min_circle_button_diameter').id))
-  }
-
-  @Computed
-  get newEntryFabBottomInset(): number {
     const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
     return TAB_BAR_FLOAT_TOP_INSET_VP + this.getUIContext().px2vp(gapPx)
   }
 
-  private confirmDeleteEntry(row: EntryRowModel): void {
+  @Computed
+  get contentBottomAvoid(): number {
+    if (!this.home.batchMode) {
+      return this.bottomAvoidHeight
+    }
+    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
+    return this.batchBarHeight + this.getUIContext().px2vp(gapPx)
+  }
+
+  @Computed
+  get readOnly(): boolean {
+    return this.app.isReadOnly()
+  }
+
+  @Computed
+  get showNewEntryFab(): boolean {
+    return this.home.hasAnyEntry && !this.readOnly && !this.home.batchMode
+  }
+
+  @Computed
+  get readonlyBody(): ResourceStr {
+    return this.app.isKdbx31()
+      ? $r('app.string.vault_readonly_kdbx31')
+      : $r('app.string.vault_readonly_permission')
+  }
+
+  @Computed
+  get batchArchiveLabel(): ResourceStr {
+    return this.home.isArchivedMode
+      ? $r('app.string.entry_batch_restore')
+      : $r('app.string.entry_batch_archive')
+  }
+
+  private openTemplatePicker(groupUuid: string): void {
+    this.pickedGroupUuid = groupUuid
+    this.pickedTemplate = undefined
+    this.templatePickerVisible = true
+  }
+
+  // 选择器完全收起后才打开编辑半模态，顺序固定，不并发两个半模态。
+  private onTemplatePickerDisappeared(): void {
+    const template: ItemTemplate | undefined = this.pickedTemplate
+    if (template === undefined) {
+      return
+    }
+    const groupUuid: string = this.pickedGroupUuid
+    this.pickedTemplate = undefined
+    this.pickedGroupUuid = ''
+    entrySheetViewModel.openNew(template, groupUuid)
+  }
+
+  private onRowTap(row: EntryRowModel): void {
+    if (this.home.batchMode) {
+      this.toggleSelection(row.uuid)
+      return
+    }
+    entrySheetViewModel.openPreview(row.uuid)
+  }
+
+  private toggleSelection(uuid: string): void {
+    this.home.toggleSelection(uuid)
+  }
+
+  private enterBatch(uuid: string): void {
+    this.home.enterBatch(uuid)
+  }
+
+  private exitBatch(): void {
+    this.home.exitBatch()
+  }
+
+  private clearFilters(): void {
+    this.home.clearFilters()
+  }
+
+  private confirmDelete(row: EntryRowModel): void {
     const options: AlertDialogParamWithButtons = {
       title: $r('app.string.delete_entry_title'),
       message: $r('app.string.delete_entry_message'),
@@ -186,129 +172,209 @@ export struct VaultHomePage {
       secondaryButton: {
         value: $r('app.string.delete_entry'),
         fontColor: $r('app.color.ds_warning'),
-        action: () => this.list.deleteEntry(row.uuid, this.listHost),
+        action: () => {
+          this.app.deleteEntry(row.uuid).then((deleted: boolean) => {
+            if (deleted) {
+              this.app.refreshHomeSnapshot()
+              AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+            }
+          })
+        },
       },
     }
     this.getUIContext().showAlertDialog(options)
   }
 
-  private animateRowExit(uuid: string): void {
-    const uiContext: UIContext = this.getUIContext()
-    uiContext.animateTo({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-      onFinish: () => {
-        uiContext.animateTo({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        }, () => this.listHost.refreshSnapshot())
+  private confirmBatchDelete(): void {
+    const options: AlertDialogParamWithButtons = {
+      title: $r('app.string.entry_batch_delete_title'),
+      message: $r('app.string.entry_batch_delete_message'),
+      primaryButton: {
+        value: $r('app.string.cancel'),
+        action: () => {
+        },
       },
-    }, () => this.removingEntryUuid = uuid)
-  }
-
-  private animateFabSide(right: boolean): void {
-    this.getUIContext().animateTo({ curve: this.fabHandSwitchCurve }, () => this.list.fabRight = right)
-  }
-
-  @Builder
-  private emptyBuilder() {
-    Column({ space: $r('app.float.ds_space_6') }) {
-      Image($r('app.media.entry_empty'))
-        .draggable(false)
-        .width($r('app.float.vault_empty_icon_size'))
-        .height($r('app.float.vault_empty_icon_size'))
-
-      if (!this.app.currentSource().readOnly) {
-        Button() {
-          Row({ space: $r('app.float.ds_space_xs') }) {
-            SymbolGlyph($r('app.string.symbol_add'))
-              .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor([$r('app.color.ds_text_primary')])
-
-            Text($r('app.string.new_entry'))
-              .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('app.color.ds_text_primary'))
-          }
-        }
-        .height($r('sys.float.chip_normal_height'))
-        .buttonStyle(ButtonStyleMode.NORMAL)
-        .type(ButtonType.Capsule)
-        .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-        .onClick(() => this.templatePickerVisible = true)
-      }
+      secondaryButton: {
+        value: $r('app.string.entry_batch_delete'),
+        fontColor: $r('app.color.ds_warning'),
+        action: () => {
+          const uuids: string[] = this.home.selectedUuids
+          this.app.deleteEntries(uuids).then((deleted: boolean) => {
+            if (deleted) {
+              this.app.refreshHomeSnapshot()
+            }
+            this.exitBatch()
+          })
+        },
+      },
     }
-    .alignItems(HorizontalAlign.Center)
-    .translate({ y: '-50%' })
+    this.getUIContext().showAlertDialog(options)
+  }
+
+  private archiveSelection(): void {
+    const archived: boolean = !this.home.isArchivedMode
+    const uuids: string[] = this.home.selectedUuids
+    this.app.setArchivedMany(uuids, archived).then((applied: boolean) => {
+      if (applied) {
+        this.app.refreshHomeSnapshot()
+      }
+      this.exitBatch()
+    })
+  }
+
+  private copyField(row: EntryRowModel, fieldName: string): void {
+    const value: string = row.fieldValue(fieldName)
+    if (value.length === 0) {
+      return
+    }
+    this.app.copyValue(value).then((copied: boolean) => {
+      if (copied) {
+        AppToast.show(this.getUIContext(), $r('app.string.copy_completed'))
+      }
+    })
   }
 
   @Builder
-  private noResultBuilder() {
-    Image($r('app.media.entry_search_empty'))
-      .draggable(false)
-      .width($r('app.float.vault_empty_icon_size'))
-      .height($r('app.float.vault_empty_icon_size'))
-  }
-
-  @Builder
-  private entryCardSlot(item: RepeatItem<EntryRowModel>) {
+  private readonlyNotice() {
     Row() {
-      EntryCard({
-        entry: item.item.entry,
-        avatarData: item.item.avatarData,
-        favorite: item.item.favorite,
-        favoriteEnabled: !this.app.currentSource().readOnly,
-        onEntryClick: () => entrySheetViewModel.openPreview(item.item.uuid),
-        onFavoriteToggle: () => this.list.toggleFavorite(item.item.uuid),
-        onEdit: () => entrySheetViewModel.openEdit(item.item.uuid),
+      DsNotice({
+        tone: DsNoticeTone.Default,
+        title: $r('app.string.vault_readonly_title'),
+        body: this.readonlyBody,
       })
     }
     .width('100%')
-    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-    .height(this.removingEntryUuid === item.item.uuid ? 0 : 'auto')
-    .opacity(this.removingEntryUuid === item.item.uuid ? 0 : 1)
-    .scale({
-      x: this.removingEntryUuid === item.item.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
-      y: this.removingEntryUuid === item.item.uuid ? AnimationTokens.CARD_EXIT_SCALE : 1,
-    })
-    .clip(this.removingEntryUuid === item.item.uuid)
-    .animation({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+    .padding({
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+      bottom: $r('app.float.ds_space_sm'),
     })
   }
 
   @Builder
-  private entryListBuilder() {
-    List({ space: CARD_SPACING_VP }) {
-      ListItem() {
-        Column()
-          .width('100%')
-          .height(this.topAvoidAreaHeight - CARD_SPACING_VP)
-      }
+  private groupHeader(header: EntryGroupHeaderModel) {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Text(header.groupName)
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
+        .fontColor($r('app.color.ds_text_tertiary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Repeat<EntryRowModel>(this.list.rows)
-        .each((item: RepeatItem<EntryRowModel>) => {
-          HdsListItem({
-            customItemBuilder: () => {
-              // 必须整体传 RepeatItem：只传 item.item 会让复用节点读不到数据变化（官方 FAQ faqs-arkui-609）。
-              this.entryCardSlot(item)
-            },
-            listItemModifier: this.entryCardItemModifier,
-            swipeActionOptions: this.app.currentSource().readOnly ? undefined : {
-              icons: [{
-                icon: new SymbolGlyphModifier($r('app.string.symbol_edit'))
-                  .fontColor([$r('app.color.ds_on_primary')])
-                  .fontSize($r('sys.float.titlebar_icon_width')),
-                backgroundColor: $r('app.color.ds_primary'),
-                onAction: () => entrySheetViewModel.openEdit(item.item.uuid),
-              }],
-              deleteIconOptions: {
-                onAction: () => this.confirmDeleteEntry(item.item),
-              },
-            },
-          })
+      Text(String(header.count))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontFamily(PASSWORD_FONT_FAMILY)
+        .fontColor($r('app.color.ds_text_tertiary'))
+
+      Blank()
+
+      if (!this.readOnly && !this.home.batchMode) {
+        DsButton({
+          variant: DsButtonVariant.Text,
+          buttonSize: DsButtonSize.Small,
+          iconOnly: true,
+          leadingIcon: $r('app.string.symbol_add'),
+          iconSizeOverride: $r('app.float.ds_icon_sm'),
+          iconColorOverride: $r('app.color.ds_text_secondary'),
+          accessibilityLabelResource: $r('app.string.new_entry'),
+          onTap: () => this.openTemplatePicker(header.groupUuid),
         })
-        .key((row: EntryRowModel) => row.uuid)
+      }
+    }
+    .width('100%')
+    .height($r('app.float.ds_tab_height_sm'))
+    .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private swipeActions(row: EntryRowModel) {
+    Row() {
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
+        SymbolGlyph($r('app.string.symbol_edit'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_on_primary')])
+          .foregroundColor($r('app.color.ds_on_primary'))
+      }
+      .width($r('app.float.ds_swipe_action_width'))
+      .height('100%')
+      .borderRadius($r('app.float.ds_radius_none'))
+      .backgroundColor($r('app.color.ds_primary'))
+      .onClick(() => entrySheetViewModel.openEdit(row.uuid))
+
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
+        SymbolGlyph($r('app.string.symbol_delete'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_on_primary')])
+          .foregroundColor($r('app.color.ds_on_primary'))
+      }
+      .width($r('app.float.ds_swipe_action_width'))
+      .height('100%')
+      .borderRadius($r('app.float.ds_radius_none'))
+      .backgroundColor($r('app.color.ds_error'))
+      .onClick(() => this.confirmDelete(row))
+    }
+    .height('100%')
+  }
+
+  @Builder
+  private rowMenu(row: EntryRowModel) {
+    Menu() {
+      MenuItem({ content: $r('app.string.entry_menu_copy_username') })
+        .onClick(() => this.copyField(row, ENTRY_FIELD_USERNAME))
+      MenuItem({ content: $r('app.string.entry_menu_copy_password') })
+        .onClick(() => this.copyField(row, ENTRY_FIELD_PASSWORD))
+      if (!this.readOnly) {
+        MenuItem({ content: $r('app.string.entry_menu_edit') })
+          .onClick(() => entrySheetViewModel.openEdit(row.uuid))
+        MenuItem({
+          content: row.archived
+            ? $r('app.string.entry_menu_restore') : $r('app.string.entry_menu_archive'),
+        })
+          .onClick(() => {
+            this.app.toggleArchived(row.uuid).then(() => this.app.refreshHomeSnapshot())
+          })
+        MenuItem({ content: $r('app.string.entry_menu_select') })
+          .onClick(() => this.enterBatch(row.uuid))
+        MenuItem({ content: $r('app.string.entry_menu_delete') })
+          .onClick(() => this.confirmDelete(row))
+      }
+    }
+  }
+
+  @Builder
+  private entryRow(row: EntryRowModel) {
+    VaultEntryRow({
+      row: row,
+      favoriteEnabled: !this.readOnly && !this.home.batchMode,
+      onRowClick: () => this.onRowTap(row),
+      onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(row.uuid),
+    })
+      .bindContextMenu(this.rowMenu(row), ResponseType.LongPress, { preview: MenuPreviewMode.NONE })
+  }
+
+  @Builder
+  private entryList() {
+    List({ scroller: this.scroller }) {
+      Repeat<EntryListItem>(this.list.items)
+        .each((item: RepeatItem<EntryListItem>) => {
+          ListItem() {
+            if (item.item.kind === EntryListItemKind.Header) {
+              this.groupHeader(item.item.header!)
+            } else {
+              this.entryRow(item.item.row!)
+            }
+          }
+          .swipeAction({
+            end: item.item.kind === EntryListItemKind.Row && !this.readOnly && !this.home.batchMode
+              ? () => this.swipeActions(item.item.row!)
+              : undefined,
+            edgeEffect: SwipeEdgeEffect.None,
+          })
+          .transition(this.itemTransition)
+        })
+        .key((item: EntryListItem) => item.key)
         .virtualScroll({
           memoryOptimizationStrategy: RepeatMemOptStrategy.ENABLE_AUTO_CACHE_OPTIMIZATION,
         })
@@ -316,70 +382,224 @@ export struct VaultHomePage {
       ListItem() {
         Column()
           .width('100%')
-          .height(this.bottomAvoidHeight - CARD_SPACING_VP)
+          .height(this.contentBottomAvoid)
       }
     }
     .width('100%')
-    .height('100%')
+    .layoutWeight(1)
     .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-    .cachedCount(CARD_CACHED_COUNT)
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
+    .cachedCount(6)
+    .clip(false)
     .onTouch(() => this.app.recordActivity())
     .transition(this.stateSwitchTransition)
   }
 
   @Builder
-  private emptyStateBuilder() {
-    Scroll() {
-      Column() {
-        if (this.home.hasAnyEntry) {
-          this.noResultBuilder()
-        } else {
-          this.emptyBuilder()
-        }
+  private templateShortcut(template: ItemTemplate, title: Resource, description: Resource, icon: Resource) {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
+      Column({ space: $r('app.float.ds_space_6') }) {
+        SymbolGlyph(icon)
+          .fontSize($r('app.float.ds_icon_md'))
+          .fontColor([$r('app.color.ds_text_primary')])
+          .foregroundColor($r('app.color.ds_text_primary'))
+        Text(title)
+          .width('100%')
+          .fontSize($r('app.float.ds_font_label_md'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(description)
+          .width('100%')
+          .fontSize($r('app.float.ds_font_micro'))
+          .lineHeight($r('app.float.ds_line_height_micro'))
+          .fontColor($r('app.color.ds_text_secondary'))
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Start)
+    }
+    .layoutWeight(1)
+    .height($r('app.float.ds_template_shortcut_height'))
+    .padding($r('app.float.ds_space_md'))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .onClick(() => entrySheetViewModel.openNew(template))
+  }
+
+  @Builder
+  private emptyVault() {
+    Column({ space: $r('app.float.ds_space_24') }) {
+      Stack({ alignContent: Alignment.Center }) {
+        SymbolGlyph($r('app.string.symbol_key'))
+          .fontSize($r('app.float.ds_icon_lg'))
+          .fontColor([$r('app.color.ds_text_secondary')])
+          .foregroundColor($r('app.color.ds_text_secondary'))
+      }
+      .width($r('app.float.ds_empty_icon_size'))
+      .height($r('app.float.ds_empty_icon_size'))
+      .backgroundColor($r('app.color.ds_surface_high'))
+
+      Text($r('app.string.entry_empty_title'))
+        .fontSize($r('app.float.ds_font_headline_md'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+
+      Text($r('app.string.entry_empty_body'))
+        .width($r('app.float.ds_empty_body_width'))
+        .textAlign(TextAlign.Center)
+        .fontSize($r('app.float.ds_font_body_sm'))
+        .lineHeight($r('app.float.ds_line_height_body_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+
+      if (!this.readOnly) {
+        Row({ space: $r('app.float.ds_space_sm') }) {
+          this.templateShortcut(ItemTemplate.Login, $r('app.string.login_template'),
+            $r('app.string.login_template_description'), $r('app.string.symbol_key'))
+          this.templateShortcut(ItemTemplate.Password, $r('app.string.password_template'),
+            $r('app.string.password_template_description'), $r('app.string.symbol_key'))
+          this.templateShortcut(ItemTemplate.SecureNote, $r('app.string.secure_note_template'),
+            $r('app.string.secure_note_template_description'), $r('app.string.symbol_notes'))
+        }
+        .width('100%')
+
+        DsButton({
+          label: $r('app.string.new_entry'),
+          variant: DsButtonVariant.Filled,
+          buttonSize: DsButtonSize.Medium,
+          onTap: () => this.openTemplatePicker(''),
+        })
+      }
     }
     .width('100%')
-    .height('100%')
-    .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
     .padding({
-      top: this.topAvoidAreaHeight,
-      left: $r('app.float.ds_space_sm'),
-      right: $r('app.float.ds_space_sm'),
-      bottom: this.bottomAvoidHeight,
+      top: $r('app.float.ds_space_16'),
+      bottom: $r('app.float.ds_space_16'),
+      left: $r('app.float.ds_space_24'),
+      right: $r('app.float.ds_space_24'),
     })
-    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     .transition(this.stateSwitchTransition)
   }
 
-  // 位置由 alignRules 锚定容器左右下角，左右翻转靠 if/else 换节点。
-  // 由 move 转场播出官方要求的「沿本侧滑出屏幕外、从对侧滑入」绕行动效。
-  @LocalBuilder
-  private newEntryFab(right: boolean) {
-    Button({ type: ButtonType.Circle }) {
-      SymbolGlyph($r('app.string.symbol_add'))
-        .fontSize($r('sys.float.ohos_id_min_circle_button_icon_size'))
-        .fontColor([$r('app.color.ds_on_primary')])
+  @Computed
+  get emptyTitle(): ResourceStr {
+    if (this.home.searchQuery.length > 0) {
+      return $r('app.string.entry_search_no_result_title')
     }
-    .width(this.newEntryFabDiameter)
-    .height(this.newEntryFabDiameter)
-    .alignRules(right ? this.fabRulesRight : this.fabRulesLeft)
-    .backgroundColor($r('app.color.ds_primary'))
-    .shadow(ShadowStyle.OUTER_FLOATING_SM)
-    .margin({
-      left: $r('app.float.ds_space_sm'),
-      right: $r('app.float.ds_space_sm'),
-      bottom: this.newEntryFabBottomInset,
+    if (this.home.isFavoritesMode) {
+      return $r('app.string.entry_favorites_empty_title')
+    }
+    if (this.home.isArchivedMode) {
+      return $r('app.string.entry_archived_empty_title')
+    }
+    return $r('app.string.entry_search_no_result_title')
+  }
+
+  @Builder
+  private emptyFiltered() {
+    Column({ space: $r('app.float.ds_space_16') }) {
+      Stack({ alignContent: Alignment.Center }) {
+        SymbolGlyph($r('app.string.symbol_search'))
+          .fontSize($r('app.float.ds_icon_lg'))
+          .fontColor([$r('app.color.ds_text_secondary')])
+          .foregroundColor($r('app.color.ds_text_secondary'))
+      }
+      .width($r('app.float.ds_empty_icon_size'))
+      .height($r('app.float.ds_empty_icon_size'))
+      .backgroundColor($r('app.color.ds_surface_high'))
+
+      Text(this.emptyTitle)
+        .fontSize($r('app.float.ds_font_headline_md'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+
+      if (this.home.searchQuery.length > 0 || this.home.isAllMode) {
+        Text($r('app.string.entry_search_no_result_body'))
+          .fontSize($r('app.float.ds_font_body_sm'))
+          .fontColor($r('app.color.ds_text_secondary'))
+      }
+
+      DsButton({
+        label: this.home.searchQuery.length > 0 || !this.home.isAllMode
+          ? $r('app.string.entry_clear_filter') : $r('app.string.entry_view_all'),
+        variant: DsButtonVariant.Filled,
+        tone: DsButtonTone.Default,
+        buttonSize: DsButtonSize.Medium,
+        onTap: () => this.clearFilters(),
+      })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .padding({
+      top: $r('app.float.ds_space_16'),
+      bottom: $r('app.float.ds_space_16'),
+      left: $r('app.float.ds_space_24'),
+      right: $r('app.float.ds_space_24'),
     })
-    .transition(TransitionEffect.move(right ? TransitionEdge.END : TransitionEdge.START)
-      .animation({ curve: this.fabAppeared ? this.fabHandSwitchCurve : this.fabAppearCurve }))
-    .accessibilityText($r('app.string.new_entry'))
-    .onAppear(() => this.fabAppeared = true)
-    .onClick(() => this.templatePickerVisible = true)
+    .transition(this.stateSwitchTransition)
+  }
+
+  @LocalBuilder
+  private batchActions() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Row() {
+        DsButton({
+          label: this.batchArchiveLabel,
+          variant: DsButtonVariant.Filled,
+          tone: DsButtonTone.Default,
+          buttonSize: DsButtonSize.Medium,
+          fullWidth: true,
+          onTap: () => this.archiveSelection(),
+        })
+      }
+      .layoutWeight(1)
+
+      Row() {
+        DsButton({
+          label: $r('app.string.entry_batch_delete'),
+          variant: DsButtonVariant.Filled,
+          tone: DsButtonTone.Default,
+          buttonSize: DsButtonSize.Medium,
+          fullWidth: true,
+          backgroundColorOverride: $r('app.color.ds_error_container'),
+          contentColorOverride: $r('app.color.ds_on_error_container'),
+          onTap: () => this.confirmBatchDelete(),
+        })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private newEntryFab() {
+    Row() {
+      DsButton({
+        variant: DsButtonVariant.Filled,
+        tone: DsButtonTone.Primary,
+        buttonSize: DsButtonSize.Large,
+        iconOnly: true,
+        leadingIcon: $r('app.string.symbol_add'),
+        controlHeightOverride: $r('app.float.ds_cta_height'),
+        iconSizeOverride: $r('app.float.ds_icon_md'),
+        accessibilityLabelResource: $r('app.string.new_entry'),
+        onTap: () => this.openTemplatePicker(''),
+      })
+    }
+    .width('100%')
+    .justifyContent(this.list.fabRight ? FlexAlign.End : FlexAlign.Start)
+    .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
+    .margin({ bottom: this.bottomAvoidHeight })
+    .transition(TransitionEffect.OPACITY.animation({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+    }))
   }
 
   @Builder
@@ -394,49 +614,121 @@ export struct VaultHomePage {
     })
   }
 
-  build() {
-    RelativeContainer() {
-      // 无保险库时首页无内容可说：currentSource() 是 fail-fast 断言，未选定保险库时不得读取。
-      if (this.app.hasRecentVault()) {
-        // 判空与列表渲染必须读同一个数据源，否则会出现「判空说有、列表渲染是空」。
-        if (this.syncRows() > 0) {
-          this.entryListBuilder()
-        } else {
-          this.emptyStateBuilder()
-        }
+  // 须在组件上下文内调用契约供给的 WrappedBuilder：直接传全局 @Builder 引用会丢失渲染上下文。
+  @Builder
+  private vaultTitleRow() {
+    vaultTabChrome.titleRowBuilder!.builder()
+  }
 
-        if (this.showNewEntryFab) {
-          if (this.list.fabRight) {
-            this.newEntryFab(true)
-          } else {
-            this.newEntryFab(false)
+  @Builder
+  private vaultSelectionRow() {
+    vaultTabChrome.selectionRowBuilder!.builder()
+  }
+
+  @Builder
+  private vaultBottomRow() {
+    vaultTabChrome.bottomRowBuilder!.builder()
+  }
+
+  @Computed
+  get titleBarOptions(): HdsNavigationTitleBarOptions {
+    return {
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: true,
+      style: {
+        scrollEffectOpts: {
+          enableScrollEffect: true,
+          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+        },
+        originalStyle: {
+          backgroundStyle: {
+            maskExtraHeight: VAULT_TITLE_BAR_MASK_EXTRA_HEIGHT_VP,
+          },
+        },
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+        },
+      },
+      content: {
+        title: { mainTitle: '' },
+        stackBuilder: this.home.batchMode
+          ? (): void => this.vaultSelectionRow()
+          : (): void => this.vaultTitleRow(),
+        bottomBuilder: this.session.vaultLocked || this.home.batchMode
+          ? undefined
+          : {
+            builder: (): void => this.vaultBottomRow(),
+            height: VAULT_FILTER_BAR_HEIGHT_VP,
+          },
+      },
+    }
+  }
+
+  // HdsNavigation 须与滚动 List 同组件，dynamicHideTitleBar 才能接管连续滑动。
+  build() {
+    HdsNavigation() {
+      Stack({ alignContent: Alignment.Bottom }) {
+        Column() {
+          if (this.app.hasRecentVault()) {
+            if (!this.home.batchMode && this.readOnly) {
+              this.readonlyNotice()
+            }
+
+            if (this.list.items.length > 0) {
+              this.entryList()
+            } else if (this.home.hasAnyEntry) {
+              this.emptyFiltered()
+            } else {
+              this.emptyVault()
+            }
           }
         }
+        .width('100%')
+        .height('100%')
 
-        Stack()
-          .width(0)
-          .height(0)
-          .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), {
-            dragBar: true,
-            showClose: false,
-            backgroundColor: $r('app.color.ds_surface_lowest'),
-            onDisappear: () => this.onTemplatePickerDisappeared(),
+        if (this.home.batchMode) {
+          DsBottomActionBar({
+            includeSafeArea: true,
+            onHeightChange: (height: number) => {
+              this.batchBarHeight = height
+            },
+            contentBuilder: this.batchActions,
           })
+        } else if (this.showNewEntryFab) {
+          this.newEntryFab()
+        }
 
-        EntrySheet({ sheet: entrySheetViewModel })
+        if (this.app.hasRecentVault()) {
+          Stack()
+            .width(0)
+            .height(0)
+            .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), {
+              dragBar: true,
+              showClose: false,
+              backgroundColor: $r('app.color.ds_surface_lowest'),
+              onDisappear: () => this.onTemplatePickerDisappeared(),
+            })
+
+          EntrySheet({ sheet: entrySheetViewModel })
+        }
       }
+      .width('100%')
+      .height('100%')
     }
     .width('100%')
     .height('100%')
-  }
-
-  // 选择器完全收起后才打开编辑半模态，顺序固定，不并发两个半模态。
-  private onTemplatePickerDisappeared(): void {
-    const template: ItemTemplate | undefined = this.pickedTemplate
-    if (template === undefined) {
-      return
-    }
-    this.pickedTemplate = undefined
-    entrySheetViewModel.openNew(template)
+    .hideBackButton(true)
+    .titleBar(this.titleBarOptions)
+    .bindToScrollable([this.scroller])
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .dynamicHideTitleBar({
+      hideTitleArea: false,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP,
+    })
+    .mode(NavigationMode.Stack)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
   }
 }

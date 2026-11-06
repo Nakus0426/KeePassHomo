@@ -14,7 +14,7 @@ import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSeg
 import { DsStrengthMeter } from '../../components/DsStrengthMeter'
 import { DsSwitch } from '../../components/DsSwitch'
 import { DsTabs, DsTabsItem, DsTabsSize } from '../../components/DsTabs'
-import { strengthLabel } from '../../components/PasswordStrengthIndicator'
+import { strengthLabel } from '../../viewmodel/EntryPresentation'
 import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
@@ -445,7 +445,7 @@ export struct GeneratorContent {
             label: $r('app.string.copy'),
             buttonSize: DsButtonSize.Small,
             tone: DsButtonTone.Default,
-            leadingIcon: $r('app.string.symbol_copy'),
+            trailingIcon: $r('app.string.symbol_copy'),
             iconSizeOverride: $r('app.float.ds_icon_tiny'),
             onTap: () => this.copyPassword(),
           })

@@ -1,8 +1,5 @@
 import { AnimationTokens } from '@ohos/common'
 
-// 滑动操作按钮宽度：ListItem 划出组件无对应系统尺寸 token，取图标加两侧内边距的固定宽度。
-const SWIPE_ACTION_WIDTH_VP: number = 64
-
 export class GroupRowShift {
   private previousOrder: string[] = []
   private rowHeightVp: number = 0
@@ -77,7 +74,7 @@ export struct GroupRow {
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
       }
-      .width(SWIPE_ACTION_WIDTH_VP)
+      .width($r('app.float.ds_swipe_action_width'))
       .height('100%')
       .backgroundColor($r('sys.color.brand'))
       .onClick(() => this.onEdit())
@@ -87,7 +84,7 @@ export struct GroupRow {
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
       }
-      .width(SWIPE_ACTION_WIDTH_VP)
+      .width($r('app.float.ds_swipe_action_width'))
       .height('100%')
       .backgroundColor($r('sys.color.warning'))
       .onClick(() => this.onDelete())

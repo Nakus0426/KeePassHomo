@@ -1,16 +1,28 @@
-// 悬浮底部页签几何：页签由 AppShell 自绘并覆盖在内容区之上，页面据此推算底部内容让位
+// 悬浮底部页签几何：页签栏由 DsBottomTabBar 覆盖在内容区之上，页面据此推算底部内容让位
 
 // 页签栏与窗口底部的间距
 export const TAB_BAR_FLOAT_BOTTOM_MARGIN_VP: number = 28
 
-// 页签栏行高，取自设计稿前沿用 HDS 页签行 48vp 加玻璃上下内边距各 4vp
+// 页签栏行高，取自设计稿权威值：HDS 页签行 48vp 加上下内边距各 4vp
 export const TAB_BAR_FLOAT_HEIGHT_VP: number = 56
+
+// 页签栏左右与窗口边缘的间距
+export const TAB_BAR_SIDE_MARGIN_VP: number = 16
+
+// 页签栏外框内边距
+export const TAB_BAR_INNER_PADDING_VP: number = 4
+
+// 槽位间距
+export const TAB_BAR_SLOT_GAP_VP: number = 2
 
 // 页面内容底部须让开的高度
 export const TAB_BAR_FLOAT_TOP_INSET_VP: number = TAB_BAR_FLOAT_BOTTOM_MARGIN_VP + TAB_BAR_FLOAT_HEIGHT_VP
 
-// 页签图标槽位边长：位图内容只占画布约 87%，取 26vp 才能与内置 symbol 的墨迹大小一致
-export const TAB_ICON_SIZE_VP: number = 26
+// 页签栏渐隐遮罩高度与页签栏总高度一致，不向内容区额外延伸
+export const TAB_BAR_GRADIENT_HEIGHT_VP: number = TAB_BAR_FLOAT_TOP_INSET_VP
+
+// 页签图标槽位边长：Pen Bottom Nav 按 18vp 绘制。
+export const TAB_ICON_SIZE_VP: number = 18
 
 // 页签图标与文字间距，对齐内置底部页签的实测视觉间距
 export const TAB_ICON_LABEL_GAP_VP: number = 2

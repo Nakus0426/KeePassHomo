@@ -1,77 +1,61 @@
 import { UIObserver } from '@kit.ArkUI'
+import { AnimationTokens } from '@ohos/common'
 import {
   CustomTransitionDelegate,
-  hdsMaterial,
   HdsNavigation,
-  HdsNavigationMenuItemOptions,
-  HdsNavigationTitleBarOptions,
   HdsNavigationTitleMode,
-  IconStyleMode,
-  ScrollEffectType,
+  HdsTabs,
+  HdsTabsController,
 } from '@kit.UIDesignKit'
 import { ROUTE_GENERATOR, ROUTE_SECURITY, ROUTE_SETTINGS, ROUTE_VAULT } from '../constants/RouteConstants'
-import {
-  TAB_BAR_FLOAT_BOTTOM_MARGIN_VP,
-  TAB_BAR_FLOAT_HEIGHT_VP,
-  TAB_ICON_LABEL_GAP_VP,
-  TAB_ICON_SIZE_VP,
-  TAB_LABEL_FONT_SIZE_FP,
-} from '../constants/TabBarMetrics'
+import { TAB_BAR_GRADIENT_HEIGHT_VP } from '../constants/TabBarMetrics'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { fadeNavTransition } from '../navigation/NavFadeTransition'
 import { appViewModel } from '../viewmodel/AppViewModel'
 import { VaultHomePage } from '../pages/vault/VaultHomePage'
-import { vaultTabChrome } from '../pages/vault/VaultTabChrome'
 import { DsPageHeader, DsPageHeaderAction } from './DsPageHeader'
 import { dsPageTitleBarOptions } from './DsPageTitleBar'
-import { ModuleTabChrome } from './ModuleTabChrome'
+import { DsBottomTabBar, DsBottomTabBarItem } from './DsBottomTabBar'
 import { ModulePendingContent } from '../pages/modules/ModulePendingContent'
 import { GeneratorPage } from '../pages/generator/GeneratorPage'
-import { generatorTabChrome } from '../pages/generator/GeneratorTabChrome'
+import { VaultHomeViewModel, vaultHomeViewModel } from '../viewmodel/VaultHomeViewModel'
 
-// 数组顺序即页签顺序。选中态用两套位图表达，矩形选中底由自绘页签给出。
+// 数组顺序即页签顺序。选中态由 HdsTabs 的自定义页签 Builder 给出。
 interface ModuleTabDescriptor {
   route: string
   label: Resource
   icon: Resource
-  selectedIcon: Resource
-  chrome?: ModuleTabChrome
 }
 
 const MODULES: ModuleTabDescriptor[] = [
   {
     route: ROUTE_VAULT,
     label: $r('app.string.vault_home'),
-    icon: $r('app.media.nav_vault_normal'),
-    selectedIcon: $r('app.media.nav_vault_selected'),
-    chrome: vaultTabChrome,
+    icon: $r('app.string.symbol_key'),
   },
   {
     route: ROUTE_SECURITY,
     label: $r('app.string.security_center'),
-    icon: $r('app.media.nav_security_normal'),
-    selectedIcon: $r('app.media.nav_security_selected'),
+    icon: $r('app.string.symbol_verified_user'),
   },
   {
     route: ROUTE_GENERATOR,
     label: $r('app.string.password_generator'),
-    icon: $r('app.media.nav_generator_normal'),
-    selectedIcon: $r('app.media.nav_generator_selected'),
-    chrome: generatorTabChrome,
+    icon: $r('app.string.symbol_bolt'),
   },
   {
     route: ROUTE_SETTINGS,
     label: $r('app.string.settings'),
-    icon: $r('app.media.nav_settings_normal'),
-    selectedIcon: $r('app.media.nav_settings_selected'),
+    icon: $r('app.string.symbol_settings'),
   },
 ]
 
 @ComponentV2
 export struct AppShell {
   @Local private session: AppSessionState = appSessionState
-  private readonly tabsController: TabsController = new TabsController()
+  @Local private home: VaultHomeViewModel = vaultHomeViewModel
+  private readonly tabsController: HdsTabsController = new HdsTabsController()
   private uiObserver: UIObserver | undefined = undefined
 
   aboutToAppear(): void {
@@ -101,6 +85,12 @@ export struct AppShell {
     appViewModel.onForegroundEpochChanged()
   }
 
+  // AppViewModel 在创建/解锁时会直接改 currentModule，HdsTabs 没有 index 属性，必须显式同步。
+  @Monitor('session.currentModule')
+  onCurrentModuleChanged(): void {
+    this.tabsController.changeIndex(this.moduleIndex)
+  }
+
   // clearToHome 回首页用零时长转场；其余委托 fadeNavTransition 解析。
   // 平台限制：本委托存在时页面级 systemTransition 不生效，须统一在此分发。
   private readonly navTransition: CustomTransitionDelegate =
@@ -125,27 +115,17 @@ export struct AppShell {
   }
 
   @Computed
-  get currentTab(): ModuleTabDescriptor {
-    return MODULES[this.moduleIndex]
-  }
-
-  @Computed
-  get isVaultModule(): boolean {
-    return this.currentTab.route === ROUTE_VAULT
-  }
-
-  @Computed
   get pageHeaderActions(): DsPageHeaderAction[] {
-    const actions: DsPageHeaderAction[] = []
-    const moduleActions: DsPageHeaderAction[] = this.currentTab.chrome?.headerActions?.() ?? []
-    for (const action of moduleActions) {
-      actions.push(action)
-    }
-    actions.push(this.buildLockAction())
-    return actions
+    return [this.buildLockAction()]
   }
 
-  // 页头动作与标题栏菜单共用同一个锁定项，避免两处重复构造。
+  @Computed
+  get bottomTabItems(): DsBottomTabBarItem[] {
+    return MODULES.map((module: ModuleTabDescriptor): DsBottomTabBarItem => {
+      return { label: module.label, icon: module.icon }
+    })
+  }
+
   private buildLockAction(): DsPageHeaderAction {
     return {
       icon: $r('app.string.symbol_lock'),
@@ -156,116 +136,59 @@ export struct AppShell {
     }
   }
 
-  // 内容须铺满页签，否则点击热区只覆盖墨迹；选中态在 Builder 内读状态，切换时才会刷新。
   @Builder
-  private tabItem(module: ModuleTabDescriptor, index: number) {
-    Column({ space: TAB_ICON_LABEL_GAP_VP }) {
-      Image(this.moduleIndex === index ? module.selectedIcon : module.icon)
-        .width(TAB_ICON_SIZE_VP)
-        .height(TAB_ICON_SIZE_VP)
-        .interpolation(ImageInterpolation.High)
-      Text(module.label)
-        .fontSize(TAB_LABEL_FONT_SIZE_FP)
-        .fontColor(this.moduleIndex === index ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_secondary'))
-        .maxLines(1)
-    }
-    .layoutWeight(1)
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.moduleIndex === index ? $r('app.color.ds_surface_high') : Color.Transparent)
-    .onClick(() => {
-      this.tabsController.changeIndex(index)
-      appViewModel.switchModule(module.route)
-    })
-  }
-
-  @Builder
-  private floatingTabBar() {
-    Column() {
-      Row() {
-        ForEach(MODULES, (module: ModuleTabDescriptor, index: number) => {
-          this.tabItem(module, index)
-        }, (module: ModuleTabDescriptor) => module.route)
-      }
-      .width('100%')
-      .height(TAB_BAR_FLOAT_HEIGHT_VP)
-      .backgroundColor($r('app.color.ds_surface_low'))
-    }
-    .width('100%')
-    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-    .margin({ bottom: TAB_BAR_FLOAT_BOTTOM_MARGIN_VP })
-  }
-
-  // 须在组件上下文内调用契约供给的 WrappedBuilder：直接传全局 @Builder 引用会丢失渲染上下文。
-  @Builder
-  private moduleTitleRow() {
-    this.currentTab.chrome!.titleRowBuilder!.builder()
-  }
-
-  @Builder
-  private moduleBottomRow() {
-    this.currentTab.chrome!.bottomRowBuilder!.builder()
-  }
-
-  @Computed
-  get vaultTitleBarOptions(): HdsNavigationTitleBarOptions {
-    const chrome: ModuleTabChrome | undefined = this.currentTab.chrome
-    const menuItems: HdsNavigationMenuItemOptions[] = []
-    const moduleMenuItems: HdsNavigationMenuItemOptions[] = chrome?.menuItems?.() ?? []
-    for (const item of moduleMenuItems) {
-      menuItems.push(item)
-    }
-    const lockAction: DsPageHeaderAction = this.buildLockAction()
-    menuItems.push({
-      content: {
-        icon: lockAction.icon,
-        type: IconStyleMode.SMALL,
-        label: lockAction.label,
-        action: lockAction.onTap,
-      },
-    })
-
-    return {
-      avoidLayoutSafeArea: true,
-      style: {
-        scrollEffectOpts: {
-          enableScrollEffect: false,
-          scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
-        },
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.ADAPTIVE,
-        },
-      },
-      content: {
-        title: chrome?.titleRowBuilder !== undefined
-          ? { mainTitle: '' }
-          : {
-            mainTitle: this.currentTab.label,
-            subTitle: chrome?.subtitle?.(),
-          },
-        stackBuilder: chrome?.titleRowBuilder !== undefined ? (): void => this.moduleTitleRow() : undefined,
-        bottomBuilder: chrome?.bottomRowBuilder !== undefined && !this.session.vaultLocked
-          ? { builder: (): void => this.moduleBottomRow() }
-          : undefined,
-        menu: { value: menuItems },
-      },
-    }
-  }
-
-  @Builder
-  private pageHeaderBuilder() {
+  private moduleHeader(module: ModuleTabDescriptor) {
     DsPageHeader({
-      title: this.currentTab.label,
+      title: module.label,
       showBack: false,
       actions: this.pageHeaderActions,
     })
   }
 
-  @Computed
-  get titleBarOptions(): HdsNavigationTitleBarOptions {
-    return this.isVaultModule
-      ? this.vaultTitleBarOptions
-      : dsPageTitleBarOptions((): void => this.pageHeaderBuilder())
+  // 页签根页各自持有 HdsNavigation，列表与标题栏才能继续走 dynamicHideTitleBar。
+  @Builder
+  private modulePage(module: ModuleTabDescriptor) {
+    HdsNavigation() {
+      if (module.route === ROUTE_GENERATOR) {
+        GeneratorPage()
+      } else {
+        ModulePendingContent()
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .hideBackButton(true)
+    .titleBar(dsPageTitleBarOptions((): void => this.moduleHeader(module)))
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .mode(NavigationMode.Stack)
+    .backgroundColor($r('app.color.ds_surface_canvas'))
+  }
+
+  // 纯色渐变遮罩：沿用 DsBottomActionBar 的透明到画布色处理，不叠模糊层。
+  @Builder
+  private bottomTabBar() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      Column()
+        .width('100%')
+        .height(TAB_BAR_GRADIENT_HEIGHT_VP)
+        .linearGradient({
+          angle: 180,
+          colors: [
+            [$r('app.color.ds_surface_canvas_transparent'), 0],
+            [$r('app.color.ds_surface_canvas'), 1],
+          ],
+        })
+        .hitTestBehavior(HitTestMode.None)
+
+      DsBottomTabBar({
+        items: this.bottomTabItems,
+        selectedIndex: this.moduleIndex,
+        onSelect: (index: number) => this.tabsController.changeIndex(index),
+      })
+    }
+    .width('100%')
+    .height(TAB_BAR_GRADIENT_HEIGHT_VP)
+    .hitTestBehavior(HitTestMode.Transparent)
   }
 
   // 前后台切换时的隐私遮罩：只露品牌标识，不展示启动页的版本号与加载节拍。
@@ -287,31 +210,35 @@ export struct AppShell {
     Stack() {
       HdsNavigation(appRouter.stack) {
         Stack({ alignContent: Alignment.Bottom }) {
-          Tabs({ controller: this.tabsController, index: this.moduleIndex }) {
+          HdsTabs({ controller: this.tabsController }) {
             TabContent() {
               VaultHomePage()
             }
 
             TabContent() {
-              ModulePendingContent()
+              this.modulePage(MODULES[1])
             }
 
             TabContent() {
-              GeneratorPage()
+              this.modulePage(MODULES[2])
             }
 
             TabContent() {
-              ModulePendingContent()
+              this.modulePage(MODULES[3])
             }
           }
-          .barHeight(0)
-          .barBackgroundColor(Color.Transparent)
-          .scrollable(false)
-          .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
           .width('100%')
           .height('100%')
+          .vertical(false)
+          .barPosition(BarPosition.End)
+          .barHeight(0)
+          .scrollable(false)
+          .animationDuration(AnimationTokens.DURATION_FEEDBACK)
+          .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
 
-          this.floatingTabBar()
+          if (!this.home.batchMode) {
+            this.bottomTabBar()
+          }
         }
         .width('100%')
         .height('100%')
@@ -319,8 +246,7 @@ export struct AppShell {
       .width('100%')
       .height('100%')
       .hideBackButton(true)
-      .titleBar(this.titleBarOptions)
-      .titleMode(HdsNavigationTitleMode.MINI)
+      .hideTitleBar(true)
       .customNavContentTransition(this.navTransition)
       .mode(NavigationMode.Stack)
       .backgroundColor($r('app.color.ds_surface_canvas'))

@@ -12,5 +12,6 @@
 | [arkui-half-modal.md](arkui-half-modal.md)                                     | 说明手册 | 半模态弹窗 DsHalfModalSheet 的悬浮标题栏、滚动穿透、沉浸式预览与最佳实践 | 新增或调整半模态弹窗时对照 |
 | [arkui-symbol-morph.md](arkui-symbol-morph.md)                                 | 说明手册 | 图标 region morph 管线（64 点重采样 + Procrustes）、Canvas 逐帧绘制与按钮接线 | 新增形变图标或调整 MorphIcon 时对照 |
 | [arkui-builder-slot.md](arkui-builder-slot.md)                                 | 说明手册 | `@BuilderParam` 内容插槽的 `this` 指向问题、`@LocalBuilder` 正确写法与约束 | 新增或改动组件内容插槽时对照 |
+| [emulator-ui-inspection.md](emulator-ui-inspection.md)                         | 说明手册 | 模拟器 UI 截图/布局取证命令，以及「密码框聚焦导致截图全黑」的避坑 | 用 devecocli ui 截图或排查疑似截图黑屏时对照 |
 | [icon-migration-mapping.md](icon-migration-mapping.md)                         | 说明手册 | Material Symbols 图标映射、字体生成参数、资源键与系统图标对照表          | 增删图标或重生成字体时更新             |
 | [stage-0-technical-validation.md](stage-0-technical-validation.md)             | 归档   | 阶段 0 的技术验证结论：kdbxweb 评估、系统能力决策、模拟器人工验收明细、待复验的平台限制 | 不再更新；仅当相关平台限制在真实设备复验后补记  |

@@ -18,6 +18,8 @@ export class EntrySheetViewModel {
   @Trace entryUuid: string = ''
   // 新建时选定的模板类型：编辑会话内固定，不随条目内容变化。
   @Trace newEntryTemplate: ItemTemplate = ItemTemplate.Login
+  // 新建时预置的分组；空串表示默认分组。
+  @Trace newEntryGroupUuid: string = ''
   // 编辑态退出后是否返回预览：左滑编辑与新建直接收起半模态。
   @Trace editFromPreview: boolean = false
   // 阅读位置随预览体一同被销毁，故与预览数据同放在这里。
@@ -68,9 +70,10 @@ export class EntrySheetViewModel {
     return this.app.currentSource().readOnly
   }
 
-  openNew(template: ItemTemplate): void {
+  openNew(template: ItemTemplate, groupUuid: string = ''): void {
     this.entryUuid = ''
     this.newEntryTemplate = template
+    this.newEntryGroupUuid = groupUuid
     this.editFromPreview = false
     this.mode = EntrySheetMode.Edit
     this.visible = true
