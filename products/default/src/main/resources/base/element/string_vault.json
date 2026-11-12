@@ -725,6 +725,34 @@
       "value": "删除"
     },
     {
+      "name": "entry_menu_last_modified",
+      "value": "最后修改 %s"
+    },
+    {
+      "name": "entry_menu_template_login",
+      "value": "登录"
+    },
+    {
+      "name": "entry_menu_template_password",
+      "value": "密码"
+    },
+    {
+      "name": "entry_menu_template_secure_note",
+      "value": "安全笔记"
+    },
+    {
+      "name": "entry_menu_template_credit_card",
+      "value": "银行卡"
+    },
+    {
+      "name": "entry_menu_template_ssh_key",
+      "value": "SSH 密钥"
+    },
+    {
+      "name": "entry_menu_template_attachment",
+      "value": "附件"
+    },
+    {
       "name": "entry_batch_title",
       "value": "已选 %s 项"
     },

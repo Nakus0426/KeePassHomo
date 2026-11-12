@@ -1,3 +1,4 @@
+import { AnimationTokens } from '@ohos/common'
 import { DsCheckbox } from '../../components/DsCheckbox'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
@@ -14,6 +15,8 @@ export struct VaultEntryRow {
   }
   @Event onFavoriteToggle: (next: boolean) => void = () => {
   }
+  @Local private hovered: boolean = false
+  @Local private pressed: boolean = false
 
   aboutToAppear(): void {
     this.row.ensureAvatar()
@@ -72,7 +75,7 @@ export struct VaultEntryRow {
         })
 
         SymbolGlyph($r('app.string.symbol_chevron_right'))
-          .fontSize($r('app.float.ds_icon_sm'))
+          .fontSize($r('app.float.ds_entry_action_icon'))
           .fontColor([$r('app.color.ds_text_tertiary')])
           .foregroundColor($r('app.color.ds_text_tertiary'))
       }
@@ -80,11 +83,24 @@ export struct VaultEntryRow {
     .width('100%')
     .height($r('app.float.ds_entry_row_height'))
     .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
-    .backgroundColor($r('app.color.ds_surface_canvas'))
-    .stateStyles({
-      pressed: {
-        .backgroundColor($r('app.color.ds_surface_inset'))
-      },
+    .backgroundColor(this.pressed
+      ? $r('app.color.ds_surface_highest')
+      : (this.hovered ? $r('app.color.ds_surface_hover') : $r('app.color.ds_surface_canvas')))
+    .animation({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+    })
+    .onHover((isHover: boolean) => {
+      this.hovered = isHover
+    })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressed = true
+        return
+      }
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressed = false
+      }
     })
     .onClick(() => this.onRowClick())
   }

@@ -11,6 +11,8 @@ export struct IconToggleButton {
   @Param symbolChecked: Resource | undefined = undefined
   @Param checked: boolean = false
   @Param symbolColor: ResourceColor = $r('app.color.ds_on_surface_variant')
+  // checked 态颜色；不传时与 symbolColor 相同
+  @Param symbolColorChecked: ResourceColor | undefined = undefined
   @Require @Param accessibilityLabel: Resource
   @Param clickable: boolean = true
   // 与 DsButton 对齐的外观属性
@@ -36,6 +38,11 @@ export struct IconToggleButton {
     return this.clickable ? this.symbolColor : $r('app.color.ds_text_disabled')
   }
 
+  @Computed
+  private get effectiveCheckedSymbolColor(): ResourceColor {
+    return this.clickable ? (this.symbolColorChecked ?? this.symbolColor) : $r('app.color.ds_text_disabled')
+  }
+
   @LocalBuilder
   private iconContent() {
     if (this.symbolChecked === undefined) {
@@ -50,6 +57,7 @@ export struct IconToggleButton {
         checked: this.checked,
         iconSize: this.iconSize,
         color: this.effectiveSymbolColor,
+        colorOn: this.effectiveCheckedSymbolColor,
       })
     }
   }

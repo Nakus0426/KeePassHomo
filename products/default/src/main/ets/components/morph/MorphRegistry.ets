@@ -1,9 +1,11 @@
 import { EyeMorphShape } from './EyeMorphShape'
 import { MorphShape } from './MorphShape'
+import { STAR_FILLED_MORPH } from './StarMorphData'
 import { StepMorphShape } from './StepMorphShape'
 import { CLOUD_CHECK_MORPH, FACT_CHECK_MORPH, FOLDER_CHECK_MORPH, LOCK_CHECK_MORPH } from './StepMorphData'
 
 let eyeShape: MorphShape | undefined = undefined
+let starFilledShape: MorphShape | undefined = undefined
 let cloudCheckShape: MorphShape | undefined = undefined
 let folderCheckShape: MorphShape | undefined = undefined
 let lockCheckShape: MorphShape | undefined = undefined
@@ -16,6 +18,12 @@ export function findMorphShape(iconOff: Resource, iconOn: Resource): MorphShape 
       eyeShape = new EyeMorphShape()
     }
     return eyeShape
+  }
+  if (iconOff.id === $r('app.string.symbol_star').id && iconOn.id === $r('app.string.symbol_star_filled').id) {
+    if (starFilledShape === undefined) {
+      starFilledShape = new StepMorphShape(STAR_FILLED_MORPH)
+    }
+    return starFilledShape
   }
   if (iconOn.id !== $r('app.string.symbol_check').id) {
     return undefined

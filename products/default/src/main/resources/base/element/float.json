@@ -385,8 +385,28 @@
       "value": "64vp"
     },
     {
+      "name": "ds_context_menu_content_width",
+      "value": "264vp"
+    },
+    {
+      "name": "ds_context_menu_header_height",
+      "value": "64vp"
+    },
+    {
+      "name": "ds_context_menu_tag_height",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_context_menu_item_height",
+      "value": "48vp"
+    },
+    {
       "name": "ds_entry_avatar_size",
       "value": "36vp"
+    },
+    {
+      "name": "ds_entry_action_icon",
+      "value": "24vp"
     },
     {
       "name": "ds_empty_icon_size",

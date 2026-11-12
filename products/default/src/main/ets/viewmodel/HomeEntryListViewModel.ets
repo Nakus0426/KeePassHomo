@@ -165,7 +165,7 @@ export class HomeEntryListViewModel {
   private async persistFavorite(uuid: string, favorite: boolean): Promise<boolean> {
     try {
       const entry: VaultEntry = await stageOneVaultStore.setFavorite(uuid, favorite)
-      vaultHomeViewModel.invalidate()
+      vaultHomeViewModel.syncFavorite(uuid, entry.favorite)
       return entry.favorite
     } catch (error) {
       LogUtil.error(`更新收藏状态失败，错误码=${(error as BusinessError).code}`)

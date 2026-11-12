@@ -370,6 +370,11 @@
       "key": "symbol_fact_check",
       "material": "fact_check",
       "fill": 0
+    },
+    {
+      "key": "symbol_check_box",
+      "material": "check_box",
+      "fill": 0
     }
   ]
 }

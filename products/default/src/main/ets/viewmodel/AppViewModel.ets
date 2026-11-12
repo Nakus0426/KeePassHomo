@@ -156,6 +156,7 @@ export class AppViewModel {
     if (appSessionState.currentModule === route && appRouter.isHomePage()) {
       return
     }
+    vaultHomeViewModel.showChrome()
     if (appSessionState.currentModule === ROUTE_GENERATOR) {
       this.generator.clearSensitiveState()
     }

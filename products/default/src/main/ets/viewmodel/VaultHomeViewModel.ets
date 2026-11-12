@@ -17,6 +17,8 @@ export class VaultHomeViewModel {
   // 批量选择属于首页界面状态，但标题栏与页面都要渲染，故由 ViewModel 统一持有。
   @Trace batchMode: boolean = false
   @Trace selectedUuids: string[] = []
+  // 首页滚动时底部页签与新建按钮的显隐；AppShell 与页面共用同一份状态。
+  @Trace chromeHidden: boolean = false
   private readonly selectedLookup: Set<string> = new Set()
 
   setSearchQuery(value: string): void {
@@ -67,6 +69,23 @@ export class VaultHomeViewModel {
     this.setBrowseMode(VaultBrowseMode.All)
   }
 
+  // 首页列表滚动方向直接驱动 chrome 显隐：手指上滑隐藏，下滑恢复。
+  updateChromeVisibility(scrollOffset: number): void {
+    if (scrollOffset > 0 && !this.chromeHidden) {
+      this.chromeHidden = true
+      return
+    }
+    if (scrollOffset < 0 && this.chromeHidden) {
+      this.chromeHidden = false
+    }
+  }
+
+  showChrome(): void {
+    if (this.chromeHidden) {
+      this.chromeHidden = false
+    }
+  }
+
   selectedGroupLabel(): string {
     if (stageOneVaultStore.locked || this.selectedGroupUuids.length === 0) {
       return ResUtil.getStringSync($r('app.string.group_filter_all'))
@@ -101,7 +120,20 @@ export class VaultHomeViewModel {
     this.rebuild()
   }
 
+  // 收藏只改行模型；仅已收藏筛选需重算快照，其余模式直接同步条目，避免列表重建打断图标形变。
+  syncFavorite(entryUuid: string, favorite: boolean): void {
+    if (this.browseMode === VaultBrowseMode.Favorites && !favorite) {
+      this.invalidate()
+      return
+    }
+    const entry: VaultEntry | undefined = this.entries.find((item: VaultEntry) => item.uuid === entryUuid)
+    if (entry !== undefined) {
+      entry.favorite = favorite
+    }
+  }
+
   enterBatch(uuid: string): void {
+    this.chromeHidden = false
     this.batchMode = true
     this.selectedLookup.clear()
     this.selectedLookup.add(uuid)
@@ -109,6 +141,7 @@ export class VaultHomeViewModel {
   }
 
   exitBatch(): void {
+    this.chromeHidden = false
     this.batchMode = false
     this.selectedLookup.clear()
     this.selectedUuids = []
@@ -156,6 +189,7 @@ export class VaultHomeViewModel {
     this.hasAnyEntry = false
     this.batchMode = false
     this.selectedUuids = []
+    this.chromeHidden = false
     this.selectedLookup.clear()
   }
 

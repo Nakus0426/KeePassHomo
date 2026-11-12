@@ -3,7 +3,8 @@
 ## 结论
 
 `MorphIcon` 是通用双图标切换组件：传两个 `Resource` 图标和 `checked`，点击时在两者之间切换。
-已登记形变几何的图标对走 Canvas 逐点形变，其余直接换图标。当前登记的是 `symbol_eye_off ↔ symbol_eye`。
+已登记形变几何的图标对走 Canvas 逐点形变，其余直接换图标。当前登记的是 `symbol_eye_off ↔ symbol_eye`
+与 `symbol_star ↔ symbol_star_filled`。
 
 眼睛这一对用的是 morphicons 的 **filled surface / region morph** 管线：对填充图标先取可见面闭合轮廓，
 再逐点插值。官方的 Material Symbols eye → eye-off 示例也是这个效果——中间帧是「融化」形态，
@@ -32,6 +33,8 @@
    `c(t)` 是质心线性插值，`b̃ᵢ` 是 B 变换回 A 坐标系后的点。
 
 第 1–4 步离线完成（`tools/icon-migration/generate_morph_points.py`），运行时只算第 5 步。
+`symbol_star` 另按实心星的无孔拓扑处理：外轮廓保持不动，内孔收拢到质心，由
+`tools/icon-migration/generate_star_morph.py` 生成数据。
 
 ## 端点一致性
 
@@ -47,11 +50,14 @@
 | 文件 | 职责 |
 |------|------|
 | `tools/icon-migration/generate_morph_points.py` | 离线生成：轮廓提取、64 点重采样、子路径配对、Procrustes，写数据文件 |
+| `tools/icon-migration/generate_star_morph.py` | 离线生成收藏星形数据：外轮廓配对、内孔收拢到质心 |
 | `components/morph/EyeMorphData.ets` | 生成产物，勿手改：两组点、质心、θ、σ |
+| `components/morph/StarMorphData.ets` | 生成产物，勿手改：星形外轮廓与内孔收拢点 |
 | `components/morph/MorphShape.ets` | 形变契约：`draw(canvas, iconSize, color, progress)`，progress 0 = iconOff，1 = iconOn |
 | `components/morph/EyeMorphShape.ets` | 按公式逐点插值并绘制（Canvas，`nonzero` 填充保留洞） |
+| `components/morph/StepMorphShape.ets` | 通用 region morph 绘制器，供步骤图标与收藏星形复用 |
 | `components/morph/MorphRegistry.ets` | 图标对 → 形变几何的登记表 |
-| `components/MorphIcon.ets` | 通用双图标组件：Canvas/帧驱动/颜色，未登记的对退回 `SymbolGlyph` |
+| `components/MorphIcon.ets` | 通用双图标组件：Canvas/帧驱动/可选颜色渐变，未登记的对退回 `SymbolGlyph` |
 | `components/IconToggleButton.ets` | 基于 `DsButton` 内容插槽的图标按钮，`symbolChecked` 有值时按 `checked` 切换 |
 
 ## 用法
@@ -76,12 +82,14 @@ IconToggleButton({
   `STATE_TRANSITION_CURVE`，进度按该曲线的 `interpolate()` 求值。
 - **首次绘制**：`onReady` 也会在尺寸变化时重入，用 `ready` 标记保证只定档一次，重入只重绘。
 - **颜色**：`Canvas.fillStyle` 不吃 `ResourceColor`，用 `ColorUtil.withAlpha(color, 1)` 解析成 ARGB；
-  Canvas 不跟随深浅色，监听 `colorMode.isDark` 重新解析并重绘。
+  Canvas 不跟随深浅色，监听 `colorMode.isDark` 重新解析并重绘。传 `colorOn` 时按同一 `progress` 做 ARGB 插值。
 - **按钮反馈**：`IconToggleButton` 直接把图标塞进 `DsButton` 的内容插槽（Text / Default / Small / `iconOnly`），
   按压 `ds_overlay_muted`、悬停 `ds_overlay_subtle`、300ms `EASE_STATE` 全部由 `DsButton` 提供。
 - **插槽里的 `this`**：`contentBuilder` 的 builder 必须用 `@LocalBuilder` 声明并传方法引用；普通 `@Builder` 的
   `this` 会指向 `DsButton`，图标整块不渲染。详见 `docs/arkui-builder-slot.md`。
 - **按钮尺寸**：输入框高 48vp，中号 44vp 会贴着上下边框，所以 `IconToggleButton` 用 `DsButtonSize.Small`（32vp）。
+- **列表复用**：列表状态更新不要立即重建整份 items；`MorphIcon` 被重置或重新创建时只会显示终态，过渡被截断。
+- **收藏按钮反馈**：`FavoriteToggle` 点击后先缩到 0.88，再弹到 1.16，最后落回 1，与星形形变同时进行。
 
 ## 边界
 

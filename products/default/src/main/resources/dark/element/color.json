@@ -181,6 +181,10 @@
       "value": "#33FFFFFF"
     },
     {
+      "name": "ds_scrim",
+      "value": "#A6000000"
+    },
+    {
       "name": "ds_loading_inverse_active",
       "value": "#111314"
     },

@@ -188,7 +188,14 @@ export struct AppShell {
     }
     .width('100%')
     .height(TAB_BAR_GRADIENT_HEIGHT_VP)
-    .hitTestBehavior(HitTestMode.Transparent)
+    // 页签栏覆盖区域须拦住下层列表，避免点按页签时同时命中条目。
+    .hitTestBehavior(HitTestMode.Default)
+    .transition(TransitionEffect.move(TransitionEdge.BOTTOM)
+      .combine(TransitionEffect.OPACITY)
+      .animation({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      }))
   }
 
   // 前后台切换时的隐私遮罩：只露品牌标识，不展示启动页的版本号与加载节拍。
@@ -237,7 +244,9 @@ export struct AppShell {
           .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
 
           if (!this.home.batchMode) {
-            this.bottomTabBar()
+            if (!this.home.chromeHidden) {
+              this.bottomTabBar()
+            }
           }
         }
         .width('100%')

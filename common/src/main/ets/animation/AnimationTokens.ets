@@ -17,6 +17,8 @@ export class AnimationTokens {
   static readonly STATE_TRANSITION_CURVE: ICurve = AnimationTokens.EASE_STATE
   static readonly CARD_ENTER_SCALE: number = 0.9
   static readonly CARD_EXIT_SCALE: number = 0.8
+  static readonly FAVORITE_PRESS_SCALE: number = 0.88
+  static readonly FAVORITE_BOUNCE_SCALE: number = 1.16
   // 底部提示条出现上浮 / 消失下沉距离，单位 vp。
   static readonly BANNER_ENTER_OFFSET: number = 12
   static readonly BANNER_EXIT_OFFSET: number = 8

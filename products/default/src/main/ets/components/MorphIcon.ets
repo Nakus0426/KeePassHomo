@@ -4,6 +4,22 @@ import { ColorModeState, colorModeState } from '../state/ColorModeState'
 import { findMorphShape } from './morph/MorphRegistry'
 import { MorphShape } from './morph/MorphShape'
 
+function blendArgb(from: number, to: number, progress: number): number {
+  const fromA: number = (from >>> 24) & 0xFF
+  const fromR: number = (from >>> 16) & 0xFF
+  const fromG: number = (from >>> 8) & 0xFF
+  const fromB: number = from & 0xFF
+  const toA: number = (to >>> 24) & 0xFF
+  const toR: number = (to >>> 16) & 0xFF
+  const toG: number = (to >>> 8) & 0xFF
+  const toB: number = to & 0xFF
+  const alpha: number = Math.round(fromA + (toA - fromA) * progress)
+  const red: number = Math.round(fromR + (toR - fromR) * progress)
+  const green: number = Math.round(fromG + (toG - fromG) * progress)
+  const blue: number = Math.round(fromB + (toB - fromB) * progress)
+  return ((alpha << 24) | (red << 16) | (green << 8) | blue) >>> 0
+}
+
 // 两个图标之间切换：已登记形变几何的图标对走 Canvas 形变，其余直接换图标
 @ComponentV2
 export struct MorphIcon {
@@ -12,6 +28,7 @@ export struct MorphIcon {
   @Param checked: boolean = false
   @Param iconSize: number = 20
   @Param color: ResourceColor = $r('app.color.ds_text_secondary')
+  @Param colorOn: ResourceColor | undefined = undefined
   @Local private colorMode: ColorModeState = colorModeState
   // 0 = iconOff，1 = iconOn；改这个值由 @Monitor 触发重绘
   @Local private progress: number = 0
@@ -59,16 +76,23 @@ export struct MorphIcon {
   }
 
   // color 由调用方随状态切换（如步骤未开始→进行中），Canvas 不会自动跟随，需重绘
-  @Monitor('color')
+  @Monitor('color', 'colorOn')
   private onColorChanged(): void {
     this.draw()
+  }
+
+  @Computed
+  private get fallbackColor(): ResourceColor {
+    return this.checked ? (this.colorOn ?? this.color) : this.color
   }
 
   private draw(): void {
     if (this.shape === undefined) {
       return
     }
-    this.shape.draw(this.canvas, this.iconSize, ColorUtil.withAlpha(this.color, 1), this.progress)
+    const from: number = ColorUtil.withAlpha(this.color, 1)
+    const to: number = ColorUtil.withAlpha(this.colorOn ?? this.color, 1)
+    this.shape.draw(this.canvas, this.iconSize, blendArgb(from, to, this.progress), this.progress)
   }
 
   private play(target: number): void {
@@ -115,8 +139,8 @@ export struct MorphIcon {
     if (this.shape === undefined) {
       SymbolGlyph(this.checked ? this.iconOn : this.iconOff)
         .fontSize(this.iconSize)
-        .fontColor([this.color])
-        .foregroundColor(this.color)
+        .fontColor([this.fallbackColor])
+        .foregroundColor(this.fallbackColor)
     } else {
       Canvas(this.canvas)
         .width(this.iconSize)

@@ -49,6 +49,10 @@
       "value": "0x100009"
     },
     {
+      "name": "symbol_check_box",
+      "value": "0x100043"
+    },
+    {
       "name": "symbol_check_circle",
       "value": "0x10000A"
     },

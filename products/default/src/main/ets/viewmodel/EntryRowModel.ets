@@ -1,5 +1,6 @@
 import { ItemTemplate, PasswordStrengthCalculator, VaultEntry, VaultField } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
+import { DateUtil, ResUtil } from '@pura/harmony-utils'
+import { definitionFor } from '../model/EntryTemplateCatalog'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { parseSshKeys, SSH_KEYS_FIELD } from '../model/SshKeyPayload'
 import {
@@ -23,6 +24,9 @@ export class EntryRowModel {
   @Trace favorite: boolean = false
   @Trace hasAvatar: boolean = false
   @Trace avatarData: ArrayBuffer | undefined = undefined
+  @Trace menuGroupName: string = ''
+  @Trace menuTemplateLabel: string = ''
+  @Trace menuSubtitle: string = ''
   private fields: VaultField[] = []
 
   constructor(entry: VaultEntry, appendGroupName: boolean = false) {
@@ -39,6 +43,9 @@ export class EntryRowModel {
     this.archived = entry.archived
     this.favorite = entry.favorite
     this.hasAvatar = entry.hasAvatar
+    this.menuGroupName = entry.groupName
+    this.menuTemplateLabel = this.buildMenuTemplateLabel(entry.template)
+    this.menuSubtitle = this.buildMenuSubtitle(entry)
     if (!entry.hasAvatar) {
       this.avatarData = undefined
     }
@@ -90,6 +97,34 @@ export class EntryRowModel {
     }
     const text: string = typeof subtitle === 'string' ? subtitle : ResUtil.getStringSync(subtitle)
     return text.length === 0 ? entry.groupName : `${text} · ${entry.groupName}`
+  }
+
+  private buildMenuTemplateLabel(template: ItemTemplate | undefined): string {
+    switch (template) {
+      case ItemTemplate.Login:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_login'))
+      case ItemTemplate.Password:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_password'))
+      case ItemTemplate.SecureNote:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_secure_note'))
+      case ItemTemplate.CreditCard:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_credit_card'))
+      case ItemTemplate.SshKey:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_ssh_key'))
+      case ItemTemplate.Attachment:
+        return ResUtil.getStringSync($r('app.string.entry_menu_template_attachment'))
+      default:
+        return ResUtil.getStringSync(definitionFor(template).name)
+    }
+  }
+
+  private buildMenuSubtitle(entry: VaultEntry): string {
+    const password: string = this.passwordSubtitle()
+    const modified: string = entry.lastModifiedAt > 0
+      ? ResUtil.getStringSync($r('app.string.entry_menu_last_modified'),
+        [DateUtil.getFormatDateStr(entry.lastModifiedAt, 'yyyy-MM-dd HH:mm')])
+      : ''
+    return [password, modified].filter((part: string) => part.length > 0).join(' · ')
   }
 
   private buildTemplateIcon(template: ItemTemplate | undefined): Resource {

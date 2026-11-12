@@ -1,3 +1,5 @@
+import { BusinessError } from '@kit.BasicServicesKit'
+import { LengthMetrics, promptAction } from '@kit.ArkUI'
 import { AnimationTokens, AppToast, ItemTemplate } from '@ohos/common'
 import {
   hdsMaterial,
@@ -7,9 +9,13 @@ import {
   HdsNavigationTitleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { ResUtil } from '@pura/harmony-utils'
+import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsDialog, DsDialogTone } from '../../components/DsDialog'
+import { DsMenuGroup } from '../../components/DsMenuGroup'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
@@ -38,6 +44,12 @@ export struct VaultHomePage {
   @Local private app: AppViewModel = appViewModel
   @Local private templatePickerVisible: boolean = false
   @Local private batchBarHeight: number = 0
+  @Local private deleteDialogBatch: boolean = false
+  @Local private deleteBusy: boolean = false
+  private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
+  private pendingDeleteRow: EntryRowModel | undefined = undefined
+  // ArkUI 菜单容器固定 4vp 内边距，负边距盖住，避免露出默认模糊材质圈。
+  private readonly contextMenuSystemInset: number = 4
   private pickedTemplate: ItemTemplate | undefined = undefined
   private pickedGroupUuid: string = ''
   private readonly stateSwitchTransition: TransitionEffect = TransitionEffect.OPACITY
@@ -59,6 +71,7 @@ export struct VaultHomePage {
   )
 
   aboutToAppear(): void {
+    this.home.showChrome()
     this.list.subscribeHoldingHand()
     this.list.refresh()
   }
@@ -161,54 +174,86 @@ export struct VaultHomePage {
   }
 
   private confirmDelete(row: EntryRowModel): void {
-    const options: AlertDialogParamWithButtons = {
-      title: $r('app.string.delete_entry_title'),
-      message: $r('app.string.delete_entry_message'),
-      primaryButton: {
-        value: $r('app.string.cancel'),
-        action: () => {
-        },
-      },
-      secondaryButton: {
-        value: $r('app.string.delete_entry'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => {
-          this.app.deleteEntry(row.uuid).then((deleted: boolean) => {
-            if (deleted) {
-              this.app.refreshHomeSnapshot()
-              AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
-            }
-          })
-        },
-      },
-    }
-    this.getUIContext().showAlertDialog(options)
+    this.openDeleteDialog(row)
   }
 
   private confirmBatchDelete(): void {
-    const options: AlertDialogParamWithButtons = {
-      title: $r('app.string.entry_batch_delete_title'),
-      message: $r('app.string.entry_batch_delete_message'),
-      primaryButton: {
-        value: $r('app.string.cancel'),
-        action: () => {
-        },
-      },
-      secondaryButton: {
-        value: $r('app.string.entry_batch_delete'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => {
-          const uuids: string[] = this.home.selectedUuids
-          this.app.deleteEntries(uuids).then((deleted: boolean) => {
-            if (deleted) {
-              this.app.refreshHomeSnapshot()
-            }
-            this.exitBatch()
-          })
-        },
-      },
+    this.openDeleteDialog(undefined)
+  }
+
+  private openDeleteDialog(row: EntryRowModel | undefined): void {
+    this.pendingDeleteRow = row
+    this.deleteDialogBatch = row === undefined
+    this.deleteBusy = false
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, {
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        cornerRadius: 0,
+        width: $r('app.float.dialog_width'),
+        alignment: DialogAlignment.Center,
+        maskColor: $r('app.color.ds_scrim'),
+      })
+      .catch((error: BusinessError) => {
+        LogUtil.error(`打开删除确认弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
+      })
+  }
+
+  private runDelete(): void {
+    const row: EntryRowModel | undefined = this.pendingDeleteRow
+    if (row === undefined) {
+      return
     }
-    this.getUIContext().showAlertDialog(options)
+    this.deleteBusy = true
+    this.app.deleteEntry(row.uuid).then((deleted: boolean) => {
+      this.deleteBusy = false
+      this.deleteDialogController.close()
+      if (deleted) {
+        this.app.refreshHomeSnapshot()
+        AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+      }
+    })
+  }
+
+  private runBatchDelete(): void {
+    const uuids: string[] = this.home.selectedUuids
+    this.deleteBusy = true
+    this.app.deleteEntries(uuids).then((deleted: boolean) => {
+      this.deleteBusy = false
+      this.deleteDialogController.close()
+      if (deleted) {
+        this.app.refreshHomeSnapshot()
+      }
+      this.exitBatch()
+    })
+  }
+
+  @Builder
+  private deleteDialog() {
+    DsDialog({
+      title: this.deleteDialogBatch
+        ? $r('app.string.entry_batch_delete_title')
+        : $r('app.string.delete_entry_title'),
+      message: this.deleteDialogBatch
+        ? $r('app.string.entry_batch_delete_message')
+        : $r('app.string.delete_entry_message'),
+      icon: $r('app.string.symbol_delete'),
+      tone: DsDialogTone.Error,
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: this.deleteDialogBatch
+        ? $r('app.string.entry_batch_delete')
+        : $r('app.string.delete_entry'),
+      busy: this.deleteBusy,
+      onCancel: () => this.deleteDialogController.close(),
+      onConfirm: () => {
+        if (this.deleteDialogBatch) {
+          this.runBatchDelete()
+        } else {
+          this.runDelete()
+        }
+      },
+    })
   }
 
   private archiveSelection(): void {
@@ -304,6 +349,20 @@ export struct VaultHomePage {
       .onClick(() => entrySheetViewModel.openEdit(row.uuid))
 
       Button({ type: ButtonType.Normal, stateEffect: true }) {
+        SymbolGlyph(row.archived ? $r('app.string.symbol_archive_filled') : $r('app.string.symbol_archive'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_text_primary')])
+          .foregroundColor($r('app.color.ds_text_primary'))
+      }
+      .width($r('app.float.ds_swipe_action_width'))
+      .height('100%')
+      .borderRadius($r('app.float.ds_radius_none'))
+      .backgroundColor($r('app.color.ds_surface_high'))
+      .onClick(() => {
+        this.app.toggleArchived(row.uuid).then(() => this.app.refreshHomeSnapshot())
+      })
+
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
         SymbolGlyph($r('app.string.symbol_delete'))
           .fontSize($r('app.float.ds_icon_sm'))
           .fontColor([$r('app.color.ds_on_primary')])
@@ -319,28 +378,162 @@ export struct VaultHomePage {
   }
 
   @Builder
-  private rowMenu(row: EntryRowModel) {
-    Menu() {
-      MenuItem({ content: $r('app.string.entry_menu_copy_username') })
-        .onClick(() => this.copyField(row, ENTRY_FIELD_USERNAME))
-      MenuItem({ content: $r('app.string.entry_menu_copy_password') })
-        .onClick(() => this.copyField(row, ENTRY_FIELD_PASSWORD))
-      if (!this.readOnly) {
-        MenuItem({ content: $r('app.string.entry_menu_edit') })
-          .onClick(() => entrySheetViewModel.openEdit(row.uuid))
-        MenuItem({
-          content: row.archived
-            ? $r('app.string.entry_menu_restore') : $r('app.string.entry_menu_archive'),
-        })
-          .onClick(() => {
-            this.app.toggleArchived(row.uuid).then(() => this.app.refreshHomeSnapshot())
-          })
-        MenuItem({ content: $r('app.string.entry_menu_select') })
-          .onClick(() => this.enterBatch(row.uuid))
-        MenuItem({ content: $r('app.string.entry_menu_delete') })
-          .onClick(() => this.confirmDelete(row))
+  private menuTemplateTag(row: EntryRowModel) {
+    Row({ space: $r('app.float.ds_space_xs') }) {
+      SymbolGlyph($r('app.string.symbol_description'))
+        .fontSize($r('app.float.ds_icon_tiny'))
+        .fontColor([$r('app.color.ds_text_secondary')])
+        .foregroundColor($r('app.color.ds_text_secondary'))
+
+      Text(row.menuTemplateLabel)
+        .fontSize($r('app.float.ds_font_label_md'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+    }
+    .height($r('app.float.ds_context_menu_tag_height'))
+    .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_sm') })
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @LocalBuilder
+  private menuHeader(row: EntryRowModel) {
+    Column({ space: $r('app.float.ds_space_6') }) {
+      Row() {
+        Row({ space: $r('app.float.ds_space_xs') }) {
+          SymbolGlyph($r('app.string.symbol_folder'))
+            .fontSize($r('app.float.ds_icon_xs'))
+            .fontColor([$r('app.color.ds_text_secondary')])
+            .foregroundColor($r('app.color.ds_text_secondary'))
+
+          Text(row.menuGroupName)
+            .fontSize($r('app.float.ds_font_label_md'))
+            .fontWeight(600)
+            .fontColor($r('app.color.ds_text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .height($r('app.float.ds_context_menu_tag_height'))
+        .alignItems(VerticalAlign.Center)
+
+        this.menuTemplateTag(row)
+      }
+      .width('100%')
+      .height($r('app.float.ds_context_menu_tag_height'))
+      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Center)
+
+      if (row.menuSubtitle.length > 0) {
+        Text(row.menuSubtitle)
+          .width('100%')
+          .fontSize($r('app.float.ds_font_label_sm'))
+          .fontColor($r('app.color.ds_text_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
     }
+    .width('100%')
+    .height($r('app.float.ds_context_menu_header_height'))
+    .padding({
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private copyGroup(row: EntryRowModel) {
+    DsMenuItem({
+      icon: $r('app.string.symbol_person'),
+      label: $r('app.string.entry_menu_copy_username'),
+      onAction: () => this.copyField(row, ENTRY_FIELD_USERNAME),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_key'),
+      label: $r('app.string.entry_menu_copy_password'),
+      onAction: () => this.copyField(row, ENTRY_FIELD_PASSWORD),
+    })
+  }
+
+  @LocalBuilder
+  private manageGroup(row: EntryRowModel) {
+    DsMenuItem({
+      icon: $r('app.string.symbol_edit'),
+      label: $r('app.string.entry_menu_edit'),
+      onAction: () => entrySheetViewModel.openEdit(row.uuid),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_archive'),
+      label: row.archived ? $r('app.string.entry_menu_restore') : $r('app.string.entry_menu_archive'),
+      onAction: () => {
+        this.app.toggleArchived(row.uuid).then(() => this.app.refreshHomeSnapshot())
+      },
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_check_box'),
+      label: $r('app.string.entry_menu_select'),
+      onAction: () => this.enterBatch(row.uuid),
+    })
+  }
+
+  @LocalBuilder
+  private deleteGroup(row: EntryRowModel) {
+    DsMenuItem({
+      icon: $r('app.string.symbol_delete'),
+      label: $r('app.string.entry_menu_delete'),
+      theme: DsMenuItemTheme.Error,
+      onAction: () => this.confirmDelete(row),
+    })
+  }
+
+  @LocalBuilder
+  private menuContent(row: EntryRowModel) {
+    DsMenuGroup({
+      dividerTop: false,
+      content: () => {
+        this.copyGroup(row)
+      },
+    })
+    if (!this.readOnly) {
+      DsMenuGroup({
+        dividerTop: true,
+        content: () => {
+          this.manageGroup(row)
+        },
+      })
+      DsMenuGroup({
+        dividerTop: true,
+        content: () => {
+          this.deleteGroup(row)
+        },
+      })
+    }
+  }
+
+  @Builder
+  private rowMenu(row: EntryRowModel) {
+    Column() {
+      DsContextMenu({
+        header: () => {
+          this.menuHeader(row)
+        },
+        content: () => {
+          this.menuContent(row)
+        },
+      })
+    }
+    .margin({
+      left: -this.contextMenuSystemInset,
+      right: -this.contextMenuSystemInset,
+      top: -this.contextMenuSystemInset,
+      bottom: -this.contextMenuSystemInset,
+    })
   }
 
   @Builder
@@ -351,7 +544,19 @@ export struct VaultHomePage {
       onRowClick: () => this.onRowTap(row),
       onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(row.uuid),
     })
-      .bindContextMenu(this.rowMenu(row), ResponseType.LongPress, { preview: MenuPreviewMode.NONE })
+      .bindContextMenu(this.rowMenu(row), ResponseType.LongPress, {
+        preview: MenuPreviewMode.IMAGE,
+        previewBorderRadius: $r('app.float.ds_radius_none'),
+        borderRadius: $r('app.float.ds_radius_none'),
+        backgroundColor: $r('app.color.ds_surface_lowest'),
+        backgroundBlurStyle: BlurStyle.NONE,
+        placement: Placement.BottomRight,
+        targetSpace: LengthMetrics.vp(4),
+        mask: {
+          color: $r('app.color.ds_scrim'),
+          backgroundBlurStyle: BlurStyle.NONE,
+        },
+      })
   }
 
   @Builder
@@ -393,6 +598,11 @@ export struct VaultHomePage {
     .cachedCount(6)
     .clip(false)
     .onTouch(() => this.app.recordActivity())
+    .onScrollFrameBegin((offset: number, _state: ScrollState) => {
+      this.home.updateChromeVisibility(offset)
+      return { offsetRemain: offset }
+    })
+    .onReachStart(() => this.home.showChrome())
     .transition(this.stateSwitchTransition)
   }
 
@@ -580,22 +790,38 @@ export struct VaultHomePage {
   @Builder
   private newEntryFab() {
     Row() {
-      DsButton({
-        variant: DsButtonVariant.Filled,
-        tone: DsButtonTone.Primary,
-        buttonSize: DsButtonSize.Large,
-        iconOnly: true,
-        leadingIcon: $r('app.string.symbol_add'),
-        controlHeightOverride: $r('app.float.ds_cta_height'),
-        iconSizeOverride: $r('app.float.ds_icon_md'),
-        accessibilityLabelResource: $r('app.string.new_entry'),
-        onTap: () => this.openTemplatePicker(''),
-      })
+      if (!this.home.chromeHidden) {
+        Stack() {
+          DsButton({
+            variant: DsButtonVariant.Filled,
+            tone: DsButtonTone.Primary,
+            buttonSize: DsButtonSize.Large,
+            iconOnly: true,
+            leadingIcon: $r('app.string.symbol_add'),
+            controlHeightOverride: $r('app.float.ds_cta_height'),
+            iconSizeOverride: $r('app.float.ds_icon_md'),
+            accessibilityLabelResource: $r('app.string.new_entry'),
+            onTap: () => this.openTemplatePicker(''),
+          })
+        }
+        .width($r('app.float.ds_cta_height'))
+        .height($r('app.float.ds_cta_height'))
+        .transition(TransitionEffect.move(this.list.fabRight ? TransitionEdge.END : TransitionEdge.START)
+          .combine(TransitionEffect.OPACITY)
+          .animation({
+            duration: AnimationTokens.STATE_TRANSITION_DURATION,
+            curve: AnimationTokens.STATE_TRANSITION_CURVE,
+          }))
+      }
     }
-    .width('100%')
-    .justifyContent(this.list.fabRight ? FlexAlign.End : FlexAlign.Start)
-    .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
-    .margin({ bottom: this.bottomAvoidHeight })
+    .height($r('app.float.ds_cta_height'))
+    .margin({
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+      bottom: this.bottomAvoidHeight,
+    })
+    // 隐藏态不可拦截触摸；显示态仅按钮及其边界参与命中。
+    .hitTestBehavior(this.home.chromeHidden ? HitTestMode.None : HitTestMode.Default)
     .transition(TransitionEffect.OPACITY.animation({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
@@ -668,7 +894,7 @@ export struct VaultHomePage {
   // HdsNavigation 须与滚动 List 同组件，dynamicHideTitleBar 才能接管连续滑动。
   build() {
     HdsNavigation() {
-      Stack({ alignContent: Alignment.Bottom }) {
+      Stack({ alignContent: this.list.fabRight ? Alignment.BottomEnd : Alignment.BottomStart }) {
         Column() {
           if (this.app.hasRecentVault()) {
             if (!this.home.batchMode && this.readOnly) {
