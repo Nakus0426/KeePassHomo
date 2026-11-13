@@ -55,6 +55,7 @@ export struct VaultHomePage {
   private removalLeavingKeys: Set<string> = new Set()
   private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private pendingDeleteRow: EntryRowModel | undefined = undefined
+  private pendingMenuAction: (() => void) | undefined = undefined
   // ArkUI 菜单容器固定 4vp 内边距，负边距盖住，避免露出默认模糊材质圈。
   private readonly contextMenuSystemInset: number = 4
   private pickedTemplate: ItemTemplate | undefined = undefined
@@ -197,6 +198,16 @@ export struct VaultHomePage {
       return
     }
     entrySheetViewModel.openPreview(row.uuid)
+  }
+
+  // 菜单含预览图时在子窗显示，层级高于主窗弹窗与半模态；菜单项动作须等菜单彻底消失再执行，否则会被预览图盖住。
+  private onRowMenuClosed(): void {
+    const action: (() => void) | undefined = this.pendingMenuAction
+    if (action === undefined) {
+      return
+    }
+    this.pendingMenuAction = undefined
+    action()
   }
 
   private openDeleteDialog(row: EntryRowModel | undefined): void {
@@ -500,7 +511,9 @@ export struct VaultHomePage {
     DsMenuItem({
       icon: $r('app.string.symbol_edit'),
       label: $r('app.string.entry_menu_edit'),
-      onAction: () => entrySheetViewModel.openEdit(row.uuid),
+      onAction: () => {
+        this.pendingMenuAction = () => entrySheetViewModel.openEdit(row.uuid)
+      },
     })
     DsMenuItem({
       icon: row.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'),
@@ -510,7 +523,9 @@ export struct VaultHomePage {
     DsMenuItem({
       icon: $r('app.string.symbol_check_box'),
       label: $r('app.string.entry_menu_select'),
-      onAction: () => this.home.enterBatch(row.uuid),
+      onAction: () => {
+        this.pendingMenuAction = () => this.home.enterBatch(row.uuid)
+      },
     })
   }
 
@@ -520,7 +535,9 @@ export struct VaultHomePage {
       icon: $r('app.string.symbol_delete'),
       label: $r('app.string.entry_menu_delete'),
       theme: DsMenuItemTheme.Error,
-      onAction: () => this.openDeleteDialog(row),
+      onAction: () => {
+        this.pendingMenuAction = () => this.openDeleteDialog(row)
+      },
     })
   }
 
@@ -585,6 +602,7 @@ export struct VaultHomePage {
         backgroundBlurStyle: BlurStyle.NONE,
         placement: Placement.BottomRight,
         targetSpace: LengthMetrics.vp(4),
+        onDisappear: () => this.onRowMenuClosed(),
         mask: {
           color: $r('app.color.ds_scrim'),
           backgroundBlurStyle: BlurStyle.NONE,
