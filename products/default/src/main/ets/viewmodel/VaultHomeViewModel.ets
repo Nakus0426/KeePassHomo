@@ -4,6 +4,12 @@ import { stageOneVaultStore, VaultBrowseMode } from '../model/StageOneVaultStore
 
 const GROUP_LABEL_MAX_CHARS: number = 10
 
+// 快照变化来源：搜索逐字符刷新，不播列表动画；其余变化播行进场/离场。
+export enum HomeSnapshotCause {
+  Search = 'search',
+  Data = 'data',
+}
+
 // 保险库浏览域 ViewModel（模块级单例）：搜索词、筛选模式与选中分组跨导航保留，锁定时由 AppViewModel 调用 clear() 清除。
 // 依据开发计划 3.3 节：主模块切换保留必要非敏感界面状态。
 @ObservedV2
@@ -19,15 +25,21 @@ export class VaultHomeViewModel {
   @Trace selectedUuids: string[] = []
   // 首页滚动时底部页签与新建按钮的显隐；AppShell 与页面共用同一份状态。
   @Trace chromeHidden: boolean = false
+  // 页面在 @Monitor 里按原因分派，不参与渲染，故不加 @Trace。
+  snapshotCause: HomeSnapshotCause = HomeSnapshotCause.Data
+  // 条目数据版本：仅数据变化时递增，筛选切换不变，行模型据此判断是否需要重算。
+  dataRevision: number = 0
   private readonly selectedLookup: Set<string> = new Set()
 
   setSearchQuery(value: string): void {
     this.searchQuery = value
+    this.snapshotCause = HomeSnapshotCause.Search
     this.rebuild()
   }
 
   setBrowseMode(mode: VaultBrowseMode): void {
     this.browseMode = mode
+    this.snapshotCause = HomeSnapshotCause.Data
     this.rebuild()
   }
 
@@ -104,6 +116,7 @@ export class VaultHomeViewModel {
   // 空集合表示不按分组过滤。
   selectBrowseGroups(groupUuids: string[]): void {
     this.selectedGroupUuids = groupUuids
+    this.snapshotCause = HomeSnapshotCause.Data
     this.rebuild()
   }
 
@@ -117,6 +130,8 @@ export class VaultHomeViewModel {
   }
 
   invalidate(): void {
+    this.snapshotCause = HomeSnapshotCause.Data
+    this.dataRevision++
     this.rebuild()
   }
 
@@ -178,6 +193,7 @@ export class VaultHomeViewModel {
     this.searchQuery = ''
     this.browseMode = VaultBrowseMode.All
     this.selectedGroupUuids = [stageOneVaultStore.defaultGroupUuid()]
+    this.snapshotCause = HomeSnapshotCause.Data
     this.rebuild()
   }
 
@@ -191,6 +207,7 @@ export class VaultHomeViewModel {
     this.selectedUuids = []
     this.chromeHidden = false
     this.selectedLookup.clear()
+    this.dataRevision++
   }
 
   // 重建快照是全量过滤并排序，只在数据或筛选变化时执行，绝不进入 build() 之类的高频路径。
@@ -206,7 +223,7 @@ export class VaultHomeViewModel {
       this.selectedGroupUuids = [stageOneVaultStore.defaultGroupUuid()]
     }
     this.entries = stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuids)
-    this.hasAnyEntry = stageOneVaultStore.entries().length > 0
+    this.hasAnyEntry = stageOneVaultStore.hasEntries()
   }
 }
 

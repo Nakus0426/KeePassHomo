@@ -25,9 +25,14 @@ export class EntryRowModel {
   @Trace hasAvatar: boolean = false
   @Trace avatarData: ArrayBuffer | undefined = undefined
   @Trace menuGroupName: string = ''
-  @Trace menuTemplateLabel: string = ''
-  @Trace menuSubtitle: string = ''
+  // 离场收缩中：刷新前先把高度与透明度归零，避免条目瞬间消失、下方条目跳位。
+  @Trace leaving: boolean = false
+  // 行内容对应的数据版本：与当前版本一致即可跳过重算，筛选切换时复用整张行模型。
+  revision: number = -1
   private fields: VaultField[] = []
+  // 长按菜单才需要的字段留到展开时再算，避免逐行构造时做资源查表与日期格式化。
+  private template: ItemTemplate | undefined = undefined
+  private lastModifiedAt: number = 0
 
   constructor(entry: VaultEntry, appendGroupName: boolean = false) {
     this.uuid = entry.uuid
@@ -44,8 +49,9 @@ export class EntryRowModel {
     this.favorite = entry.favorite
     this.hasAvatar = entry.hasAvatar
     this.menuGroupName = entry.groupName
-    this.menuTemplateLabel = this.buildMenuTemplateLabel(entry.template)
-    this.menuSubtitle = this.buildMenuSubtitle(entry)
+    this.template = entry.template
+    this.lastModifiedAt = entry.lastModifiedAt
+    this.leaving = false
     if (!entry.hasAvatar) {
       this.avatarData = undefined
     }
@@ -99,8 +105,8 @@ export class EntryRowModel {
     return text.length === 0 ? entry.groupName : `${text} · ${entry.groupName}`
   }
 
-  private buildMenuTemplateLabel(template: ItemTemplate | undefined): string {
-    switch (template) {
+  menuTemplateLabel(): string {
+    switch (this.template) {
       case ItemTemplate.Login:
         return ResUtil.getStringSync($r('app.string.entry_menu_template_login'))
       case ItemTemplate.Password:
@@ -114,15 +120,15 @@ export class EntryRowModel {
       case ItemTemplate.Attachment:
         return ResUtil.getStringSync($r('app.string.entry_menu_template_attachment'))
       default:
-        return ResUtil.getStringSync(definitionFor(template).name)
+        return ResUtil.getStringSync(definitionFor(this.template).name)
     }
   }
 
-  private buildMenuSubtitle(entry: VaultEntry): string {
+  menuSubtitle(): string {
     const password: string = this.passwordSubtitle()
-    const modified: string = entry.lastModifiedAt > 0
+    const modified: string = this.lastModifiedAt > 0
       ? ResUtil.getStringSync($r('app.string.entry_menu_last_modified'),
-        [DateUtil.getFormatDateStr(entry.lastModifiedAt, 'yyyy-MM-dd HH:mm')])
+        [DateUtil.getFormatDateStr(this.lastModifiedAt, 'yyyy-MM-dd HH:mm')])
       : ''
     return [password, modified].filter((part: string) => part.length > 0).join(' · ')
   }
@@ -173,14 +179,23 @@ export class EntryGroupHeaderModel {
   readonly groupUuid: string
   @Trace groupName: string = ''
   @Trace count: number = 0
+  @Trace leaving: boolean = false
 
   constructor(groupUuid: string) {
     this.groupUuid = groupUuid
   }
 
   update(groupName: string, count: number): void {
-    this.groupName = groupName
-    this.count = count
+    // 筛选切换只改 count，其余字段同值时跳过，避免每次切换都触发段头重渲染。
+    if (this.groupName !== groupName) {
+      this.groupName = groupName
+    }
+    if (this.count !== count) {
+      this.count = count
+    }
+    if (this.leaving) {
+      this.leaving = false
+    }
   }
 }
 

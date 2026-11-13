@@ -483,25 +483,60 @@ export class StageOneVaultStore {
     return entries
   }
 
+  // 全库排序是 O(n log n) 且 localeCompare 很贵；随文档实例缓存，落盘与重新解锁都会换文档对象。
+  private sortedCache: VaultEntry[] | undefined = undefined
+  private sortedCacheDocument: VaultDocument | undefined = undefined
+
+  private sortedEntries(): VaultEntry[] {
+    const document: VaultDocument = this.session.getDocument()
+    if (this.sortedCache === undefined || this.sortedCacheDocument !== document) {
+      this.sortedCache = this.entries().sort((left: VaultEntry, right: VaultEntry) =>
+      left.title.localeCompare(right.title))
+      this.sortedCacheDocument = document
+    }
+    return this.sortedCache
+  }
+
+  hasEntries(): boolean {
+    return this.sortedEntries().length > 0
+  }
+
+  // 全库条目 uuid（不含回收站）：列表据此清理已删除条目的行模型。
+  entryUuids(): Set<string> {
+    const uuids: Set<string> = new Set()
+    for (const entry of this.sortedEntries()) {
+      uuids.add(entry.uuid)
+    }
+    return uuids
+  }
+
   // 组筛选：传入组为子树根，命中该组及全部后代组内的条目。
   browse(query: string, mode: VaultBrowseMode, groupUuids: string[] = []): VaultEntry[] {
-    const acceptedGroupUuids: string[] = []
-    if (groupUuids.length > 0) {
-      this.collectSubtreeUuids(this.session.getDocument().groups, groupUuids, acceptedGroupUuids, false)
-    }
+    const acceptedGroups: Set<string> | undefined = this.acceptedGroupUuids(groupUuids)
     const normalizedQuery: string = query.trim().toLocaleLowerCase()
-    return this.entries().filter((entry: VaultEntry) => {
+    return this.sortedEntries().filter((entry: VaultEntry) => {
       if (mode === VaultBrowseMode.Archived ? !entry.archived : entry.archived) {
         return false
       }
       if (mode === VaultBrowseMode.Favorites && !entry.favorite) {
         return false
       }
-      if (acceptedGroupUuids.length > 0 && !acceptedGroupUuids.includes(entry.groupUuid)) {
+      if (acceptedGroups !== undefined && !acceptedGroups.has(entry.groupUuid)) {
         return false
       }
       return normalizedQuery.length === 0 || this.searchableText(entry).includes(normalizedQuery)
-    }).sort((left: VaultEntry, right: VaultEntry) => left.title.localeCompare(right.title))
+    })
+  }
+
+  // 默认根分组的子树覆盖全库，此时不做分组过滤，省掉一次整棵分组树的遍历。
+  private acceptedGroupUuids(groupUuids: string[]): Set<string> | undefined {
+    if (groupUuids.length === 0 ||
+      (groupUuids.length === 1 && groupUuids[0] === this.defaultGroupUuid())) {
+      return undefined
+    }
+    const acceptedSubtree: string[] = []
+    this.collectSubtreeUuids(this.session.getDocument().groups, groupUuids, acceptedSubtree, false)
+    return new Set(acceptedSubtree)
   }
 
   // 全量分组（含根组）：不含回收站子树。
@@ -930,6 +965,7 @@ export class StageOneVaultStore {
       throw error as Error
     }
     this.sourceModifiedAt = Date.now() / 1000
+    this.sortedCache = undefined
     PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
     this.session.touch()
   }

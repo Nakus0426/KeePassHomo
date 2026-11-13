@@ -54,7 +54,6 @@
 | `square_fill_grid_2x2` | 1 | `symbol_grid_filled` | `grid_view` | 1 | 浏览模式选中 |
 | `square_grid_2x2` | 1 | `symbol_grid` | `grid_view` | 0 | 浏览模式 |
 | `picture` | 1 | `symbol_image` | `image` | 0 | 头像/图片 |
-| `archivebox_fill` | 1 | `symbol_archive_filled` | `archive` | 1 | 归档选中 |
 | `upload` | 1 | `symbol_upload_file` | `upload_file` | 0 | 导入密钥文件 |
 | `paperclip` | 1 | `symbol_attach_file` | `attach_file` | 0 | 附件 |
 | `magnifyingglass` | 1 | `symbol_search` | `search` | 0 | 搜索 |
@@ -96,6 +95,7 @@
 | `sync` | `symbol_sync` | 0 | 同步 |
 | `upload` | `symbol_upload` | 0 | 通用上传 |
 | `verified_user` | `symbol_verified_user` | 0 | 安全校验 |
+| `unarchive` | `symbol_unarchive` | 0 | 恢复（归档反向，上箭头出盒） |
 
 ## 已确认
 

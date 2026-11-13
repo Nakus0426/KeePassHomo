@@ -92,18 +92,27 @@ async function main() {
         process.exit(1)
     }
     const db = await describe(file, password)
-    let total = 0
-    for (const group of db.groups) {
-        total += group.entries.length
-        console.log(`分组「${group.name}」：直接子分组 ${group.groups.length} 个，条目 ${group.entries.length} 条`)
+    const totals = { entries: 0, attachments: 0, templates: new Map() }
+    const walk = (group, depth) => {
+        const indent = '  '.repeat(depth)
+        console.log(`${indent}分组「${group.name}」：直接子分组 ${group.groups.length} 个，条目 ${group.entries.length} 条`)
+        for (const entry of group.entries) {
+            totals.entries++
+            totals.attachments += entry.binaries.size
+            const template = entry.customData?.get('KPEX_LayoutType')?.value ?? '（未标记）'
+            totals.templates.set(template, (totals.templates.get(template) ?? 0) + 1)
+        }
+        group.groups.forEach((child) => walk(child, depth + 1))
     }
+    db.groups.forEach((group) => walk(group, 0))
+    console.log(`条目总数：${totals.entries}，附件文件数：${totals.attachments}`)
+    console.log(`模板分布：${[...totals.templates].map(([name, count]) => `${name} ${count}`).join(' | ')}`)
     const entries = db.getDefaultGroup().entries
-    console.log(`条目总数：${total}`)
-    console.log('前 3 条：')
+    console.log('根分组前 3 条：')
     for (const entry of entries.slice(0, SAMPLE_SIZE)) {
         console.log(`  ${entry.fields.get('Title')} / ${entry.fields.get('UserName')}`)
     }
-    console.log('末 3 条：')
+    console.log('根分组末 3 条：')
     for (const entry of entries.slice(-SAMPLE_SIZE)) {
         console.log(`  ${entry.fields.get('Title')} / ${entry.fields.get('UserName')}`)
     }

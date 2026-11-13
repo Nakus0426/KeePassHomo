@@ -22,9 +22,9 @@
       "fill": 0
     },
     {
-      "key": "symbol_archive_filled",
-      "material": "archive",
-      "fill": 1
+      "key": "symbol_unarchive",
+      "material": "unarchive",
+      "fill": 0
     },
     {
       "key": "symbol_arrow_back",

@@ -52,6 +52,7 @@ function describeError(error) {
 module.exports = {
     kdbxweb,
     loadVault,
+    registerArgon2,
     toArrayBuffer,
     describeError
 }

@@ -39,7 +39,6 @@ export struct MorphIcon {
   private canvas: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings)
   private frameSync: displaySync.DisplaySync | undefined = undefined
   private frameCallback: ((info: displaySync.IntervalInfo) => void) | undefined = undefined
-  private ready: boolean = false
 
   aboutToAppear(): void {
     this.resolveShape()
@@ -60,7 +59,20 @@ export struct MorphIcon {
 
   @Monitor('checked')
   private onCheckedChange(): void {
-    this.play(this.checked ? 1 : 0)
+    this.syncToChecked(true)
+  }
+
+  // 节点复用不会重走 aboutToAppear，Canvas 会保留上一行条目的星标画面；
+  // 挂载、重新可见与 checked 变化时都要按 checked 复位静止帧。
+  private syncToChecked(animate: boolean): void {
+    const target: number = this.checked ? 1 : 0
+    if (!animate || this.shape === undefined) {
+      this.stopFrameLoop()
+      this.progress = target
+      this.draw()
+      return
+    }
+    this.play(target)
   }
 
   // Canvas 绘制内容必须由状态刷新驱动，帧回调只改进度
@@ -102,6 +114,7 @@ export struct MorphIcon {
     }
     const from: number = this.progress
     if (from === target) {
+      this.draw()
       return
     }
     let startTimestamp: number = 0
@@ -145,11 +158,12 @@ export struct MorphIcon {
       Canvas(this.canvas)
         .width(this.iconSize)
         .height(this.iconSize)
+        .onAppear(() => this.syncToChecked(false))
         .onReady(() => {
           // onReady 也会在尺寸变化时重入，重入时不能把进行中的动画打回终态
-          if (!this.ready) {
-            this.ready = true
-            this.progress = this.checked ? 1 : 0
+          if (this.frameSync === undefined) {
+            this.syncToChecked(false)
+            return
           }
           this.draw()
         })

@@ -50,8 +50,9 @@ export class ContentSlideTransition {
   }
 
   // 手动播放：进入下级目录等非 Tabs 场景直接调用，direction 为 1 前进、-1 后退。
+  // swap 在起始帧同一帧内执行，用于换数据时新内容不先以可见态闪一帧。
   static play(uiContext: UIContext, frame: SlideFrame, from: number, to: number, direction: number,
-    containerWidth: number, onFinish: () => void): number {
+    containerWidth: number, onFinish: () => void, swap?: () => void): number {
     const offset: number = containerWidth * CONTENT_SLIDE_OFFSET_RATIO
     UIUtils.applySync(() => {
       frame.opacity[from] = 1
@@ -60,6 +61,9 @@ export class ContentSlideTransition {
       frame.offsetX[to] = direction * offset
       frame.zIndex[from] = 0
       frame.zIndex[to] = 1
+      if (swap !== undefined) {
+        swap()
+      }
     })
     return setTimeout(() => {
       uiContext.animateTo({

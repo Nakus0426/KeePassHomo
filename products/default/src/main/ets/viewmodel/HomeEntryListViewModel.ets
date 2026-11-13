@@ -22,6 +22,8 @@ export class HomeEntryListViewModel {
   private readonly onHoldingHandChanged: (status: motion.HoldingHandStatus) => void =
     (status: motion.HoldingHandStatus) => this.applyHoldingHand(status)
   private handListening: boolean = false
+  private appendGroupName: boolean = false
+  private lastRevision: number = -1
   private readonly rowCache: Map<string, EntryRowModel> = new Map()
   private readonly headerCache: Map<string, EntryGroupHeaderModel> = new Map()
 
@@ -31,9 +33,51 @@ export class HomeEntryListViewModel {
       this.items = []
       this.rowCache.clear()
       this.headerCache.clear()
+      this.appendGroupName = false
+      this.lastRevision = -1
       return
     }
-    this.items = this.buildItems(this.buildRows())
+    // 数据变化后清掉已删除条目的行模型；筛选切换版本不变，整张缓存继续复用。
+    const revision: number = vaultHomeViewModel.dataRevision
+    if (revision !== this.lastRevision) {
+      this.lastRevision = revision
+      this.pruneRows()
+    }
+    const appendGroupName: boolean = vaultHomeViewModel.searchQuery.length > 0
+    // 行内容只在数据版本变化或进出搜索（副标题带分组名）时重算。
+    const refreshRows: boolean = appendGroupName !== this.appendGroupName
+    this.appendGroupName = appendGroupName
+    this.items = this.buildItems(this.buildRows(refreshRows, appendGroupName))
+  }
+
+  private pruneRows(): void {
+    const live: Set<string> = stageOneVaultStore.entryUuids()
+    for (const uuid of this.rowCache.keys()) {
+      if (!live.has(uuid)) {
+        this.rowCache.delete(uuid)
+      }
+    }
+  }
+
+  // 新快照里已不存在的行与分组头：页面先对它们播离场动画，动画结束再 refresh 移除。
+  leavingItems(): EntryListItem[] {
+    const liveRows: Set<string> = new Set()
+    const liveGroups: Set<string> = new Set()
+    for (const entry of vaultHomeViewModel.entries) {
+      liveRows.add(entry.uuid)
+      liveGroups.add(entry.groupUuid)
+    }
+    const leaving: EntryListItem[] = []
+    for (const item of this.items) {
+      if (item.kind === EntryListItemKind.Row && !liveRows.has(item.row!.uuid)) {
+        leaving.push(item)
+        continue
+      }
+      if (item.kind === EntryListItemKind.Header && !liveGroups.has(item.header!.groupUuid)) {
+        leaving.push(item)
+      }
+    }
+    return leaving
   }
 
   // 先乐观更新行模型让图标立即响应，再落盘。
@@ -75,25 +119,22 @@ export class HomeEntryListViewModel {
     }
   }
 
-  private buildRows(): EntryRowModel[] {
+  private buildRows(refreshRows: boolean, appendGroupName: boolean): EntryRowModel[] {
     const rows: EntryRowModel[] = []
-    const liveUuids: Set<string> = new Set()
-    const appendGroupName: boolean = vaultHomeViewModel.searchQuery.length > 0
+    const revision: number = vaultHomeViewModel.dataRevision
     for (const entry of vaultHomeViewModel.entries) {
-      liveUuids.add(entry.uuid)
       let row: EntryRowModel | undefined = this.rowCache.get(entry.uuid)
       if (row === undefined) {
         row = new EntryRowModel(entry, appendGroupName)
         this.rowCache.set(entry.uuid, row)
-      } else {
+      } else if (refreshRows || row.revision !== revision) {
         row.update(entry, appendGroupName)
+      } else if (row.leaving) {
+        // 行模型跨筛选保留，离场态要先复位，否则重新进入列表时会保持零高度。
+        row.leaving = false
       }
+      row.revision = revision
       rows.push(row)
-    }
-    for (const uuid of Array.from(this.rowCache.keys())) {
-      if (!liveUuids.has(uuid)) {
-        this.rowCache.delete(uuid)
-      }
     }
     return rows
   }
@@ -137,7 +178,7 @@ export class HomeEntryListViewModel {
         items.push(new EntryListItem(`row:${row.uuid}`, EntryListItemKind.Row, undefined, row))
       }
     }
-    for (const groupUuid of Array.from(this.headerCache.keys())) {
+    for (const groupUuid of this.headerCache.keys()) {
       if (!liveHeaderKeys.has(groupUuid)) {
         this.headerCache.delete(groupUuid)
       }
