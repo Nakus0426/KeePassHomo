@@ -1,4 +1,5 @@
-import { DsButton, DsButtonSize, DsButtonVariant } from './DsButton'
+import { DsButton, DsButtonVariant } from './DsButton'
+import { DsControlSize } from './DsControlSize'
 
 export enum DsPageHeaderSize {
   Small = 'sm',
@@ -76,8 +77,8 @@ export struct DsPageHeader {
 
   // 标题栏内的图标按钮跟随标题栏档位：Small 用更小的按钮与图标，避免盖过标题栏。
   @Computed
-  get iconButtonSize(): DsButtonSize {
-    return this.headerSize === DsPageHeaderSize.Small ? DsButtonSize.Small : DsButtonSize.Medium
+  get iconButtonSize(): DsControlSize {
+    return this.headerSize === DsPageHeaderSize.Small ? DsControlSize.Small : DsControlSize.Medium
   }
 
   @Computed

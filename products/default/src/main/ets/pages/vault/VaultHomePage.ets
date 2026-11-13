@@ -11,7 +11,7 @@ import {
 } from '@kit.UIDesignKit'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
 import { DsDialog, DsDialogTone } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
@@ -34,6 +34,7 @@ import { EntrySheet } from './EntrySheet'
 import { EntryTemplatePicker } from './EntryTemplatePicker'
 import { VaultEntryRow } from './VaultEntryRow'
 import { vaultTabChrome } from './VaultTabChrome'
+import { DsControlSize } from '../../components/DsControlSize'
 
 @ComponentV2
 export struct VaultHomePage {
@@ -81,8 +82,11 @@ export struct VaultHomePage {
       this.list.refresh()
       return
     }
+    // 搜索逐字符刷新：只做整体淡入淡出，不播逐行离场收缩，避免连续输入时反复打断列表布局。
     if (this.home.snapshotCause === HomeSnapshotCause.Search) {
-      this.list.refresh()
+      this.getUIContext().animateTo(this.stateAnimateParam, () => {
+        this.list.refresh()
+      })
       return
     }
     const leaving: EntryListItem[] = this.list.leavingItems()
@@ -332,7 +336,7 @@ export struct VaultHomePage {
       if (!this.readOnly && !this.home.batchMode) {
         DsButton({
           variant: DsButtonVariant.Text,
-          buttonSize: DsButtonSize.Small,
+          buttonSize: DsControlSize.Small,
           iconOnly: true,
           leadingIcon: $r('app.string.symbol_add'),
           iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -725,7 +729,7 @@ export struct VaultHomePage {
         DsButton({
           label: $r('app.string.new_entry'),
           variant: DsButtonVariant.Filled,
-          buttonSize: DsButtonSize.Medium,
+          buttonSize: DsControlSize.Medium,
           onTap: () => this.openTemplatePicker(''),
         })
       }
@@ -785,7 +789,7 @@ export struct VaultHomePage {
           ? $r('app.string.entry_clear_filter') : $r('app.string.entry_view_all'),
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Default,
-        buttonSize: DsButtonSize.Medium,
+        buttonSize: DsControlSize.Medium,
         onTap: () => this.home.clearFilters(),
       })
     }
@@ -809,7 +813,7 @@ export struct VaultHomePage {
           label: this.batchArchiveLabel,
           variant: DsButtonVariant.Filled,
           tone: DsButtonTone.Default,
-          buttonSize: DsButtonSize.Medium,
+          buttonSize: DsControlSize.Medium,
           fullWidth: true,
           onTap: () => this.archiveSelection(),
         })
@@ -821,7 +825,7 @@ export struct VaultHomePage {
           label: $r('app.string.entry_batch_delete'),
           variant: DsButtonVariant.Filled,
           tone: DsButtonTone.Default,
-          buttonSize: DsButtonSize.Medium,
+          buttonSize: DsControlSize.Medium,
           fullWidth: true,
           backgroundColorOverride: $r('app.color.ds_error_container'),
           contentColorOverride: $r('app.color.ds_on_error_container'),
@@ -841,7 +845,7 @@ export struct VaultHomePage {
           DsButton({
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Primary,
-            buttonSize: DsButtonSize.Large,
+            buttonSize: DsControlSize.Large,
             iconOnly: true,
             leadingIcon: $r('app.string.symbol_add'),
             controlHeightOverride: $r('app.float.ds_cta_height'),

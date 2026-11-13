@@ -6,11 +6,12 @@ import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { VaultAccess, VaultUnreadableReason } from '../../model/StageOneVaultStore'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsInfoTile } from '../../components/DsInfoTile'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
+import { DsControlSize } from '../../components/DsControlSize'
 
 const FILE_NAME_LINE_HEIGHT: number = 19
 
@@ -304,7 +305,7 @@ export struct FileSummaryPage {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_arrow_forward'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -315,7 +316,7 @@ export struct FileSummaryPage {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         contentBuilder: () => { this.busyButtonContent($r('app.string.reselect_file')) },
       })
@@ -323,7 +324,7 @@ export struct FileSummaryPage {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_folder_open'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -340,7 +341,7 @@ export struct FileSummaryPage {
   private primaryButton() {
     if (this.access === VaultAccess.ReadOnlyPermission) {
       DsButton({
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_arrow_forward'),
         label: $r('app.string.regrant_and_open'),
@@ -351,7 +352,7 @@ export struct FileSummaryPage {
       })
     } else {
       DsButton({
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_arrow_forward'),
         label: $r('app.string.continue_action'),
@@ -367,7 +368,7 @@ export struct FileSummaryPage {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         contentBuilder: () => { this.busyButtonContent($r('app.string.save_to_other_location')) },
       })
@@ -375,7 +376,7 @@ export struct FileSummaryPage {
       DsButton({
         variant: DsButtonVariant.Filled,
         tone: DsButtonTone.Tonal,
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_save'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -407,7 +408,7 @@ export struct FileSummaryPage {
   @Builder
   private reselectButton(iconSize: Resource, disabled: boolean) {
     DsButton({
-      buttonSize: DsButtonSize.Large,
+      buttonSize: DsControlSize.Large,
       fullWidth: true,
       trailingIcon: $r('app.string.symbol_folder_open'),
       iconSizeOverride: iconSize,
@@ -427,7 +428,7 @@ export struct FileSummaryPage {
           DsButton({
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Tonal,
-            buttonSize: DsButtonSize.Large,
+            buttonSize: DsControlSize.Large,
             fullWidth: true,
             trailingIcon: $r('app.string.symbol_refresh'),
             iconSizeOverride: $r('app.float.ds_icon_sm'),

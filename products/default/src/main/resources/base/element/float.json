@@ -441,10 +441,6 @@
       "value": "28vp"
     },
     {
-      "name": "ds_checkbox_check_size",
-      "value": "12vp"
-    },
-    {
       "name": "ds_loading_pulse_w_sm",
       "value": "32vp"
     },
@@ -503,6 +499,34 @@
     {
       "name": "ds_breadcrumb_icon_lg",
       "value": "16vp"
+    },
+    {
+      "name": "ds_checkbox_size_sm",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_checkbox_size_md",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_checkbox_size_lg",
+      "value": "24vp"
+    },
+    {
+      "name": "ds_checkbox_mark_sm",
+      "value": "10vp"
+    },
+    {
+      "name": "ds_checkbox_mark_md",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_checkbox_mark_lg",
+      "value": "14vp"
+    },
+    {
+      "name": "ds_checkbox_ring_width",
+      "value": "3vp"
     },
     {
       "name": "ds_radio_size_sm",

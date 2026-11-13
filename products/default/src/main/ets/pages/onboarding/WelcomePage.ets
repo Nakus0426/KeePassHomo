@@ -1,12 +1,13 @@
 import { bundleManager } from '@kit.AbilityKit'
 import { AnimationTokens } from '@ohos/common'
-import { DsButton, DsButtonSize, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { ROUTE_WELCOME } from '../../constants/RouteConstants'
 import { appRouter } from '../../navigation/AppRouter'
 import { WelcomeParam } from '../../navigation/RouteParams'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { appViewModel, AppViewModel } from '../../viewmodel/AppViewModel'
+import { DsControlSize } from '../../components/DsControlSize'
 
 const APP_NAME_LETTER_SPACING: number = 0.4
 const CARD_LABEL_LETTER_SPACING: number = -0.15
@@ -70,7 +71,7 @@ export struct WelcomePage {
     Row() {
       DsButton({
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Medium,
+        buttonSize: DsControlSize.Medium,
         iconOnly: true,
         leadingIcon: $r('app.string.symbol_arrow_back'),
         iconSizeOverride: $r('app.float.ds_icon_md'),
@@ -175,10 +176,7 @@ export struct WelcomePage {
     .padding($r('app.float.ds_space_16'))
     .justifyContent(FlexAlign.SpaceBetween)
     .backgroundColor(this.actionBackground(index, filled))
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .onHover((isHover: boolean) => this.updateActionHover(index, isHover))
     .onTouch((event: TouchEvent) => this.updateActionPress(index, event))
     .onClick(action)

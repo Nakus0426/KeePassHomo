@@ -1,4 +1,5 @@
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from './DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
+import { DsControlSize } from './DsControlSize'
 
 export enum DsDialogTone {
   Default,
@@ -98,7 +99,7 @@ export struct DsDialog {
               label: this.cancelLabel ?? '',
               variant: DsButtonVariant.Filled,
               tone: DsButtonTone.Default,
-              buttonSize: DsButtonSize.Medium,
+              buttonSize: DsControlSize.Medium,
               fullWidth: true,
               disabled: this.busy,
               onTap: () => this.onCancel(),
@@ -112,7 +113,7 @@ export struct DsDialog {
             label: this.confirmLabel,
             variant: DsButtonVariant.Filled,
             tone: this.confirmTone,
-            buttonSize: DsButtonSize.Medium,
+            buttonSize: DsControlSize.Medium,
             fullWidth: true,
             disabled: this.busy,
             onTap: () => this.onConfirm(),

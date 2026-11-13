@@ -1,7 +1,8 @@
 import { LengthMetrics } from '@kit.ArkUI'
 import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
-import { DsButton, DsButtonSize, DsButtonVariant } from './DsButton'
+import { DsButton, DsButtonVariant } from './DsButton'
+import { DsControlSize } from './DsControlSize'
 
 export enum DsBreadcrumbSize {
   Small = 'small',
@@ -148,7 +149,7 @@ export struct DsBreadcrumbItem {
   build() {
     DsButton({
       variant: DsButtonVariant.Text,
-      buttonSize: DsButtonSize.Medium,
+      buttonSize: DsControlSize.Medium,
       controlHeightOverride: this.controlHeight,
       iconSizeOverride: this.iconSize,
       leadingIcon: this.icon,

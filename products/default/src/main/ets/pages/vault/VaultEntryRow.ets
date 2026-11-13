@@ -4,6 +4,7 @@ import { EntryAvatar } from '../../components/EntryAvatar'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { EntryRowModel } from '../../viewmodel/EntryRowModel'
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
+import { DsControlSize } from '../../components/DsControlSize'
 
 // 密集条目行：只渲染行模型与本地点击，业务动作由首页统一编排。
 @ComponentV2
@@ -35,7 +36,12 @@ export struct VaultEntryRow {
   build() {
     Row({ space: $r('app.float.ds_space_md') }) {
       if (this.home.batchMode) {
-        DsCheckbox({ checked: this.home.isSelected(this.row.uuid) })
+        DsCheckbox({
+          checked: this.home.isSelected(this.row.uuid),
+          checkboxSize: DsControlSize.Small,
+          hovered: this.hovered,
+          pressed: this.pressed,
+        })
       }
 
       EntryAvatar({

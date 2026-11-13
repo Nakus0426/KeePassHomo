@@ -6,11 +6,12 @@ import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsInput } from '../../components/DsInput'
 import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { IconToggleButton } from '../../components/IconToggleButton'
+import { DsControlSize } from '../../components/DsControlSize'
 
 @ComponentV2
 export struct UnlockPage {
@@ -228,10 +229,7 @@ export struct UnlockPage {
     }
     // 提示条常驻但透明，先归位再动画，保证首次出现与退出中途重现都有起始帧。
     this.errorBannerOffset = AnimationTokens.BANNER_ENTER_OFFSET
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    }, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.errorBannerOffset = 0
       this.errorBannerOpacity = 1
     })
@@ -255,7 +253,7 @@ export struct UnlockPage {
   private vaultSwitchButton() {
     DsButton({
       variant: DsButtonVariant.Text,
-      buttonSize: DsButtonSize.Medium,
+      buttonSize: DsControlSize.Medium,
       iconOnly: true,
       leadingIcon: $r('app.string.symbol_swap_horiz'),
       iconSizeOverride: $r('app.float.ds_icon_md'),
@@ -424,7 +422,7 @@ export struct UnlockPage {
     DsButton({
       variant: DsButtonVariant.Filled,
       tone: DsButtonTone.Tonal,
-      buttonSize: DsButtonSize.Medium,
+      buttonSize: DsControlSize.Medium,
       fullWidth: true,
       backgroundColorOverride: $r('app.color.ds_surface_inset'),
       controlHeightOverride: $r('app.float.ds_input_height_md'),
@@ -482,7 +480,7 @@ export struct UnlockPage {
   @Builder
   private unlockButton() {
     DsButton({
-      buttonSize: DsButtonSize.Large,
+      buttonSize: DsControlSize.Large,
       fullWidth: true,
       trailingIcon: this.busyGate.visible ? undefined : this.buttonTrailingIcon,
       accessibilityLabelResource: this.buttonLabel,

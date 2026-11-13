@@ -1,6 +1,7 @@
-import { ResUtil } from '@pura/harmony-utils'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from './DsButton'
+import { measureVp } from '@ohos/common'
+import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { MorphIcon } from './MorphIcon'
+import { DsControlSize } from './DsControlSize'
 
 // 图标按钮：外观与反馈全部来自 DsButton，图标通过内容插槽提供
 @ComponentV2
@@ -18,7 +19,7 @@ export struct IconToggleButton {
   // 与 DsButton 对齐的外观属性
   @Param variant: DsButtonVariant = DsButtonVariant.Text
   @Param tone: DsButtonTone = DsButtonTone.Default
-  @Param buttonSize: DsButtonSize = DsButtonSize.Small
+  @Param buttonSize: DsControlSize = DsControlSize.Small
   // 输入框图标框等非标准边长覆盖；不传时使用 buttonSize
   @Param boxSize: Resource | undefined = undefined
   @Param iconSizeOverride: Resource | undefined = undefined
@@ -30,7 +31,7 @@ export struct IconToggleButton {
   @Computed
   private get iconSize(): number {
     const size: Resource = this.iconSizeOverride ?? $r('app.float.ds_icon_sm')
-    return this.getUIContext().px2vp(ResUtil.getNumber(size.id))
+    return measureVp(this.getUIContext(), size)
   }
 
   @Computed

@@ -4,11 +4,12 @@ import { vaultHomeViewModel, VaultHomeViewModel } from '../../viewmodel/VaultHom
 import { ModuleTabChrome } from '../../components/ModuleTabChrome'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { ResUtil } from '@pura/harmony-utils'
-import { DsButton, DsButtonSize, DsButtonVariant } from '../../components/DsButton'
-import { DsInput, DsInputSize } from '../../components/DsInput'
+import { DsButton, DsButtonVariant } from '../../components/DsButton'
+import { DsInput } from '../../components/DsInput'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { EntryGroupPicker } from './EntryGroupPicker'
+import { DsControlSize } from '../../components/DsControlSize'
 
 @ComponentV2
 struct VaultHeaderBar {
@@ -75,7 +76,7 @@ struct VaultHeaderBar {
       Row({ space: $r('app.float.ds_space_sm') }) {
         DsButton({
           variant: DsButtonVariant.Text,
-          buttonSize: DsButtonSize.Medium,
+          buttonSize: DsControlSize.Medium,
           iconOnly: true,
           leadingIcon: $r('app.string.symbol_lock'),
           iconSizeOverride: $r('app.float.ds_icon_md'),
@@ -89,7 +90,7 @@ struct VaultHeaderBar {
         // 参考解锁页右上角：图标按钮切换保险库。
         DsButton({
           variant: DsButtonVariant.Text,
-          buttonSize: DsButtonSize.Medium,
+          buttonSize: DsControlSize.Medium,
           iconOnly: true,
           leadingIcon: $r('app.string.symbol_swap_horiz'),
           iconSizeOverride: $r('app.float.ds_icon_md'),
@@ -160,7 +161,7 @@ struct VaultFilter {
     if (this.home.searchQuery.length > 0) {
       DsButton({
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Small,
+        buttonSize: DsControlSize.Small,
         iconOnly: true,
         leadingIcon: $r('app.string.symbol_close'),
         iconSizeOverride: $r('app.float.ds_icon_xs'),
@@ -200,7 +201,7 @@ struct VaultFilter {
       DsInput({
         placeholder: $r('app.string.search_vault'),
         text: this.home.searchQuery,
-        inputSize: DsInputSize.Medium,
+        inputSize: DsControlSize.Medium,
         leadingBuilder: this.searchLeading,
         trailingBuilder: this.searchTrailing,
         onChange: (value: string) => this.home.setSearchQuery(value),
@@ -221,7 +222,7 @@ struct VaultFilter {
         DsButton({
           label: this.groupFilterLabel,
           variant: DsButtonVariant.Text,
-          buttonSize: DsButtonSize.Small,
+          buttonSize: DsControlSize.Small,
           leadingIcon: $r('app.string.symbol_folder'),
           trailingIcon: $r('app.string.symbol_chevron_down'),
           iconSizeOverride: $r('app.float.ds_icon_xs'),
@@ -274,7 +275,7 @@ struct VaultSelectionHeader {
     Row({ space: $r('app.float.ds_space_sm') }) {
       DsButton({
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Medium,
+        buttonSize: DsControlSize.Medium,
         iconOnly: true,
         leadingIcon: $r('app.string.symbol_close'),
         iconSizeOverride: $r('app.float.ds_icon_md'),
@@ -302,7 +303,7 @@ struct VaultSelectionHeader {
       DsButton({
         label: $r('app.string.entry_batch_select_all'),
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Medium,
+        buttonSize: DsControlSize.Medium,
         horizontalPaddingOverride: $r('app.float.ds_space_sm'),
         contentColorOverride: $r('app.color.ds_text_primary'),
         onTap: () => this.home.selectAllVisible(),

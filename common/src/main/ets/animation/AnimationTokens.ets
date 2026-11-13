@@ -15,6 +15,11 @@ export class AnimationTokens {
 
   static readonly STATE_TRANSITION_DURATION: number = AnimationTokens.DURATION_FEEDBACK
   static readonly STATE_TRANSITION_CURVE: ICurve = AnimationTokens.EASE_STATE
+  // 反馈态通用动画参数，供 .animation() 直接引用，避免每处重复构造。
+  static readonly FEEDBACK_ANIMATION: AnimateParam = {
+    duration: AnimationTokens.DURATION_FEEDBACK,
+    curve: AnimationTokens.EASE_STATE,
+  }
   static readonly CARD_ENTER_SCALE: number = 0.9
   static readonly CARD_EXIT_SCALE: number = 0.8
   static readonly FAVORITE_PRESS_SCALE: number = 0.88

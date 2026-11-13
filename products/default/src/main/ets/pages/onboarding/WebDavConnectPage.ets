@@ -10,13 +10,13 @@ import {
 import { ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsBreadcrumb, DsBreadcrumbItemData, DsBreadcrumbSize } from '../../components/DsBreadcrumb'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
 import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsPageHeader } from '../../components/DsPageHeader'
-import { DsRadio, DsRadioSize } from '../../components/DsRadio'
+import { DsRadio } from '../../components/DsRadio'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { DsStepper } from '../../components/DsStepper'
 import { IconToggleButton } from '../../components/IconToggleButton'
@@ -30,6 +30,7 @@ import {
   WebDavListStatus,
   WebDavStep,
 } from '../../viewmodel/WebDavConnectViewModel'
+import { DsControlSize } from '../../components/DsControlSize'
 
 // 提示条在表单内就地出现/消失：轻微位移 + 淡入淡出，避免高度插入显得生硬。
 const NOTICE_TRANSITION: TransitionEffect = TransitionEffect.asymmetric(
@@ -132,7 +133,7 @@ struct WebDavFileRow {
           checked: this.selected,
           hovered: this.hovered,
           pressed: this.pressed,
-          radioSize: DsRadioSize.Medium,
+          radioSize: DsControlSize.Medium,
         })
       }
     }
@@ -145,10 +146,7 @@ struct WebDavFileRow {
     })
     .backgroundColor(this.rowFill())
     .borderRadius($r('app.float.ds_radius_none'))
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .onHover((isHover: boolean) => {
       if (!this.clickable()) {
         return
@@ -624,7 +622,7 @@ export struct WebDavConnectPage {
       })
       DsButton({
         tone: DsButtonTone.Default,
-        buttonSize: DsButtonSize.Medium,
+        buttonSize: DsControlSize.Medium,
         fullWidth: true,
         disabled: !this.viewModel.canTest,
         contentBuilder: this.testButtonContent,
@@ -643,7 +641,7 @@ export struct WebDavConnectPage {
     Row({ space: $r('app.float.ds_space_sm') }) {
       DsButton({
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Small,
+        buttonSize: DsControlSize.Small,
         iconOnly: true,
         leadingIcon: $r('app.string.symbol_arrow_upward'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -668,7 +666,7 @@ export struct WebDavConnectPage {
       .layoutWeight(1)
       DsButton({
         variant: DsButtonVariant.Text,
-        buttonSize: DsButtonSize.Small,
+        buttonSize: DsControlSize.Small,
         iconOnly: true,
         leadingIcon: $r('app.string.symbol_refresh'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
@@ -849,7 +847,7 @@ export struct WebDavConnectPage {
   private bottomActionContent() {
     if (this.viewModel.step === WebDavStep.Server) {
       DsButton({
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: this.nextGate.visible || this.successFlash
           ? undefined : $r('app.string.symbol_arrow_forward'),
@@ -861,7 +859,7 @@ export struct WebDavConnectPage {
       })
     } else if (this.viewModel.step === WebDavStep.File) {
       DsButton({
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_arrow_forward'),
         label: $r('app.string.webdav_next'),
@@ -872,7 +870,7 @@ export struct WebDavConnectPage {
       })
     } else {
       DsButton({
-        buttonSize: DsButtonSize.Large,
+        buttonSize: DsControlSize.Large,
         fullWidth: true,
         trailingIcon: $r('app.string.symbol_arrow_forward'),
         label: $r('app.string.webdav_next'),

@@ -1,5 +1,4 @@
-import { AnimationTokens } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, measureVp } from '@ohos/common'
 
 export interface DsSegmentedSwitchItem {
   label: ResourceStr
@@ -46,9 +45,9 @@ export struct DsSegmentedSwitch {
 
   aboutToAppear(): void {
     const uiContext: UIContext = this.getUIContext()
-    this.slotHeight = uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_seg_height').id))
-    this.shellPad = uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_seg_shell_pad').id))
-    this.shellGap = uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_seg_shell_gap').id))
+    this.slotHeight = measureVp(uiContext, $r('app.float.ds_seg_height'))
+    this.shellPad = measureVp(uiContext, $r('app.float.ds_seg_shell_pad'))
+    this.shellGap = measureVp(uiContext, $r('app.float.ds_seg_shell_gap'))
   }
 
   @Monitor('selectedIndex')
@@ -118,10 +117,7 @@ export struct DsSegmentedSwitch {
       this.thumbX = target
       return
     }
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    }, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.thumbX = target
     })
   }
@@ -279,10 +275,7 @@ export struct DsSegmentedSwitch {
                 .fontWeight(600)
                 .letterSpacing(LABEL_LETTER_SPACING)
                 .fontColor(this.labelColor(index))
-                .animation({
-                  duration: AnimationTokens.DURATION_FEEDBACK,
-                  curve: AnimationTokens.EASE_STATE,
-                })
+                .animation(AnimationTokens.FEEDBACK_ANIMATION)
                 .maxLines(1)
             }
           }

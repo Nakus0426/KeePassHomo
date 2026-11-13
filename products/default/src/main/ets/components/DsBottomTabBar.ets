@@ -73,10 +73,7 @@ export struct DsBottomTabBar {
       this.thumbX = target
       return
     }
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    }, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.thumbX = target
     })
   }

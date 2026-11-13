@@ -1,12 +1,8 @@
 import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { PASSWORD_FONT_FAMILY } from '../constants/FontConstants'
+import { DsControlSize } from './DsControlSize'
 
-export enum DsNumberStepperSize {
-  Small = 'small',
-  Medium = 'medium',
-  Large = 'large',
-}
 
 interface StepperMetrics {
   height: number
@@ -29,7 +25,7 @@ export struct DsNumberStepper {
   @Param min: number = 0
   @Param max: number = 100
   @Param step: number = 1
-  @Param stepperSize: DsNumberStepperSize = DsNumberStepperSize.Small
+  @Param stepperSize: DsControlSize = DsControlSize.Small
   @Param disabled: boolean = false
   @Event onChange: (value: number) => void = () => {
   }
@@ -41,10 +37,10 @@ export struct DsNumberStepper {
 
   @Computed
   get metrics(): StepperMetrics {
-    if (this.stepperSize === DsNumberStepperSize.Medium) {
+    if (this.stepperSize === DsControlSize.Medium) {
       return MEDIUM
     }
-    return this.stepperSize === DsNumberStepperSize.Large ? LARGE : SMALL
+    return this.stepperSize === DsControlSize.Large ? LARGE : SMALL
   }
 
   @Computed
@@ -123,10 +119,7 @@ export struct DsNumberStepper {
         .fontSize(this.metrics.icon)
         .fontColor([this.glyphColor(this.isEnabled(increase))])
         .foregroundColor(this.glyphColor(this.isEnabled(increase)))
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
     }
     .width(this.metrics.button)
     .height(this.metrics.button)
@@ -137,10 +130,7 @@ export struct DsNumberStepper {
     .responseRegion(this.touchRegion())
     .accessibilityText(ResUtil.getStringSync(
       increase ? $r('app.string.number_stepper_increase') : $r('app.string.number_stepper_decrease')))
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .enabled(this.isEnabled(increase))
     .onHover((isHover: boolean) => {
       if (this.isEnabled(increase)) {
@@ -177,10 +167,7 @@ export struct DsNumberStepper {
         .fontWeight(600)
         .fontColor(this.disabled ? $r('app.color.ds_text_disabled') : $r('app.color.ds_text_primary'))
         .fontFamily(PASSWORD_FONT_FAMILY)
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
 
       this.stepButton(true)
     }
@@ -190,9 +177,6 @@ export struct DsNumberStepper {
     .borderRadius($r('app.float.ds_radius_none'))
     .alignItems(VerticalAlign.Center)
     .enabled(!this.disabled)
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
   }
 }

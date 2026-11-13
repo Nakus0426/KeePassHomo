@@ -1,5 +1,4 @@
-import { ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens } from '@ohos/common'
+import { AnimationTokens, measureVp } from '@ohos/common'
 
 export enum DsTabsSize {
   Small = 'sm',
@@ -117,9 +116,9 @@ export struct DsTabs {
 
   private measure(): void {
     const uiContext: UIContext = this.getUIContext()
-    this.tabHeightVp = uiContext.px2vp(ResUtil.getNumber(this.heightRes.id))
-    this.indicatorVp = uiContext.px2vp(ResUtil.getNumber(this.indicatorRes.id))
-    this.baselineVp = uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_border_width').id))
+    this.tabHeightVp = measureVp(uiContext, this.heightRes)
+    this.indicatorVp = measureVp(uiContext, this.indicatorRes)
+    this.baselineVp = measureVp(uiContext, $r('app.float.ds_border_width'))
   }
 
   private moveIndicator(index: number, animated: boolean): void {
@@ -131,10 +130,7 @@ export struct DsTabs {
       this.indicatorX = target
       return
     }
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    }, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.indicatorX = target
     })
   }
@@ -192,10 +188,7 @@ export struct DsTabs {
                 .letterSpacing(LABEL_LETTER_SPACING)
                 .fontColor(this.labelColor(index))
                 .maxLines(1)
-                .animation({
-                  duration: AnimationTokens.DURATION_FEEDBACK,
-                  curve: AnimationTokens.EASE_STATE,
-                })
+                .animation(AnimationTokens.FEEDBACK_ANIMATION)
             }
           }
           .layoutWeight(1)

@@ -1,6 +1,9 @@
 import { LengthMetrics } from '@kit.ArkUI'
 import { ResUtil } from '@pura/harmony-utils'
 import { AnimationTokens } from '@ohos/common'
+import { DsControlSize } from './DsControlSize'
+import { DsColorLadder } from './DsColorLadder'
+
 
 export enum DsButtonVariant {
   Filled = 'filled',
@@ -16,12 +19,6 @@ export enum DsButtonTone {
   Default = 'default',
   // 次级实心按钮：面底比 Default 低一档，用于同排的次要动作。
   Tonal = 'tonal',
-}
-
-export enum DsButtonSize {
-  Large = 'large',
-  Medium = 'medium',
-  Small = 'small',
 }
 
 const LABEL_LETTER_SPACING: number = 0.2
@@ -42,7 +39,7 @@ export struct DsButton {
   @Param variant: DsButtonVariant = DsButtonVariant.Filled
   @Param tone: DsButtonTone = DsButtonTone.Primary
   // 不能命名为 size：与 CustomComponent.size() 冲突。
-  @Param buttonSize: DsButtonSize = DsButtonSize.Medium
+  @Param buttonSize: DsControlSize = DsControlSize.Medium
   // 仅 iconOnly 用；覆盖按钮边长，供图标框等非标准尺寸使用。
   @Param controlHeightOverride: Resource | undefined = undefined
   // Small 文本态默认 8vp；设计稿行内文本按钮要求与实心态一致的 12vp。
@@ -73,10 +70,10 @@ export struct DsButton {
 
   private static readonly TONE_TABLE: Record<string, DsButtonToneColors> = {
     'primary': {
-      base: $r('app.color.ds_primary'),
-      hover: $r('app.color.ds_primary_hover'),
-      press: $r('app.color.ds_primary_press'),
-      onColor: $r('app.color.ds_on_primary'),
+      base: DsColorLadder.PRIMARY.base,
+      hover: DsColorLadder.PRIMARY.hover,
+      press: DsColorLadder.PRIMARY.press,
+      onColor: DsColorLadder.PRIMARY.onColor,
     },
     'success': {
       base: $r('app.color.ds_success'),
@@ -140,10 +137,10 @@ export struct DsButton {
         return Color.Transparent
       }
       if (this.pressed) {
-        return $r('app.color.ds_overlay_muted')
+        return DsColorLadder.RING_MUTED
       }
       if (this.hovered) {
-        return $r('app.color.ds_overlay_subtle')
+        return DsColorLadder.RING_SUBTLE
       }
       return Color.Transparent
     }
@@ -197,9 +194,9 @@ export struct DsButton {
       return this.controlHeightOverride
     }
     switch (this.buttonSize) {
-      case DsButtonSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_cta_height')
-      case DsButtonSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_button_small_height')
       default:
         return $r('app.float.ds_button_height')
@@ -212,9 +209,9 @@ export struct DsButton {
       return this.labelFontSizeOverride
     }
     switch (this.buttonSize) {
-      case DsButtonSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_font_title')
-      case DsButtonSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_font_label_sm')
       default:
         return $r('app.float.ds_font_body')
@@ -227,9 +224,9 @@ export struct DsButton {
       return this.iconSizeOverride
     }
     switch (this.buttonSize) {
-      case DsButtonSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_icon_md')
-      case DsButtonSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_icon_xs')
       default:
         return $r('app.float.ds_icon_sm')
@@ -246,7 +243,7 @@ export struct DsButton {
 
   @Computed
   get contentGap(): Resource {
-    return this.buttonSize === DsButtonSize.Small ? $r('app.float.ds_space_6') : $r('app.float.ds_space_sm')
+    return this.buttonSize === DsControlSize.Small ? $r('app.float.ds_space_6') : $r('app.float.ds_space_sm')
   }
 
   @Computed
@@ -258,7 +255,7 @@ export struct DsButton {
       return this.horizontalPaddingOverride
     }
     switch (this.buttonSize) {
-      case DsButtonSize.Large:
+      case DsControlSize.Large:
         switch (this.variant) {
           case DsButtonVariant.Filled:
             return $r('app.float.ds_space_24')
@@ -267,7 +264,7 @@ export struct DsButton {
           default:
             return $r('app.float.ds_space_16')
         }
-      case DsButtonSize.Small:
+      case DsControlSize.Small:
         return this.variant === DsButtonVariant.Text
           ? $r('app.float.ds_space_sm') : $r('app.float.ds_space_md')
       default:
@@ -304,10 +301,7 @@ export struct DsButton {
         SymbolGlyph(this.leadingIcon)
           .fontColor([this.iconColor])
           .foregroundColor(this.iconColor)
-          .animation({
-            duration: AnimationTokens.DURATION_FEEDBACK,
-            curve: AnimationTokens.EASE_STATE,
-          })
+          .animation(AnimationTokens.FEEDBACK_ANIMATION)
           .fontSize(this.iconSize)
       }
       if (this.contentBuilder !== undefined) {
@@ -315,10 +309,7 @@ export struct DsButton {
       } else if (!this.iconOnly) {
         Text(this.label)
           .fontColor(this.contentColor)
-          .animation({
-            duration: AnimationTokens.DURATION_FEEDBACK,
-            curve: AnimationTokens.EASE_STATE,
-          })
+          .animation(AnimationTokens.FEEDBACK_ANIMATION)
           .fontSize(this.labelSize)
           .fontWeight(this.labelWeightOverride ?? 600)
           .letterSpacing(LABEL_LETTER_SPACING)
@@ -328,10 +319,7 @@ export struct DsButton {
         SymbolGlyph(this.trailingIcon)
           .fontColor([this.iconColor])
           .foregroundColor(this.iconColor)
-          .animation({
-            duration: AnimationTokens.DURATION_FEEDBACK,
-            curve: AnimationTokens.EASE_STATE,
-          })
+          .animation(AnimationTokens.FEEDBACK_ANIMATION)
           .fontSize(this.iconSize)
       }
     }
@@ -344,10 +332,7 @@ export struct DsButton {
       dashGap: DASH_GAP,
     })
     .foregroundColor(this.contentColor)
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .width(this.buttonWidth)
     .height(this.controlHeight)
     .padding({ left: this.horizontalPadding, right: this.horizontalPadding })

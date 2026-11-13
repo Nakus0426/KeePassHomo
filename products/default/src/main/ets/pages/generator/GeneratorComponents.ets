@@ -8,8 +8,8 @@ import {
   StrengthLevel,
 } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
-import { DsButton, DsButtonSize, DsButtonTone } from '../../components/DsButton'
-import { DsNumberStepper, DsNumberStepperSize } from '../../components/DsNumberStepper'
+import { DsButton, DsButtonTone } from '../../components/DsButton'
+import { DsNumberStepper } from '../../components/DsNumberStepper'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsStrengthMeter } from '../../components/DsStrengthMeter'
 import { DsSwitch } from '../../components/DsSwitch'
@@ -18,6 +18,7 @@ import { strengthLabel } from '../../viewmodel/EntryPresentation'
 import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorViewModel'
 import { appViewModel } from '../../viewmodel/AppViewModel'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
+import { DsControlSize } from '../../components/DsControlSize'
 
 const SETTING_LABEL_LETTER_SPACING: number = 0.2
 
@@ -61,7 +62,7 @@ struct GeneratorStepperRow {
         min: this.min,
         max: this.max,
         step: this.step,
-        stepperSize: DsNumberStepperSize.Small,
+        stepperSize: DsControlSize.Small,
         onChange: (value: number) => this.onChange(value),
       })
     }
@@ -443,7 +444,7 @@ export struct GeneratorContent {
         if (this.onSheet) {
           DsButton({
             label: $r('app.string.copy'),
-            buttonSize: DsButtonSize.Small,
+            buttonSize: DsControlSize.Small,
             tone: DsButtonTone.Default,
             trailingIcon: $r('app.string.symbol_copy'),
             iconSizeOverride: $r('app.float.ds_icon_tiny'),

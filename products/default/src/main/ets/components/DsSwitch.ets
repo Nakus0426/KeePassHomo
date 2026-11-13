@@ -1,11 +1,8 @@
-import { AnimationTokens } from '@ohos/common'
+import { AnimationTokens, measureVp } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
+import { DsControlSize } from './DsControlSize'
+import { DsColorLadder } from './DsColorLadder'
 
-export enum DsSwitchSize {
-  Small = 'small',
-  Medium = 'medium',
-  Large = 'large',
-}
 
 interface SwitchMetrics {
   trackWidth: number
@@ -23,7 +20,7 @@ export struct DsSwitch {
   @Param checked: boolean = false
   @Param disabled: boolean = false
   // 不能命名为 size：与 CustomComponent.size() 冲突。
-  @Param switchSize: DsSwitchSize = DsSwitchSize.Medium
+  @Param switchSize: DsControlSize = DsControlSize.Medium
   @Param accessibilityLabel: ResourceStr = ''
   @Event onChange: (value: boolean) => void = () => {
   }
@@ -62,12 +59,12 @@ export struct DsSwitch {
     let height: Resource
     let knob: Resource
     switch (this.switchSize) {
-      case DsSwitchSize.Small:
+      case DsControlSize.Small:
         width = $r('app.float.ds_switch_width_sm')
         height = $r('app.float.ds_switch_height_sm')
         knob = $r('app.float.ds_switch_knob_sm')
         break
-      case DsSwitchSize.Large:
+      case DsControlSize.Large:
         width = $r('app.float.ds_switch_width_lg')
         height = $r('app.float.ds_switch_height_lg')
         knob = $r('app.float.ds_switch_knob_lg')
@@ -79,11 +76,11 @@ export struct DsSwitch {
         break
     }
     this.metrics = {
-      trackWidth: uiContext.px2vp(ResUtil.getNumber(width.id)),
-      trackHeight: uiContext.px2vp(ResUtil.getNumber(height.id)),
-      knobSize: uiContext.px2vp(ResUtil.getNumber(knob.id)),
-      pressExtra: uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_switch_knob_press_extra').id)),
-      ringWidth: uiContext.px2vp(ResUtil.getNumber($r('app.float.ds_switch_ring_width').id)),
+      trackWidth: measureVp(uiContext, width),
+      trackHeight: measureVp(uiContext, height),
+      knobSize: measureVp(uiContext, knob),
+      pressExtra: measureVp(uiContext, $r('app.float.ds_switch_knob_press_extra')),
+      ringWidth: measureVp(uiContext, $r('app.float.ds_switch_ring_width')),
     }
   }
 
@@ -111,7 +108,7 @@ export struct DsSwitch {
 
   @Computed
   get ringColor(): ResourceColor {
-    return this.pressed ? $r('app.color.ds_overlay_muted') : $r('app.color.ds_overlay_subtle')
+    return this.pressed ? DsColorLadder.RING_MUTED : DsColorLadder.RING_SUBTLE
   }
 
   @Computed
@@ -145,10 +142,7 @@ export struct DsSwitch {
         .borderRadius($r('app.float.ds_radius_none'))
         .position({ x: this.metrics.ringWidth, y: this.metrics.ringWidth })
         .hitTestBehavior(HitTestMode.None)
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
 
       Column()
         .width(this.knobWidth)
@@ -161,18 +155,12 @@ export struct DsSwitch {
         })
         .translate({ x: this.knobSlide })
         .hitTestBehavior(HitTestMode.None)
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
     }
     .width(this.metrics.trackWidth + this.metrics.ringWidth * 2)
     .height(this.metrics.trackHeight + this.metrics.ringWidth * 2)
     .backgroundColor(this.ringActive ? this.ringColor : Color.Transparent)
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .accessibilityText(this.effectiveAccessibilityLabel)
     .enabled(!this.disabled)
     .onHover((isHover: boolean) => {

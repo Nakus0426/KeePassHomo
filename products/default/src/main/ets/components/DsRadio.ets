@@ -1,17 +1,13 @@
 import { AnimationTokens } from '@ohos/common'
+import { DsControlSize } from './DsControlSize'
 
-export enum DsRadioSize {
-  Small = 'small',
-  Medium = 'medium',
-  Large = 'large',
-}
 
 @ComponentV2
 export struct DsRadio {
   @Param checked: boolean = false
   @Param disabled: boolean = false
   // 不能命名为 size：与 CustomComponent.size() 冲突。
-  @Param radioSize: DsRadioSize = DsRadioSize.Medium
+  @Param radioSize: DsControlSize = DsControlSize.Medium
   // 交互态由承载行传入，组件自身不抢占整行热区。
   @Param hovered: boolean = false
   @Param pressed: boolean = false
@@ -19,9 +15,9 @@ export struct DsRadio {
   @Computed
   private get controlSize(): Resource {
     switch (this.radioSize) {
-      case DsRadioSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_radio_size_sm')
-      case DsRadioSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_radio_size_lg')
       default:
         return $r('app.float.ds_radio_size_md')
@@ -31,9 +27,9 @@ export struct DsRadio {
   @Computed
   private get dotSize(): Resource {
     switch (this.radioSize) {
-      case DsRadioSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_radio_dot_sm')
-      case DsRadioSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_radio_dot_lg')
       default:
         return $r('app.float.ds_radio_dot_md')
@@ -43,9 +39,9 @@ export struct DsRadio {
   @Computed
   private get strokeWidth(): Resource {
     switch (this.radioSize) {
-      case DsRadioSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_radio_stroke_sm')
-      case DsRadioSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_radio_stroke_lg')
       default:
         return $r('app.float.ds_radio_stroke_md')
@@ -75,10 +71,7 @@ export struct DsRadio {
         .height(this.controlSize)
         .border({ width: this.strokeWidth, color: this.ringColor })
         .borderRadius($r('app.float.ds_radius_none'))
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
       Column()
         .width(this.dotSize)
         .height(this.dotSize)
@@ -86,10 +79,7 @@ export struct DsRadio {
         .borderRadius($r('app.float.ds_radius_none'))
         .opacity(this.checked ? 1 : 0)
         .scale({ x: this.checked ? 1 : 0, y: this.checked ? 1 : 0 })
-        .animation({
-          duration: AnimationTokens.DURATION_FEEDBACK,
-          curve: AnimationTokens.EASE_STATE,
-        })
+        .animation(AnimationTokens.FEEDBACK_ANIMATION)
     }
     .width(this.controlSize)
     .height(this.controlSize)

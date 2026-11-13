@@ -1,4 +1,6 @@
 import { AnimationTokens } from '@ohos/common'
+import { DsControlSize } from './DsControlSize'
+
 
 export enum DsInputTone {
   Default = 'default',
@@ -8,19 +10,13 @@ export enum DsInputTone {
   Error = 'error',
 }
 
-export enum DsInputSize {
-  Large = 'large',
-  Medium = 'medium',
-  Small = 'small',
-}
-
 @ComponentV2
 export struct DsInput {
   @Param text: string = ''
   @Param placeholder: ResourceStr = ''
   @Param type: InputType = InputType.Normal
   @Param showPassword: boolean = false
-  @Param inputSize: DsInputSize = DsInputSize.Medium
+  @Param inputSize: DsControlSize = DsControlSize.Medium
   @Param tone: DsInputTone = DsInputTone.Default
   @Param readOnly: boolean = false
   @Param disabled: boolean = false
@@ -110,9 +106,9 @@ export struct DsInput {
   @Computed
   get controlHeight(): Resource {
     switch (this.inputSize) {
-      case DsInputSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_input_height_lg')
-      case DsInputSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_input_height_sm')
       default:
         return $r('app.float.ds_input_height_md')
@@ -122,9 +118,9 @@ export struct DsInput {
   @Computed
   get horizontalPadding(): Resource {
     switch (this.inputSize) {
-      case DsInputSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_input_pad_x_lg')
-      case DsInputSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_input_pad_x_sm')
       default:
         return $r('app.float.ds_input_pad_x_md')
@@ -134,9 +130,9 @@ export struct DsInput {
   @Computed
   get inputFontSize(): Resource {
     switch (this.inputSize) {
-      case DsInputSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_input_font_size_lg')
-      case DsInputSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_input_font_size_sm')
       default:
         return $r('app.float.ds_input_font_size_md')
@@ -146,9 +142,9 @@ export struct DsInput {
   @Computed
   get contentGap(): Resource {
     switch (this.inputSize) {
-      case DsInputSize.Large:
+      case DsControlSize.Large:
         return $r('app.float.ds_input_gap_lg')
-      case DsInputSize.Small:
+      case DsControlSize.Small:
         return $r('app.float.ds_input_gap_sm')
       default:
         return $r('app.float.ds_input_gap_md')
@@ -224,9 +220,6 @@ export struct DsInput {
       width: this.inputBorderWidth,
       color: this.inputBorderColor,
     })
-    .animation({
-      duration: AnimationTokens.DURATION_FEEDBACK,
-      curve: AnimationTokens.EASE_STATE,
-    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
   }
 }

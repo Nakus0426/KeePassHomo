@@ -6,7 +6,7 @@ import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { CreateVaultViewModel } from '../../viewmodel/CreateVaultViewModel'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
-import { DsButton, DsButtonSize, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsField } from '../../components/DsField'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsInput, DsInputTone } from '../../components/DsInput'
@@ -17,6 +17,7 @@ import { DsSegmentedSwitch, DsSegmentedSwitchItem, DsSegmentedSwitchSlot } from 
 import { DsStrengthMeter } from '../../components/DsStrengthMeter'
 import { Status } from '../../components/FormItem'
 import { appRouter } from '../../navigation/AppRouter'
+import { DsControlSize } from '../../components/DsControlSize'
 
 const AUTH_MODES: DsSegmentedSwitchItem[] = [
   { label: $r('app.string.auth_mode_password_and_key'), enabled: true },
@@ -403,7 +404,7 @@ export struct CreateVaultPage {
           DsButton({
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Default,
-            buttonSize: DsButtonSize.Small,
+            buttonSize: DsControlSize.Small,
             trailingIcon: $r('app.string.symbol_refresh'),
             label: $r('app.string.key_file_regenerate'),
             onTap: () => this.viewModel.generateKeyFile(this.keyFileDefaultName()),
@@ -412,7 +413,7 @@ export struct CreateVaultPage {
           DsButton({
             variant: DsButtonVariant.Filled,
             tone: DsButtonTone.Default,
-            buttonSize: DsButtonSize.Small,
+            buttonSize: DsControlSize.Small,
             trailingIcon: $r('app.string.symbol_upload_file'),
             label: $r('app.string.key_file_replace'),
             onTap: () => this.viewModel.chooseKeyFile(),
@@ -422,7 +423,7 @@ export struct CreateVaultPage {
         DsButton({
           variant: DsButtonVariant.Text,
           tone: DsButtonTone.Error,
-          buttonSize: DsButtonSize.Small,
+          buttonSize: DsControlSize.Small,
           horizontalPaddingOverride: $r('app.float.ds_space_md'),
           trailingIcon: $r('app.string.symbol_close'),
           label: $r('app.string.key_file_remove'),

@@ -6,6 +6,8 @@ export { AppToast } from './src/main/ets/utils/AppToast'
 
 export { DelayedVisibility } from './src/main/ets/utils/DelayedVisibility'
 
+export { measureVp } from './src/main/ets/utils/MeasureUtil'
+
 export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
 
 export { AnimationTokens } from './src/main/ets/animation/AnimationTokens'
