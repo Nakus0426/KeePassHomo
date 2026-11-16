@@ -681,7 +681,7 @@ export class AppViewModel {
   }
 
   // 归档改变条目归属分类，必须重建列表快照；半模态收起由调用方负责。
-  async toggleArchived(entryUuid: string): Promise<void> {
+  async toggleArchived(entryUuid: string): Promise<boolean> {
     this.busy = true
     try {
       const entry: VaultEntry = stageOneVaultStore.entry(entryUuid)
@@ -689,8 +689,10 @@ export class AppViewModel {
       this.refreshVault()
       this.setStatus('')
       this.recordActivity()
+      return true
     } catch (error) {
       this.reportBoundaryError('更新归档状态失败', error)
+      return false
     } finally {
       this.busy = false
     }

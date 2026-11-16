@@ -20,6 +20,9 @@ export class AnimationTokens {
     duration: AnimationTokens.DURATION_FEEDBACK,
     curve: AnimationTokens.EASE_STATE,
   }
+  // 智感握姿悬浮按钮：跨侧绕行与首次出场使用官方推荐的弹簧曲线。
+  static readonly FAB_SIDE_MOVE_CURVE: ICurve = curves.interpolatingSpring(0, 1, 170, 17)
+  static readonly FAB_FIRST_APPEAR_CURVE: ICurve = curves.interpolatingSpring(0, 1, 200, 17)
   static readonly CARD_ENTER_SCALE: number = 0.9
   static readonly CARD_EXIT_SCALE: number = 0.8
   static readonly FAVORITE_PRESS_SCALE: number = 0.88

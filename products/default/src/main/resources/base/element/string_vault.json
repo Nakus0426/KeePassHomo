@@ -665,6 +665,14 @@
       "value": "移入回收站成功"
     },
     {
+      "name": "entry_archived",
+      "value": "归档成功"
+    },
+    {
+      "name": "entry_restored",
+      "value": "恢复成功"
+    },
+    {
       "name": "preview_placeholder",
       "value": "条目内容区"
     },
@@ -695,6 +703,18 @@
     {
       "name": "delete_group",
       "value": "删除"
+    },
+    {
+      "name": "group_created",
+      "value": "分组已创建"
+    },
+    {
+      "name": "group_renamed",
+      "value": "分组已重命名"
+    },
+    {
+      "name": "group_deleted",
+      "value": "分组已删除"
     },
     {
       "name": "entry_menu_copy_username",

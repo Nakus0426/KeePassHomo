@@ -9,6 +9,7 @@ export struct DsContextMenu {
   }
 
   build() {
+    // 空 Footer 与列间距已留出末项下边距；再叠加 padding 会与分隔线后的上边距不一致。
     Column({ space: $r('app.float.ds_space_sm') }) {
       Column() {
         this.header()
@@ -26,7 +27,6 @@ export struct DsContextMenu {
       .width('100%')
     }
     .width($r('app.float.ds_context_menu_content_width'))
-    .padding({ bottom: $r('app.float.ds_space_sm') })
     .backgroundColor($r('app.color.ds_surface_lowest'))
     .clip(true)
   }

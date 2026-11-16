@@ -111,6 +111,9 @@ export struct AttachmentCard {
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onPreview())
-    .bindContextMenu(this.cardMenu(), ResponseType.LongPress, { preview: MenuPreviewMode.IMAGE })
+    .bindContextMenu(this.cardMenu(), ResponseType.LongPress, {
+      preview: MenuPreviewMode.IMAGE,
+      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+    })
   }
 }

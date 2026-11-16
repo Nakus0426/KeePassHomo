@@ -1,11 +1,20 @@
 import { ComponentContent, UIContext } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { LogUtil } from '@pura/harmony-utils'
+import { AnimationTokens } from '@ohos/common'
 
 const TOAST_DURATION: number = 2000
 const TOAST_BOTTOM_OFFSET: number = -80
 const TOAST_MAX_WIDTH: number = 350
 const TOAST_LINE_HEIGHT: number = 18
+
+// 系统弹窗默认缩放转场会让文本逐帧重新栅格化，模拟器上掉帧；这里只用位移 + 透明度。
+const TOAST_ENTER_TRANSITION: TransitionEffect = TransitionEffect.OPACITY
+  .combine(TransitionEffect.translate({ y: AnimationTokens.BANNER_ENTER_OFFSET }))
+  .animation({ duration: AnimationTokens.DURATION_FEEDBACK, curve: AnimationTokens.EASE_STATE })
+const TOAST_EXIT_TRANSITION: TransitionEffect = TransitionEffect.OPACITY
+  .combine(TransitionEffect.translate({ y: AnimationTokens.BANNER_EXIT_OFFSET }))
+  .animation({ duration: AnimationTokens.DURATION_FAST, curve: AnimationTokens.EASE_EXIT })
 
 export enum DsToastTone {
   Default = 'default',
@@ -110,7 +119,7 @@ export class DsToastHost {
       isModal: false,
       autoCancel: false,
       focusable: false,
-      // 自定义 transition 会与关闭时机冲突，残留最后一帧；改用系统弹窗自带的缩放 + 淡入淡出。
+      dialogTransition: TransitionEffect.asymmetric(TOAST_ENTER_TRANSITION, TOAST_EXIT_TRANSITION),
       onDidDisappear: () => {
         if (DsToastHost.content === content) {
           DsToastHost.content = undefined

@@ -336,6 +336,8 @@ export struct EntryGroupPicker {
     this.viewModel.createGroup(this.currentGroup.uuid, name).then((created: boolean) => {
       if (!created) {
         this.toastStatus()
+      } else {
+        DsToastHost.show(this.getUIContext(), $r('app.string.group_created'))
       }
       this.onActivity()
     })

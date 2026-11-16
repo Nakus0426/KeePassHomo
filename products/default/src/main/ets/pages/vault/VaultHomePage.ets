@@ -45,6 +45,7 @@ export struct VaultHomePage {
   @Local private list: HomeEntryListViewModel = homeEntryListViewModel
   @Local private app: AppViewModel = appViewModel
   @Local private templatePickerVisible: boolean = false
+  @Local private fabHasAppeared: boolean = false
   @Local private batchBarHeight: number = 0
   @Local private deleteDialogBatch: boolean = false
   @Local private deleteBusy: boolean = false
@@ -250,6 +251,7 @@ export struct VaultHomePage {
       this.deleteDialogController.close()
       if (deleted) {
         this.app.refreshHomeSnapshot()
+        DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
       }
       this.animateExitBatch()
     })
@@ -293,8 +295,21 @@ export struct VaultHomePage {
     this.app.setArchivedMany(uuids, archived).then((applied: boolean) => {
       if (applied) {
         this.app.refreshHomeSnapshot()
+        DsToastHost.show(this.getUIContext(),
+          archived ? $r('app.string.entry_archived') : $r('app.string.entry_restored'))
       }
       this.animateExitBatch()
+    })
+  }
+
+  // 归档状态由 ViewModel 翻转，成功提示需按调用前的状态判断方向。
+  private toggleArchive(row: EntryRowModel): void {
+    const archiving: boolean = !row.archived
+    this.app.toggleArchived(row.uuid).then((applied: boolean) => {
+      if (applied) {
+        DsToastHost.show(this.getUIContext(),
+          archiving ? $r('app.string.entry_archived') : $r('app.string.entry_restored'))
+      }
     })
   }
 
@@ -406,7 +421,7 @@ export struct VaultHomePage {
       .borderRadius($r('app.float.ds_radius_none'))
       .backgroundColor($r('app.color.ds_surface_high'))
       .onClick(() => {
-        this.app.toggleArchived(row.uuid)
+        this.toggleArchive(row)
       })
 
       Button({ type: ButtonType.Normal, stateEffect: true }) {
@@ -520,7 +535,7 @@ export struct VaultHomePage {
     DsMenuItem({
       icon: row.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'),
       label: row.archived ? $r('app.string.entry_menu_restore') : $r('app.string.entry_menu_archive'),
-      onAction: () => this.app.toggleArchived(row.uuid),
+      onAction: () => this.toggleArchive(row),
     })
     DsMenuItem({
       icon: $r('app.string.symbol_check_box'),
@@ -606,6 +621,7 @@ export struct VaultHomePage {
         backgroundBlurStyle: BlurStyle.NONE,
         placement: Placement.BottomRight,
         targetSpace: LengthMetrics.vp(4),
+        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
         onDisappear: () => this.onRowMenuClosed(),
         mask: {
           color: $r('app.color.ds_scrim'),
@@ -859,45 +875,39 @@ export struct VaultHomePage {
     .width('100%')
   }
 
+  // 智感握姿换侧：左右两个按钮条件渲染，各自沿所在侧滑出/滑入，由框架同步两段过渡。
   @Builder
-  private newEntryFab() {
-    Row() {
-      if (!this.home.chromeHidden) {
-        Stack() {
-          DsButton({
-            variant: DsButtonVariant.Filled,
-            tone: DsButtonTone.Primary,
-            buttonSize: DsControlSize.Large,
-            iconOnly: true,
-            leadingIcon: $r('app.string.symbol_add'),
-            controlHeightOverride: $r('app.float.ds_cta_height'),
-            iconSizeOverride: $r('app.float.ds_icon_md'),
-            accessibilityLabelResource: $r('app.string.new_entry'),
-            onTap: () => this.openTemplatePicker(''),
-          })
-        }
-        .width($r('app.float.ds_cta_height'))
-        .height($r('app.float.ds_cta_height'))
-        .transition(TransitionEffect.move(this.list.fabRight ? TransitionEdge.END : TransitionEdge.START)
-          .combine(TransitionEffect.OPACITY)
-          .animation({
-            duration: AnimationTokens.STATE_TRANSITION_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-          }))
-      }
+  private newEntryFab(edge: TransitionEdge) {
+    Stack() {
+      DsButton({
+        variant: DsButtonVariant.Filled,
+        tone: DsButtonTone.Primary,
+        buttonSize: DsControlSize.Large,
+        iconOnly: true,
+        leadingIcon: $r('app.string.symbol_add'),
+        controlHeightOverride: $r('app.float.ds_cta_height'),
+        iconSizeOverride: $r('app.float.ds_icon_md'),
+        accessibilityLabelResource: $r('app.string.new_entry'),
+        onTap: () => this.openTemplatePicker(''),
+      })
     }
+    .width($r('app.float.ds_cta_height'))
     .height($r('app.float.ds_cta_height'))
     .margin({
       left: $r('app.float.ds_gutter'),
       right: $r('app.float.ds_gutter'),
       bottom: this.bottomAvoidHeight,
     })
-    // 隐藏态不可拦截触摸；显示态仅按钮及其边界参与命中。
-    .hitTestBehavior(this.home.chromeHidden ? HitTestMode.None : HitTestMode.Default)
-    .transition(TransitionEffect.OPACITY.animation({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-    }))
+    .onAppear(() => {
+      this.fabHasAppeared = true
+    })
+    .transition(TransitionEffect.move(edge)
+      .combine(TransitionEffect.OPACITY)
+      .animation({
+        curve: this.fabHasAppeared
+          ? AnimationTokens.FAB_SIDE_MOVE_CURVE
+          : AnimationTokens.FAB_FIRST_APPEAR_CURVE,
+      }))
   }
 
   @Builder
@@ -990,8 +1000,12 @@ export struct VaultHomePage {
             },
             contentBuilder: this.batchActions,
           })
-        } else if (this.showNewEntryFab) {
-          this.newEntryFab()
+        } else if (this.showNewEntryFab && !this.home.chromeHidden) {
+          if (this.list.fabRight) {
+            this.newEntryFab(TransitionEdge.END)
+          } else {
+            this.newEntryFab(TransitionEdge.START)
+          }
         }
 
         if (this.app.hasRecentVault()) {

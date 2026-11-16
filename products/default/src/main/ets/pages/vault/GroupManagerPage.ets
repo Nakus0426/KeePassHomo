@@ -355,6 +355,8 @@ export struct GroupManagerPage {
     this.viewModel.createGroup(this.currentGroup.uuid, name).then((created: boolean) => {
       if (!created) {
         this.toastStatus()
+      } else {
+        DsToastHost.show(this.getUIContext(), $r('app.string.group_created'))
       }
       this.viewModel.recordActivity()
     })
@@ -364,6 +366,8 @@ export struct GroupManagerPage {
     this.viewModel.renameGroup(groupUuid, name).then((renamed: boolean) => {
       if (!renamed) {
         this.toastStatus()
+      } else {
+        DsToastHost.show(this.getUIContext(), $r('app.string.group_renamed'))
       }
       this.renameGroupUuid = ''
       this.viewModel.recordActivity()
@@ -406,6 +410,7 @@ export struct GroupManagerPage {
           this.toastStatus()
           return
         }
+        DsToastHost.show(uiContext, $r('app.string.group_deleted'))
         this.pathGroups = this.pathGroups.filter((item: VaultGroup) => this.groupAlive(item.uuid))
       })
     }

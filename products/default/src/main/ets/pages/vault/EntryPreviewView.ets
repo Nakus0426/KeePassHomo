@@ -589,7 +589,12 @@ export struct EntryPreviewView {
         fontColor: $r('app.color.ds_warning'),
         action: () => this.viewModel.deleteEntry(this.sheet.entryUuid).then((deleted: boolean) => {
           if (deleted) {
+            DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
             this.onClose()
+            return
+          }
+          if (this.viewModel.status.length > 0) {
+            DsToastHost.show(this.getUIContext(), this.viewModel.status)
           }
         }),
       },

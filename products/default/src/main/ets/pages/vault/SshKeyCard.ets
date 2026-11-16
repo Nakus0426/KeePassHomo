@@ -125,6 +125,9 @@ export struct SshKeyCard {
     .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius($r('sys.float.corner_radius_level10'))
     .onClick(() => this.onCopyPrivate())
-    .bindContextMenu(this.keyMenu(), ResponseType.LongPress, { preview: MenuPreviewMode.IMAGE })
+    .bindContextMenu(this.keyMenu(), ResponseType.LongPress, {
+      preview: MenuPreviewMode.IMAGE,
+      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+    })
   }
 }
