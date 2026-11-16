@@ -49,6 +49,10 @@
       "value": "0x100044"
     },
     {
+      "name": "symbol_check_box_sharp",
+      "value": "0x100201"
+    },
+    {
       "name": "symbol_check_circle",
       "value": "0x10000B"
     },
@@ -103,6 +107,10 @@
     {
       "name": "symbol_description",
       "value": "0x100018"
+    },
+    {
+      "name": "symbol_disabled_by_default_sharp",
+      "value": "0x100202"
     },
     {
       "name": "symbol_divider",
@@ -295,6 +303,10 @@
     {
       "name": "symbol_warning",
       "value": "0x100040"
+    },
+    {
+      "name": "symbol_warning_sharp",
+      "value": "0x100200"
     }
   ]
 }

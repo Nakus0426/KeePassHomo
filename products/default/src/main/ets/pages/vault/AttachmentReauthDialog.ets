@@ -1,7 +1,8 @@
 import { promptAction } from '@kit.ArkUI'
-import { AppToast, ReauthenticationPurpose } from '@ohos/common'
+import { ReauthenticationPurpose } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
+import { DsToastHost } from '../../components/DsToast'
 
 // 附件明文离开保险库（导出、预览）前的统一门禁：认证通过后由调用方执行具体动作。
 @ComponentV2
@@ -24,7 +25,7 @@ export struct AttachmentReauthDialog {
       this.onAuthenticated()
     }).catch((error: Error) => {
       LogUtil.error(`附件再认证失败，错误信息=${error.message}`)
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.reauthenticate_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.reauthenticate_failed'))
     })
   }
 

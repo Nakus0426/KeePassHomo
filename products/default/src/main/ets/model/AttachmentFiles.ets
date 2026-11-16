@@ -2,8 +2,9 @@ import { common } from '@kit.AbilityKit'
 import { UIContext } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo, picker } from '@kit.CoreFileKit'
-import { AppToast } from '@ohos/common'
 import { FileUtil, LogUtil, PreviewUtil } from '@pura/harmony-utils'
+import { DsToastHost } from '../components/DsToast'
+import { pickSaveTarget, UserCancelledError } from './DocumentPicker'
 
 // 预览临时目录：系统预览窗口按需读取该文件，且系统不提供预览关闭回调，只能在下次预览前清空。
 const PREVIEW_DIR: string = 'attachment_preview'
@@ -15,21 +16,21 @@ export async function exportAttachment(uiContext: UIContext, name: string,
     const context = uiContext.getHostContext() as common.UIAbilityContext
     const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions()
     options.newFileNames = [name]
-    const uris: string[] = await new picker.DocumentViewPicker(context).save(options)
-    if (uris === undefined || uris.length === 0) {
-      return
-    }
-    const file: fileIo.File = FileUtil.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
+    const uri: string = await pickSaveTarget(context, options)
+    const file: fileIo.File = FileUtil.openSync(uri, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)
     try {
       FileUtil.writeSync(file.fd, readData())
     } finally {
       FileUtil.closeSync(file)
     }
-    AppToast.showAboveSheets(uiContext, $r('app.string.attachment_export_saved'))
+    DsToastHost.show(uiContext, $r('app.string.attachment_export_saved'))
   } catch (error) {
+    if (error instanceof UserCancelledError) {
+      return
+    }
     const failure: BusinessError = error as BusinessError
     LogUtil.error(`导出附件失败，附件名=${name}，错误码=${failure.code}，错误信息=${failure.message}`)
-    AppToast.showAboveSheets(uiContext, $r('app.string.attachment_export_failed'))
+    DsToastHost.show(uiContext, $r('app.string.attachment_export_failed'))
   }
 }
 
@@ -53,13 +54,13 @@ export async function previewAttachment(uiContext: UIContext, name: string,
     if (!PreviewUtil.canIUsePreview() || !(await PreviewUtil.canPreview(uri))) {
       // 不交给预览窗口的明文不留在缓存里。
       FileUtil.unlinkSync(path)
-      AppToast.showAboveSheets(uiContext, $r('app.string.attachment_preview_unsupported'))
+      DsToastHost.show(uiContext, $r('app.string.attachment_preview_unsupported'))
       return
     }
     await PreviewUtil.openPreviewEasy(uri)
   } catch (error) {
     const failure: BusinessError = error as BusinessError
     LogUtil.error(`预览附件失败，附件名=${name}，错误码=${failure.code}，错误信息=${failure.message}`)
-    AppToast.showAboveSheets(uiContext, $r('app.string.attachment_preview_failed'))
+    DsToastHost.show(uiContext, $r('app.string.attachment_preview_failed'))
   }
 }

@@ -1,12 +1,13 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { LengthMetrics, promptAction, UIContext, UIUtils } from '@kit.ArkUI'
-import { AnimationTokens, AppToast, VaultGroup } from '@ohos/common'
+import { AnimationTokens, VaultGroup } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/GroupRow'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../components/DsPageHeader'
 import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from './GroupPickerShared'
+import { DsToastHost } from '../../components/DsToast'
 
 // 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
 const NEW_GROUP_NAME_MAX_LENGTH: number = 64
@@ -327,7 +328,7 @@ export struct EntryGroupPicker {
     }
     const name: string = this.newGroupName.trim()
     if (name.length === 0) {
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.group_name_required'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.group_name_required'))
       return
     }
     // 先关弹窗再落盘：落盘是异步写文件，等它的回调再 close 弹窗不会被关掉。
@@ -344,7 +345,7 @@ export struct EntryGroupPicker {
     if (this.viewModel.status.length === 0) {
       return
     }
-    AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
+    DsToastHost.show(this.getUIContext(), this.viewModel.status)
   }
 
   private groupActions(): DsPageHeaderAction[] {

@@ -1,7 +1,7 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { LengthMetrics, promptAction, UIContext, UIUtils } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
-import { AnimationTokens, AppToast, VaultGroup } from '@ohos/common'
+import { AnimationTokens, VaultGroup } from '@ohos/common'
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { DsPageHeader, DsPageHeaderAction } from '../../components/DsPageHeader'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
@@ -10,6 +10,7 @@ import { appRouter } from '../../navigation/AppRouter'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from './GroupPickerShared'
+import { DsToastHost } from '../../components/DsToast'
 
 // 分组名的长度上限：与分组选择器同规则，防异常输入，KDBX 组名本身无硬性限制。
 const GROUP_NAME_MAX_LENGTH: number = 64
@@ -341,7 +342,7 @@ export struct GroupManagerPage {
     }
     const name: string = this.groupNameDraft.trim()
     if (name.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.group_name_required'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.group_name_required'))
       return
     }
     const renameUuid: string = this.renameGroupUuid
@@ -415,7 +416,7 @@ export struct GroupManagerPage {
     if (this.viewModel.status.length === 0) {
       return
     }
-    AppToast.show(this.getUIContext(), this.viewModel.status)
+    DsToastHost.show(this.getUIContext(), this.viewModel.status)
   }
 
   @Builder

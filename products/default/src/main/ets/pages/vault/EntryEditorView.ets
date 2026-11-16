@@ -1,4 +1,4 @@
-import { AnimationTokens, AppToast, BounceAnimator } from '@ohos/common'
+import { AnimationTokens, BounceAnimator } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
@@ -25,6 +25,7 @@ import { EntryCustomFields } from './EntryCustomFields'
 import { EntryGroupPicker } from './EntryGroupPicker'
 import { EntrySshKeysField } from './EntrySshKeysField'
 import { EntryTagEditor } from './EntryTagEditor'
+import { DsToastHost } from '../../components/DsToast'
 
 @ComponentV2
 export struct EntryEditorView {
@@ -129,7 +130,7 @@ export struct EntryEditorView {
     if (invalidFieldKey === undefined) {
       this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
         if (saved) {
-          AppToast.show(this.getUIContext(), $r('app.string.saved'))
+          DsToastHost.show(this.getUIContext(), $r('app.string.saved'))
           this.onSaved()
           return
         }
@@ -139,7 +140,7 @@ export struct EntryEditorView {
     }
     if (invalidFieldKey !== 'title') {
       this.invalidFieldId = Number(invalidFieldKey)
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.field_name_required'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.field_name_required'))
     }
     this.scrollToField(invalidFieldKey)
   }
@@ -148,7 +149,7 @@ export struct EntryEditorView {
     if (this.viewModel.status.length === 0) {
       return
     }
-    AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
+    DsToastHost.show(this.getUIContext(), this.viewModel.status)
   }
 
   private scrollToField(fieldKey: string): void {

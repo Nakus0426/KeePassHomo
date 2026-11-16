@@ -185,6 +185,18 @@
       "value": "#A6000000"
     },
     {
+      "name": "ds_inverse_surface",
+      "value": "#F1F3F3"
+    },
+    {
+      "name": "ds_inverse_on_surface",
+      "value": "#111314"
+    },
+    {
+      "name": "ds_inverse_primary",
+      "value": "#111314"
+    },
+    {
       "name": "ds_loading_inverse_active",
       "value": "#111314"
     },

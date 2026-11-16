@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { LengthMetrics, promptAction, SymbolGlyphModifier } from '@kit.ArkUI'
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
-import { AppToast, inspectSshPrivateKey, SshKeyAlgorithm, SshKeyInspection } from '@ohos/common'
+import { inspectSshPrivateKey, SshKeyAlgorithm, SshKeyInspection } from '@ohos/common'
 import { FileUtil, LogUtil, ResUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
@@ -11,6 +11,8 @@ import { exportSshPrivateKey } from '../../model/SshKeyExport'
 import { SshKeyCard } from './SshKeyCard'
 import { isPasteboardReadGranted, requestPasteboardRead } from '../../model/PasteboardAccess'
 import { SshKeyGeneratorSheet } from './SshKeyGeneratorSheet'
+import { DsToastHost } from '../../components/DsToast'
+import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
 // 单条密钥文本上限：PEM 最大档 RSA8192 也远小于此值，用于拦住误粘贴的大文件。
 const SSH_KEY_MAX_BYTES: number = 64 * 1024
@@ -51,7 +53,7 @@ export struct EntrySshKeysField {
     }
     this.app.copyValue(value).then((copied: boolean) => {
       if (copied) {
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
     })
   }
@@ -63,15 +65,15 @@ export struct EntrySshKeysField {
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions()
       options.maxSelectNumber = 1
       options.selectMode = picker.DocumentSelectMode.FILE
-      const uris: string[] = await new picker.DocumentViewPicker(context).select(options)
-      if (uris === undefined || uris.length === 0) {
-        return
-      }
+      const uris: string[] = await pickFiles(context, options)
       this.addKey(FileUtil.getFileName(uris[0]), await FileUtil.readText(uris[0]))
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        return
+      }
       const failure: BusinessError = error as BusinessError
       LogUtil.error(`读取 SSH 密钥文件失败，错误码=${failure.code}，错误信息=${failure.message}`)
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_pick_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_pick_failed'))
     } finally {
       this.busy = false
     }
@@ -84,20 +86,20 @@ export struct EntrySshKeysField {
     }
 
     if (content.length > SSH_KEY_MAX_BYTES) {
-      AppToast.showAboveSheets(this.getUIContext(),
+      DsToastHost.show(this.getUIContext(),
         ResUtil.getStringSync($r('app.string.ssh_key_limit_exceeded'))
           .replace('%s', FileUtil.getFormatFileSize(SSH_KEY_MAX_BYTES)))
       return
     }
     const inspection: SshKeyInspection | undefined = inspectSshPrivateKey(content)
     if (inspection === undefined) {
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_inspect_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_inspect_failed'))
       return
     }
     this.editor.addSshKey(sshKeyFileName(sourceName, inspection), content,
       inspection.publicKey, inspection.algorithm, inspection.bits)
     this.pasteMode = false
-    AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_added'))
+    DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_added'))
     this.onActivity()
   }
 
@@ -105,13 +107,13 @@ export struct EntrySshKeysField {
     pasteboard.getSystemPasteboard().getData((error: BusinessError, data: pasteboard.PasteData) => {
       if (error) {
         LogUtil.error(`读取剪贴板失败，错误码=${error.code}，错误信息=${error.message}`)
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_paste_failed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_paste_failed'))
         return
       }
       // 剪贴板没有文本记录时 getPrimaryText 运行期返回 undefined，类型声明未体现。
       const text: string | undefined = data.getPrimaryText() as string | undefined
       if (text === undefined || text.trim().length === 0) {
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_paste_empty'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_paste_empty'))
         return
       }
       this.addKey('', text)
@@ -142,7 +144,7 @@ export struct EntrySshKeysField {
       return
     }
     if (result !== PasteButtonOnClickResult.SUCCESS) {
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_paste_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_paste_failed'))
       return
     }
     this.readClipboard()
@@ -157,11 +159,11 @@ export struct EntrySshKeysField {
     this.busy = true
     this.app.generateSshKeyPair(this.editor, algorithm).then((generated: boolean) => {
       if (generated) {
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_generated'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_generated'))
         this.onActivity()
         return
       }
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.ssh_key_generate_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_generate_failed'))
     }).finally(() => this.busy = false)
   }
 
@@ -185,12 +187,12 @@ export struct EntrySshKeysField {
       return
     }
     if (name.length === 0) {
-      AppToast.show(this.getUIContext(), $r('app.string.ssh_key_name_required'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_name_required'))
       return
     }
     this.dialogController.close()
     if (name !== target.name && this.editor.sshKeyNameTaken(name, target)) {
-      AppToast.show(this.getUIContext(), $r('app.string.ssh_key_name_duplicate'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_name_duplicate'))
       return
     }
     this.editor.renameSshKey(target, name)

@@ -375,6 +375,24 @@
       "key": "symbol_check_box",
       "material": "check_box",
       "fill": 0
+    },
+    {
+      "key": "symbol_warning_sharp",
+      "material": "warning",
+      "fill": 0,
+      "source": "sharp"
+    },
+    {
+      "key": "symbol_check_box_sharp",
+      "material": "check_box",
+      "fill": 0,
+      "source": "sharp"
+    },
+    {
+      "key": "symbol_disabled_by_default_sharp",
+      "material": "disabled_by_default",
+      "fill": 0,
+      "source": "sharp"
     }
   ]
 }

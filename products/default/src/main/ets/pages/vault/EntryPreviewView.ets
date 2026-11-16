@@ -6,7 +6,6 @@ import { EntryAvatar } from '../../components/EntryAvatar'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import {
   AnimationTokens,
-  AppToast,
   ColorUtil,
   ItemTemplate,
   RESERVED_FIELD_NAMES,
@@ -28,6 +27,7 @@ import { EntryAttachmentList } from './EntryAttachmentList'
 import { EntrySshKeyList } from './EntrySshKeyList'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { DsToastHost } from '../../components/DsToast'
 
 const PASSWORD_MASK: string = '••••••••'
 // 与详情页既有显示时长一致；B04 统一切换到 PASSWORD_REVEAL_SECONDS 时改这一处。
@@ -549,7 +549,7 @@ export struct EntryPreviewView {
   private copy(value: string): void {
     this.viewModel.copyValue(value).then((copied: boolean) => {
       if (copied) {
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
     })
   }
@@ -562,7 +562,7 @@ export struct EntryPreviewView {
     this.viewModel.copyValue(value).then((copied: boolean) => {
       if (copied) {
         this.startRevealTimeout(key)
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
     })
   }

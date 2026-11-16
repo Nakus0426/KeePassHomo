@@ -1,8 +1,8 @@
-import { AppToast } from '@ohos/common'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { SshKeyDraft } from '../../model/SshKeyPayload'
 import { exportSshPrivateKey } from '../../model/SshKeyExport'
 import { SshKeyCard } from './SshKeyCard'
+import { DsToastHost } from '../../components/DsToast'
 
 // 预览态的 SSH 密钥卡片列表：卡片与编辑态共用 SshKeyCard，只注入预览态可用的动作。
 @ComponentV2
@@ -18,7 +18,7 @@ export struct EntrySshKeyList {
     }
     this.app.copyValue(value).then((copied: boolean) => {
       if (copied) {
-        AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_completed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
     })
     this.onActivity()

@@ -6,9 +6,10 @@ import {
   LengthMetrics,
   SymbolGlyphModifier,
 } from '@kit.ArkUI'
-import { AnimationTokens, AppToast } from '@ohos/common'
+import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { EntryEditorViewModel, TagAddResult } from '../../viewmodel/EntryEditorViewModel'
+import { DsToastHost } from '../../components/DsToast'
 
 const TAG_INPUT_ID: string = 'entry_tag_input'
 // 按 chip 字号的 10 个字符估算，与 VaultTabChrome 的 chip 文案宽度算法一致。
@@ -70,8 +71,7 @@ export struct EntryTagEditor {
       return
     }
     this.warning = true
-    // 标签编辑在条目编辑半模态内，默认模式提示会被半模态压住。
-    AppToast.showAboveSheets(this.getUIContext(), result === TagAddResult.Duplicate
+    DsToastHost.show(this.getUIContext(), result === TagAddResult.Duplicate
       ? $r('app.string.tag_duplicate') : $r('app.string.tag_separator_forbidden'))
   }
 

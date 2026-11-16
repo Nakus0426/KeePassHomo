@@ -1,6 +1,5 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import {
-  AppToast,
   ContentSlideTransition,
   MemorableCase,
   PasswordStrengthCalculator,
@@ -19,6 +18,7 @@ import { GeneratorMode, GeneratorViewModel } from '../../viewmodel/GeneratorView
 import { appViewModel } from '../../viewmodel/AppViewModel'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { DsControlSize } from '../../components/DsControlSize'
+import { DsToastHost } from '../../components/DsToast'
 
 const SETTING_LABEL_LETTER_SPACING: number = 0.2
 
@@ -207,8 +207,7 @@ export struct GeneratorContent {
   @Monitor('viewModel.status')
   onStatusChanged(): void {
     if (this.viewModel.status.length > 0) {
-      // 生成器内容在生成器半模态内，默认模式提示会被半模态压住。
-      AppToast.showAboveSheets(this.getUIContext(), this.viewModel.status)
+      DsToastHost.show(this.getUIContext(), this.viewModel.status)
     }
   }
 
@@ -241,7 +240,7 @@ export struct GeneratorContent {
       return
     }
     appViewModel.copyValue(this.viewModel.value)
-    AppToast.showAboveSheets(this.getUIContext(), $r('app.string.copy_success'))
+    DsToastHost.show(this.getUIContext(), $r('app.string.copy_success'))
   }
 
   getCurrentPassword(): string {

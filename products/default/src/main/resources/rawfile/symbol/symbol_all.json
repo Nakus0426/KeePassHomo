@@ -223,6 +223,15 @@
     },
     "symbol_star_filled": {
       "unicode": "􀄄"
+    },
+    "symbol_warning_sharp": {
+      "unicode": "􀈀"
+    },
+    "symbol_check_box_sharp": {
+      "unicode": "􀈁"
+    },
+    "symbol_disabled_by_default_sharp": {
+      "unicode": "􀈂"
     }
   }
 }

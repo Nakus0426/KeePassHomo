@@ -4,8 +4,8 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
-import { AppToast } from '@ohos/common'
 import { FileUtil, LogUtil } from '@pura/harmony-utils'
+import { DsToastHost } from '../../components/DsToast'
 
 const AVATAR_MAX_EDGE: number = 384
 const AVATAR_IMAGE_FORMAT: string = 'image/jpeg'
@@ -129,8 +129,7 @@ export struct EntryAvatarPicker {
   private reportAvatarError(error: Object): void {
     const businessError: BusinessError = error as BusinessError
     LogUtil.error(`头像处理失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
-    // 头像选择发生在条目编辑半模态内，默认模式提示会被半模态压住。
-    AppToast.showAboveSheets(this.getUIContext(), $r('app.string.avatar_failed'))
+    DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed'))
   }
 
   @Builder

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { fileIo, picker } from '@kit.CoreFileKit'
 import { FileUtil, LogUtil, PreferencesUtil } from '@pura/harmony-utils'
+import { pickFiles, pickSaveTarget } from './DocumentPicker'
 import {
   DefaultVaultSession,
   FileVaultRepository,
@@ -75,13 +76,6 @@ export enum VaultBrowseMode {
   All,
   Favorites,
   Archived,
-}
-
-// 用户取消选择而非真实失败：调用方应静默中止流程。
-export class UserCancelledError extends Error {
-  constructor() {
-    super('用户取消了保存位置选择')
-  }
 }
 
 export class StageOneVaultStore {
@@ -295,7 +289,7 @@ export class StageOneVaultStore {
     options.maxSelectNumber = 1
     options.selectMode = picker.DocumentSelectMode.FILE
     options.fileSuffixFilters = ['KeePass 数据库|.kdbx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).select(options)
+    const uris: string[] = await pickFiles(this.requireContext(), options)
     this.clearKeyFile()
     return this.inspect({
       type: VaultSourceType.LocalFile,
@@ -317,10 +311,7 @@ export class StageOneVaultStore {
     const options = new picker.DocumentSelectOptions()
     options.maxSelectNumber = 1
     options.selectMode = picker.DocumentSelectMode.FILE
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).select(options)
-    if (uris === undefined || uris.length === 0) {
-      return
-    }
+    const uris: string[] = await pickFiles(this.requireContext(), options)
     await this.selectKeyFile({
       type: VaultSourceType.LocalFile,
       uri: uris[0],
@@ -353,12 +344,9 @@ export class StageOneVaultStore {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [fileName]
     options.fileSuffixChoices = ['KeePass 密钥文件|.keyx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
-    if (uris === undefined || uris.length === 0) {
-      throw new UserCancelledError()
-    }
+    const uri: string = await pickSaveTarget(this.requireContext(), options)
     const data: Uint8Array = await generateRandomKeyFile()
-    const file: fileIo.File = FileUtil.openSync(uris[0],
+    const file: fileIo.File = FileUtil.openSync(uri,
       fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
     try {
       FileUtil.writeSync(file.fd, data.buffer as ArrayBuffer)
@@ -367,8 +355,8 @@ export class StageOneVaultStore {
     }
     await this.selectKeyFile({
       type: VaultSourceType.LocalFile,
-      uri: uris[0],
-      displayName: FileUtil.getFileName(uris[0]),
+      uri: uri,
+      displayName: FileUtil.getFileName(uri),
       readOnly: true,
     })
   }
@@ -383,14 +371,11 @@ export class StageOneVaultStore {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`${name}.kdbx`]
     options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
-    if (uris === undefined || uris.length === 0) {
-      throw new UserCancelledError()
-    }
+    const uri: string = await pickSaveTarget(this.requireContext(), options)
     const source: VaultSource = {
       type: VaultSourceType.LocalFile,
-      uri: uris[0],
-      displayName: FileUtil.getFileName(uris[0]),
+      uri: uri,
+      displayName: FileUtil.getFileName(uri),
       readOnly: false,
     }
     const repository: FileVaultRepository = this.requireRepository()
@@ -700,11 +685,11 @@ export class StageOneVaultStore {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [backupName]
     options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
+    const uri: string = await pickSaveTarget(this.requireContext(), options)
     const backupSource: VaultSource = {
       type: VaultSourceType.LocalFile,
-      uri: uris[0],
-      displayName: FileUtil.getFileName(uris[0]),
+      uri: uri,
+      displayName: FileUtil.getFileName(uri),
       readOnly: false,
     }
     const repository: FileVaultRepository = this.requireRepository()
@@ -746,11 +731,8 @@ export class StageOneVaultStore {
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [source.displayName]
     options.fileSuffixChoices = ['KeePass 数据库|.kdbx']
-    const uris: string[] = await new picker.DocumentViewPicker(this.requireContext()).save(options)
-    if (uris === undefined || uris.length === 0) {
-      throw new UserCancelledError()
-    }
-    const relocated: VaultSource = await repository.relocate(source, uris[0])
+    const uri: string = await pickSaveTarget(this.requireContext(), options)
+    const relocated: VaultSource = await repository.relocate(source, uri)
     await repository.persistAccess(relocated)
     const format: VaultFormat = this.locked
       ? this.format

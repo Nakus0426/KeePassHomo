@@ -36,11 +36,11 @@ import {
 } from '../constants/RouteConstants'
 import {
   stageOneVaultStore,
-  UserCancelledError,
   VaultAccess,
   VaultFileSummary,
   WebDavVaultTarget,
 } from '../model/StageOneVaultStore'
+import { UserCancelledError } from '../model/DocumentPicker'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { WelcomeParam } from '../navigation/RouteParams'
@@ -349,6 +349,10 @@ export class AppViewModel {
       this.setStatus(`升级成功，备份文件：${backupName}`)
       this.recordActivity()
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        this.setStatus('')
+        return
+      }
       this.reportBoundaryError('KDBX 3.1 升级失败', error)
     } finally {
       this.busy = false

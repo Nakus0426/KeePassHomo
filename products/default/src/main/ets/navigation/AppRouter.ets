@@ -2,11 +2,10 @@ import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { UIContext, UIObserver, uiObserver } from '@kit.ArkUI'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
-import { AppToast } from '@ohos/common'
 import { ROUTE_HOME, ROUTE_UNLOCK } from '../constants/RouteConstants'
+import { DsToastHost } from '../components/DsToast'
 
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
-const ROOT_BACK_TOAST_DURATION_MS: number = 2000
 
 // 应用内唯一持有 NavPathStack；currentRoute 由 uiObserver 自动同步，页面无需回写
 @ObservedV2
@@ -113,8 +112,7 @@ export class AppRouter {
     if (route !== this.lastBackRoute || now - this.lastBackPressedAt > ROOT_BACK_CONFIRM_INTERVAL_MS) {
       this.lastBackPressedAt = now
       this.lastBackRoute = route
-      AppToast.show(UIContext.resolveUIContext(), $r('app.string.press_back_again_to_background'),
-        ROOT_BACK_TOAST_DURATION_MS)
+      DsToastHost.show(UIContext.resolveUIContext(), $r('app.string.press_back_again_to_background'))
       return
     }
     this.lastBackPressedAt = 0

@@ -1,6 +1,6 @@
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens, AppErrorModel, AppToast, DelayedVisibility } from '@ohos/common'
+import { AnimationTokens, AppErrorModel, DelayedVisibility } from '@ohos/common'
 import { ROUTE_UNLOCK } from '../../constants/RouteConstants'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../../state/ImmersiveLayoutState'
@@ -12,6 +12,7 @@ import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } fr
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { DsControlSize } from '../../components/DsControlSize'
+import { DsToastHost } from '../../components/DsToast'
 
 @ComponentV2
 export struct UnlockPage {
@@ -123,7 +124,7 @@ export struct UnlockPage {
     if (error === undefined || this.submittingUnlock) {
       return
     }
-    AppToast.show(this.getUIContext(), error.message)
+    DsToastHost.show(this.getUIContext(), error.message)
   }
 
   aboutToAppear(): void {

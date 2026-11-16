@@ -1,6 +1,6 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { LengthMetrics, promptAction } from '@kit.ArkUI'
-import { AnimationTokens, AppToast, ItemTemplate } from '@ohos/common'
+import { AnimationTokens, ItemTemplate } from '@ohos/common'
 import {
   hdsMaterial,
   HideMode,
@@ -35,6 +35,7 @@ import { EntryTemplatePicker } from './EntryTemplatePicker'
 import { VaultEntryRow } from './VaultEntryRow'
 import { animateBatchTransition, vaultTabChrome } from './VaultTabChrome'
 import { DsControlSize } from '../../components/DsControlSize'
+import { DsToastHost } from '../../components/DsToast'
 
 @ComponentV2
 export struct VaultHomePage {
@@ -127,7 +128,7 @@ export struct VaultHomePage {
   @Monitor('app.status')
   onStatusChanged(): void {
     if (this.app.status.length > 0) {
-      AppToast.show(this.getUIContext(), this.app.status)
+      DsToastHost.show(this.getUIContext(), this.app.status)
     }
   }
 
@@ -236,7 +237,7 @@ export struct VaultHomePage {
       this.deleteDialogController.close()
       if (deleted) {
         this.app.refreshHomeSnapshot()
-        AppToast.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
       }
     })
   }
@@ -304,7 +305,7 @@ export struct VaultHomePage {
     }
     this.app.copyValue(value).then((copied: boolean) => {
       if (copied) {
-        AppToast.show(this.getUIContext(), $r('app.string.copy_completed'))
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
     })
   }

@@ -2,8 +2,6 @@ export { BreakpointSystem, BreakPointType } from './src/main/ets/utils/Breakpoin
 
 export { ColorUtil } from './src/main/ets/utils/ColorUtil'
 
-export { AppToast } from './src/main/ets/utils/AppToast'
-
 export { DelayedVisibility } from './src/main/ets/utils/DelayedVisibility'
 
 export { measureVp } from './src/main/ets/utils/MeasureUtil'

@@ -2,13 +2,14 @@ import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo, picker } from '@kit.CoreFileKit'
-import { AppToast } from '@ohos/common'
 import { FileUtil, LogUtil, ResUtil } from '@pura/harmony-utils'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AttachmentEditAction, EntryAttachmentEditor, EntryEditorViewModel } from '../../viewmodel/EntryEditorViewModel'
 import { exportAttachment, previewAttachment } from '../../model/AttachmentFiles'
 import { AttachmentCard } from './AttachmentCard'
 import { AttachmentReauthDialog } from './AttachmentReauthDialog'
+import { DsToastHost } from '../../components/DsToast'
+import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
 // 单个附件上限：整库每次保存都要完整重写，附件过大直接放大内存峰值与写入耗时。
 const ATTACHMENT_MAX_BYTES: number = 10 * 1024 * 1024
@@ -52,15 +53,12 @@ export struct EntryAttachmentField {
       const context = this.getUIContext().getHostContext() as common.UIAbilityContext
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions()
       options.selectMode = picker.DocumentSelectMode.FILE
-      const uris: string[] = await new picker.DocumentViewPicker(context).select(options)
-      if (uris === undefined || uris.length === 0) {
-        return
-      }
+      const uris: string[] = await pickFiles(context, options)
       for (const uri of uris) {
         const name: string = FileUtil.getFileName(uri)
         const data: ArrayBuffer = this.readFile(uri)
         if (data.byteLength > ATTACHMENT_MAX_BYTES) {
-          AppToast.showAboveSheets(this.getUIContext(),
+          DsToastHost.show(this.getUIContext(),
             ResUtil.getStringSync($r('app.string.attachment_limit_exceeded'))
               .replace('%s', FileUtil.getFormatFileSize(ATTACHMENT_MAX_BYTES)))
           continue
@@ -69,9 +67,12 @@ export struct EntryAttachmentField {
       }
       this.onActivity()
     } catch (error) {
+      if (error instanceof UserCancelledError) {
+        return
+      }
       const failure: BusinessError = error as BusinessError
       LogUtil.error(`读取附件失败，错误码=${failure.code}，错误信息=${failure.message}`)
-      AppToast.showAboveSheets(this.getUIContext(), $r('app.string.attachment_pick_failed'))
+      DsToastHost.show(this.getUIContext(), $r('app.string.attachment_pick_failed'))
     } finally {
       this.busy = false
     }
