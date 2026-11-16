@@ -4,6 +4,7 @@ import { vaultHomeViewModel, VaultHomeViewModel } from '../../viewmodel/VaultHom
 import { ModuleTabChrome } from '../../components/ModuleTabChrome'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens } from '@ohos/common'
 import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsInput } from '../../components/DsInput'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
@@ -111,9 +112,41 @@ struct VaultHeaderBar {
   }
 }
 
+// 标题行与批量选择头同高：常驻叠放交叉淡入，避免模式切换时整行闪现。
+@ComponentV2
+struct VaultHeaderStack {
+  @Local private home: VaultHomeViewModel = vaultHomeViewModel
+
+  build() {
+    Stack() {
+      Row() {
+        VaultHeaderBar()
+      }
+      .width('100%')
+      .height('100%')
+      .opacity(this.home.batchMode ? 0 : 1)
+      .hitTestBehavior(this.home.batchMode ? HitTestMode.None : HitTestMode.Default)
+      .accessibilityLevel(this.home.batchMode ? 'no-hide-descendants' : 'auto')
+      .animation(AnimationTokens.FEEDBACK_ANIMATION)
+
+      Row() {
+        VaultSelectionHeader()
+      }
+      .width('100%')
+      .height('100%')
+      .opacity(this.home.batchMode ? 1 : 0)
+      .hitTestBehavior(this.home.batchMode ? HitTestMode.Default : HitTestMode.None)
+      .accessibilityLevel(this.home.batchMode ? 'auto' : 'no-hide-descendants')
+      .animation(AnimationTokens.FEEDBACK_ANIMATION)
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+
 @Builder
 function vaultTitleRowBuilder() {
-  VaultHeaderBar()
+  VaultHeaderStack()
 }
 
 @ComponentV2
@@ -245,6 +278,9 @@ struct VaultFilter {
       top: $r('app.float.ds_space_sm'),
       bottom: $r('app.float.ds_space_sm'),
     })
+    // 批量态筛选区高度由标题栏收到 0，内容同步淡出，避免高度收起时文字被硬裁。
+    .opacity(this.home.batchMode ? 0 : 1)
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
       dragBar: true,
       showClose: false,
@@ -281,7 +317,7 @@ struct VaultSelectionHeader {
         iconSizeOverride: $r('app.float.ds_icon_md'),
         iconColorOverride: $r('app.color.ds_text_primary'),
         accessibilityLabelResource: $r('app.string.entry_batch_cancel'),
-        onTap: () => this.home.exitBatch(),
+        onTap: () => animateBatchTransition(this.getUIContext(), () => this.home.exitBatch()),
       })
 
       Column({ space: $r('app.float.ds_space_2') }) {
@@ -322,17 +358,16 @@ struct VaultSelectionHeader {
 }
 
 @Builder
-function vaultSelectionRowBuilder() {
-  VaultSelectionHeader()
-}
-
-@Builder
 function vaultBottomRowBuilder() {
   VaultFilter()
 }
 
+// 批量态切换必须走显式动画：HDS 标题栏安全区高度只有显式动画才会跟着过渡。
+export function animateBatchTransition(uiContext: UIContext, action: () => void): void {
+  uiContext.animateTo(AnimationTokens.FEEDBACK_ANIMATION, action)
+}
+
 export const vaultTabChrome: ModuleTabChrome = {
   titleRowBuilder: wrapBuilder(vaultTitleRowBuilder),
-  selectionRowBuilder: wrapBuilder(vaultSelectionRowBuilder),
   bottomRowBuilder: wrapBuilder(vaultBottomRowBuilder),
 }

@@ -33,7 +33,7 @@ import { entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntrySheet } from './EntrySheet'
 import { EntryTemplatePicker } from './EntryTemplatePicker'
 import { VaultEntryRow } from './VaultEntryRow'
-import { vaultTabChrome } from './VaultTabChrome'
+import { animateBatchTransition, vaultTabChrome } from './VaultTabChrome'
 import { DsControlSize } from '../../components/DsControlSize'
 
 @ComponentV2
@@ -60,12 +60,8 @@ export struct VaultHomePage {
   private readonly contextMenuSystemInset: number = 4
   private pickedTemplate: ItemTemplate | undefined = undefined
   private pickedGroupUuid: string = ''
-  private readonly stateAnimateParam: AnimateParam = {
-    duration: AnimationTokens.STATE_TRANSITION_DURATION,
-    curve: AnimationTokens.STATE_TRANSITION_CURVE,
-  }
   private readonly stateSwitchTransition: TransitionEffect = TransitionEffect.OPACITY
-    .animation(this.stateAnimateParam)
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
 
   aboutToAppear(): void {
     this.home.showChrome()
@@ -85,7 +81,7 @@ export struct VaultHomePage {
     }
     // 搜索逐字符刷新：只做整体淡入淡出，不播逐行离场收缩，避免连续输入时反复打断列表布局。
     if (this.home.snapshotCause === HomeSnapshotCause.Search) {
-      this.getUIContext().animateTo(this.stateAnimateParam, () => {
+      this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
         this.list.refresh()
       })
       return
@@ -95,7 +91,7 @@ export struct VaultHomePage {
       this.animateRemoval(leaving)
       return
     }
-    this.getUIContext().animateTo(this.stateAnimateParam, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.list.refresh()
     })
   }
@@ -254,8 +250,13 @@ export struct VaultHomePage {
       if (deleted) {
         this.app.refreshHomeSnapshot()
       }
-      this.home.exitBatch()
+      this.animateExitBatch()
     })
+  }
+
+  // 标题栏高度由 HDS 安全区驱动，必须在显式动画闭包里退出，否则筛选区与列表整段跳变。
+  private animateExitBatch(): void {
+    animateBatchTransition(this.getUIContext(), () => this.home.exitBatch())
   }
 
   @Builder
@@ -292,7 +293,7 @@ export struct VaultHomePage {
       if (applied) {
         this.app.refreshHomeSnapshot()
       }
-      this.home.exitBatch()
+      this.animateExitBatch()
     })
   }
 
@@ -524,7 +525,9 @@ export struct VaultHomePage {
       icon: $r('app.string.symbol_check_box'),
       label: $r('app.string.entry_menu_select'),
       onAction: () => {
-        this.pendingMenuAction = () => this.home.enterBatch(row.uuid)
+        this.pendingMenuAction = () => animateBatchTransition(this.getUIContext(), () => {
+          this.home.enterBatch(row.uuid)
+        })
       },
     })
   }
@@ -590,7 +593,7 @@ export struct VaultHomePage {
   private entryRow(item: RepeatItem<EntryListItem>) {
     VaultEntryRow({
       row: item.item.row!,
-      favoriteEnabled: !this.readOnly && !this.home.batchMode,
+      favoriteEnabled: !this.readOnly,
       onRowClick: () => this.onRowTap(item.item.row!),
       onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(item.item.row!.uuid),
     })
@@ -915,11 +918,6 @@ export struct VaultHomePage {
   }
 
   @Builder
-  private vaultSelectionRow() {
-    vaultTabChrome.selectionRowBuilder!.builder()
-  }
-
-  @Builder
   private vaultBottomRow() {
     vaultTabChrome.bottomRowBuilder!.builder()
   }
@@ -946,14 +944,12 @@ export struct VaultHomePage {
       },
       content: {
         title: { mainTitle: '' },
-        stackBuilder: this.home.batchMode
-          ? (): void => this.vaultSelectionRow()
-          : (): void => this.vaultTitleRow(),
-        bottomBuilder: this.session.vaultLocked || this.home.batchMode
+        stackBuilder: (): void => this.vaultTitleRow(),
+        bottomBuilder: this.session.vaultLocked
           ? undefined
           : {
             builder: (): void => this.vaultBottomRow(),
-            height: VAULT_FILTER_BAR_HEIGHT_VP,
+            height: this.home.batchMode ? 0 : VAULT_FILTER_BAR_HEIGHT_VP,
           },
       },
     }
