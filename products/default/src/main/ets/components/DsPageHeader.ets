@@ -75,27 +75,17 @@ export struct DsPageHeader {
     }
   }
 
-  // 标题栏内的图标按钮跟随标题栏档位：Small 用更小的按钮与图标，避免盖过标题栏。
-  @Computed
-  get iconButtonSize(): DsControlSize {
-    return this.headerSize === DsPageHeaderSize.Small ? DsControlSize.Small : DsControlSize.Medium
-  }
-
-  @Computed
-  get iconSize(): Resource {
-    return this.headerSize === DsPageHeaderSize.Small ? $r('app.float.ds_icon_sm') : $r('app.float.ds_icon_md')
-  }
-
   build() {
     Row() {
       Row({ space: $r('app.float.ds_space_sm') }) {
         if (this.showBack) {
           DsButton({
             variant: DsButtonVariant.Text,
-            buttonSize: this.iconButtonSize,
+            // 页头图标按钮统一 44 / 20：pen 半模态页头同为 56 高 + 44 方形按钮。
+            buttonSize: DsControlSize.Medium,
             iconOnly: true,
             leadingIcon: $r('app.string.symbol_arrow_back'),
-            iconSizeOverride: this.iconSize,
+            iconSizeOverride: $r('app.float.ds_icon_md'),
             iconColorOverride: $r('app.color.ds_text_primary'),
             accessibilityLabelResource: $r('app.string.back'),
             onTap: () => this.onBack(),
@@ -136,10 +126,10 @@ export struct DsPageHeader {
             ForEach(this.actions, (action: DsPageHeaderAction, index: number) => {
               DsButton({
                 variant: DsButtonVariant.Text,
-                buttonSize: this.iconButtonSize,
+                buttonSize: DsControlSize.Medium,
                 iconOnly: true,
                 leadingIcon: action.icon,
-                iconSizeOverride: this.iconSize,
+                iconSizeOverride: $r('app.float.ds_icon_md'),
                 iconColorOverride: $r('app.color.ds_text_primary'),
                 accessibilityLabelResource: action.label,
                 disabled: action.enabled === false,

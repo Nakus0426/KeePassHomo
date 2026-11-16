@@ -1,15 +1,16 @@
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { vaultHomeViewModel, VaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { ModuleTabChrome } from '../../components/ModuleTabChrome'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { ResUtil } from '@pura/harmony-utils'
-import { AnimationTokens } from '@ohos/common'
+import { AnimationTokens, VaultGroup } from '@ohos/common'
 import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsInput } from '../../components/DsInput'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
-import { EntryGroupPicker } from './EntryGroupPicker'
+import { DsGroupPicker, GroupPickerSource } from '../../components/DsGroupPicker'
+import { createGroupFromPicker } from './GroupPickerActions'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { DsControlSize } from '../../components/DsControlSize'
 
 @ComponentV2
@@ -125,7 +126,8 @@ struct VaultHeaderStack {
       .width('100%')
       .height('100%')
       .opacity(this.home.batchMode ? 0 : 1)
-      .hitTestBehavior(this.home.batchMode ? HitTestMode.None : HitTestMode.Default)
+      // 隐藏层必须用 BLOCK_DESCENDANTS：None 只停自身，子节点仍会抢走下层按钮的点击。
+      .hitTestBehavior(this.home.batchMode ? HitTestMode.BLOCK_DESCENDANTS : HitTestMode.Default)
       .accessibilityLevel(this.home.batchMode ? 'no-hide-descendants' : 'auto')
       .animation(AnimationTokens.FEEDBACK_ANIMATION)
 
@@ -135,7 +137,7 @@ struct VaultHeaderStack {
       .width('100%')
       .height('100%')
       .opacity(this.home.batchMode ? 1 : 0)
-      .hitTestBehavior(this.home.batchMode ? HitTestMode.Default : HitTestMode.None)
+      .hitTestBehavior(this.home.batchMode ? HitTestMode.Default : HitTestMode.BLOCK_DESCENDANTS)
       .accessibilityLevel(this.home.batchMode ? 'auto' : 'no-hide-descendants')
       .animation(AnimationTokens.FEEDBACK_ANIMATION)
     }
@@ -153,7 +155,6 @@ function vaultTitleRowBuilder() {
 struct VaultFilter {
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private app: AppViewModel = appViewModel
-  @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
   @Local private groupPickerVisible: boolean = false
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
 
@@ -176,10 +177,6 @@ struct VaultFilter {
     return this.home.selectedGroupLabel()
   }
 
-  @Computed
-  get groupPickerBottomOffset(): number {
-    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx)
-  }
 
   @LocalBuilder
   private searchLeading() {
@@ -207,14 +204,24 @@ struct VaultFilter {
 
   @Builder
   private groupPickerSheet() {
-    EntryGroupPicker({
+    DsGroupPicker({
+      groupSource: (): GroupPickerSource => {
+        const allGroups: VaultGroup[] = this.app.groups()
+        return {
+          rootGroup: allGroups[0],
+          topLevelGroups: this.app.topLevelGroups(),
+          allGroups,
+        }
+      },
       initialGroupUuid: this.home.selectedGroupUuids.length > 0 ? this.home.selectedGroupUuids[0] : '',
-      bottomOffset: this.groupPickerBottomOffset,
+      busy: this.app.busy,
       onPicked: (groupUuid: string) => {
         this.home.selectBrowseGroups([groupUuid])
         this.groupPickerVisible = false
       },
       onClose: () => this.groupPickerVisible = false,
+      onCreateGroup: (parentUuid: string, name: string) =>
+      createGroupFromPicker(this.getUIContext(), this.app, parentUuid, name),
       onActivity: () => this.app.recordActivity(),
       onBackHandler: (handler: () => boolean) => this.groupPickerBackHandler = handler,
     })
@@ -281,16 +288,13 @@ struct VaultFilter {
     // 批量态筛选区高度由标题栏收到 0，内容同步淡出，避免高度收起时文字被硬裁。
     .opacity(this.home.batchMode ? 0 : 1)
     .animation(AnimationTokens.FEEDBACK_ANIMATION)
-    .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('app.color.ds_surface_lowest'),
+    .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), dsSheetOptions({
       onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
       onDisappear: () => {
         this.groupPickerVisible = false
         this.groupPickerBackHandler = undefined
       },
-    })
+    }))
   }
 }
 

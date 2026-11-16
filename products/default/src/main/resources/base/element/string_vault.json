@@ -409,10 +409,6 @@
       "value": "请输入分组名称"
     },
     {
-      "name": "select_current_group",
-      "value": "选择当前位置"
-    },
-    {
       "name": "group_pick_confirm",
       "value": "确认选择"
     },
@@ -427,6 +423,30 @@
     {
       "name": "group_entry_count",
       "value": "%s 个条目"
+    },
+    {
+      "name": "group_picker_empty_root_title",
+      "value": "还没有分组"
+    },
+    {
+      "name": "group_picker_empty_root_body",
+      "value": "点击右上角新建分组，开始整理条目。"
+    },
+    {
+      "name": "group_picker_empty_title",
+      "value": "没有子分组"
+    },
+    {
+      "name": "group_picker_empty_body",
+      "value": "点击右上角，在当前分组下新建。"
+    },
+    {
+      "name": "group_picker_no_result_title",
+      "value": "未找到匹配的分组"
+    },
+    {
+      "name": "group_picker_no_result_body",
+      "value": "换个关键词再试，或直接新建分组。"
     },
     {
       "name": "confirm",

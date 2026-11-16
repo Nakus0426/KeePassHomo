@@ -49,10 +49,14 @@ function describeError(error) {
     return message
 }
 
+// 条目模板标记：与 app 侧常量一致，生成脚本与追加脚本共用。
+const LAYOUT_TYPE_KEY = 'KPEX_LayoutType'
+
 module.exports = {
     kdbxweb,
     loadVault,
     registerArgon2,
     toArrayBuffer,
-    describeError
+    describeError,
+    LAYOUT_TYPE_KEY
 }

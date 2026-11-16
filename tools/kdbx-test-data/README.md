@@ -69,6 +69,16 @@ node gen-entries.js /storage/media/100/local/files/Docs/Download/个人保险库
 node gen-entries.js ~/个人保险库.kdbx 123 300 --out ~/个人保险库_测试.kdbx
 ```
 
+### 2.1 补齐嵌套分组树
+
+```bash
+node gen-groups.js <输入保险库> <主密码> <输出保险库>
+```
+
+- 在现有库上幂等补齐一套三层分组树（顶级 12 个可见分组、`工作` / `个人` / `服务器` / `财务卡券` / `文档附件` 下各带子分组、`滚动测试` 下 16 个平铺子分组），叶子分组在原本为空时补 1–2 条示例条目。
+- 用于手测分组选择器的层级切换、上下滚动、搜索与条目数刷新；重复执行不会重复建组或追加条目。
+- 示例：`node gen-vault.js base.kdbx 123 100 && node gen-groups.js base.kdbx 123 测试保险库.kdbx`
+
 ### 3. 只读查看保险库
 
 ```bash

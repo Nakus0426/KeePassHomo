@@ -6,6 +6,7 @@ import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntryEditorView } from './EntryEditorView'
 import { EntryPreviewView } from './EntryPreviewView'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 
 // 三种入口共用一套开合逻辑：只负责半模态容器、形态转场与收起拦截，内容体各自管理自己的状态。
 @ComponentV2
@@ -118,15 +119,12 @@ export struct EntrySheet {
     Stack()
       .width(0)
       .height(0)
-      .bindSheet(this.sheet.visible, this.sheetContent(), {
-        dragBar: true,
-        showClose: false,
-        backgroundColor: $r('app.color.ds_surface_lowest'),
+      .bindSheet(this.sheet.visible, this.sheetContent(), dsSheetOptions({
         onHeightDidChange: (heightPx: number) => {
           this.sheetHeightVp = this.getUIContext().px2vp(heightPx)
         },
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
         onDisappear: () => this.sheet.onDismissed(),
-      })
+      }))
   }
 }

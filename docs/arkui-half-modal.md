@@ -16,7 +16,10 @@
 职责边界：
 
 - 负责 `HdsNavigation` 标题栏容器：`HdsNavigationTitleMode.MODAL` + `ScrollEffectType.GRADIENT_BLUR` + `hdsMaterial.MaterialType.ADAPTIVE`。
-- 默认标题栏内容为 `DsPageHeader`（`headerSize: Small`，图标按钮随档位缩小为 32vp/18vp）。
+- 按 pen 自绘顶部拖拽条（16 高行内 36×2，`ds_outline_variant`）：系统 `dragBar` 在 MODAL 标题栏下不显示，但保留其手势区域（`dsSheetOptions()` 里 `dragBar: true`），拖动顶部即可调整高度/关闭。
+- 拖拽条必须画在标题栏 `stackBuilder` 内部（`titleBarContent` 的第一行），与标题栏共用同一层渐变模糊材质；放在标题栏外会与标题栏出现底色断层。沉浸式预览（`contentBehindTitleBar: true`）不画拖拽条。
+- 默认标题栏内容为 `DsPageHeader`（`headerSize: Small`，图标按钮与所有页头一致为 44vp/20vp）。
+- `titleBarBottomBuilder` 承载标题栏底部扩展区（如搜索行 + 面包屑），由 HDS 计入标题栏高度并一起悬浮。
 - 通过 `bodyBuilder` 承载内容，`Stack(Alignment.Bottom)` 叠加可选 `bottomBarBuilder`。
 - **不持有 `bindSheet`、不控制高度**：容器参数（`detents`、`height`、`radius`、`onWillDismiss`、`onDisappear` 等）仍由宿主 `bindSheet` 配置。
 
@@ -28,7 +31,10 @@
 | `showBack` / `onBack` | `boolean` / `() => void` | 是否显示返回按钮及回调。 |
 | `actions` | `DsPageHeaderAction[]` | 右侧图标动作（关闭/保存/确认等）。 |
 | `titleBarBuilder` | `@BuilderParam` | 整条自定义标题栏（如分组选择带搜索栏）；传了则忽略 title/showBack/actions。 |
-| `bodyBuilder` | `@BuilderParam` | 必填，内容区；内容自带 `Scroll.clip(false)`。 |
+| `titleBarBottomBuilder` | `@BuilderParam` | 可选，标题栏底部扩展区（如搜索行 + 面包屑），随标题栏材质一起悬浮。 |
+| `titleBarBottomHeight` | `Length` | 扩展区高度；HDS 用它计入标题栏占位与遮罩。 |
+| `scrollableScroller` | `Scroller` | 可选，绑定内容滚动容器；设置后标题栏启用 `GRADIENT_BLUR` 滚动效果。 |
+| `bodyBuilder` | `@BuilderParam` | 必填，内容区；内容自带 `Scroll/List.clip(false)`。 |
 | `bottomBarBuilder` | `@BuilderParam` | 可选，底部操作区，通常放 `DsBottomActionBar`。 |
 | `contentBehindTitleBar` | `boolean` | 默认 `false`（内容避让标题栏）；`true` 时内容绘制到标题栏下方，用于沉浸式预览。 |
 
@@ -36,8 +42,7 @@
 
 ```text
 宿主组件
-└── .bindSheet($$visible, this.sheetContent(), {
-      backgroundColor: ds_surface_lowest, showClose: false, dragBar: ... })
+└── .bindSheet($$visible, this.sheetContent(), dsSheetOptions({ detents, onDisappear, ... }))
     └── DsHalfModalSheet
         ├── HdsNavigation(titleMode=MODAL) titleBar(stackBuilder = DsPageHeader / titleBarBuilder)
         └── Stack(Alignment.Bottom)
@@ -57,12 +62,10 @@
 
 ```ts
 // 宿主：bindSheet 容器参数（高度/挡位仍在这里定）
-.bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
-  backgroundColor: $r('app.color.ds_surface_lowest'),
-  showClose: false,
-  dragBar: false,
+.bindSheet($$this.generatorSheetVisible, this.generatorSheet(), dsSheetOptions({
+  topBorder: true,
   onDisappear: () => this.closeGenerator(),
-})
+}))
 
 @LocalBuilder
 private generatorSheet() {
@@ -144,34 +147,50 @@ private typeSheetBody() {
 }
 ```
 
-分组选择这类特殊标题栏（条件返回 + 搜索栏）用 `titleBarBuilder` 整条自定义：
+分组选择这类「标题栏 + 搜索 + 面包屑」的形态，标题用 `titleBarBuilder`、搜索与面包屑放 `titleBarBottomBuilder`，滚动列表通过 `scrollableScroller` 绑定，内容从悬浮区下方穿透：
 
 ```ts
-@LocalBuilder
-private titleBarContent() {
-  Column() {
-    DsPageHeader({
-      title: $r('app.string.select_group'),
-      headerSize: DsPageHeaderSize.Small,
-      showBack: this.pathGroups.length > 0,
-      actions: this.groupActions(),
-      onBack: () => this.navigateUp(),
-    })
-    this.searchBuilder()
-  }
-  .width('100%')
-}
-
 build() {
-  DsHalfModalSheet({ titleBarBuilder: this.titleBarContent, bodyBuilder: this.bodyContent })
+  DsHalfModalSheet({
+    titleBarBuilder: this.headerBar,
+    titleBarBottomBuilder: this.searchAndBreadcrumb,
+    titleBarBottomHeight: this.titleBarBottomHeight,
+    scrollableScroller: this.scroller,
+    bodyBuilder: this.bodyContent,
+    bottomBarBuilder: this.footerBar,
+  })
 }
+```
+
+通用分组选择已抽为 `products/default/src/main/ets/components/DsGroupPicker.ets`，新页面直接复用，不要再手写一层选择器：
+
+```ts
+DsGroupPicker({
+  // 每次求值都读取最新分组（含条目数）；root 直接取 groups() 首项，避免重复扁平化。
+  groupSource: (): GroupPickerSource => {
+    const allGroups: VaultGroup[] = this.viewModel.groups()
+    return { rootGroup: allGroups[0], topLevelGroups: this.viewModel.topLevelGroups(), allGroups }
+  },
+  initialGroupUuid: this.groupUuid,
+  busy: this.viewModel.busy,
+  onPicked: (groupUuid: string) => { /* 落稿分组并收起半模态 */ },
+  onClose: () => this.groupPickerVisible = false,
+  onCreateGroup: (parentUuid: string, name: string) =>
+  createGroupFromPicker(this.getUIContext(), this.viewModel, parentUuid, name),
+  onActivity: () => this.viewModel.recordActivity(),
+  onBackHandler: (handler: () => boolean) => this.groupPickerBackHandler = handler,
+})
 ```
 
 ## 关键约束与反例
 
-- 宿主 `bindSheet` 必须 `backgroundColor: $r('app.color.ds_surface_lowest')`；禁止 `systemMaterial`、禁止 `backgroundColor: Color.Transparent`。
+- 宿主 `bindSheet` 的容器参数统一用 `dsSheetOptions()`（`products/default/src/main/ets/components/DsSheetOptions.ets`）：直角面板、`ds_surface_lowest` 面底、无系统关闭按钮。禁止在调用处手写选项字面量或遗漏 `radius`。
+- 注册了 `onWillDismiss` 时，系统默认「先回弹到原位、再关闭」，拖动一半松手会看到闪回顶部再下滑消失。`dsSheetOptions()` 已注册空的 `onWillSpringBackWhenDismiss` 取消回弹，关闭动画直接从当前位置开始；不要在调用处再覆盖该回调。
+- 禁止 `systemMaterial`、禁止 `backgroundColor: Color.Transparent`。
 - 标题栏统一 `ADAPTIVE` + `GRADIENT_BLUR`；不要在半模态上用其它材质档位。
 - 内容区不要手算 `titleBarOffset` / 状态栏高度 / 标题栏高度；避让交给 `enableComponentSafeArea`，穿透交给 `Scroll.clip(false)`。生成器改为「固定预览/页签 + 参数区独立 `Scroll`」，不再整块 `Scroll.clip(false)`。
+- 内容区的 `Scroll` / `List` 必须 `edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })`：内容不足一屏时也由滚动容器接管竖向手势并回弹，否则上下滑动会拖动整个半模态（只剩顶部拖拽条可拖动）。
+- 列表底部按 `bottomBarBuilder` 实测高度留 `padding.bottom`，顶部由 `enableComponentSafeArea` 避让标题栏，禁止让首行/末行被悬浮标题栏或底栏压住。
 - 只有沉浸式预览开 `contentBehindTitleBar: true`，并在内容里用 `topOffset` 填充上探底色；普通面板保持默认。
 - `titleBarBuilder` / `bodyBuilder` / `bottomBarBuilder` 必须传 `@LocalBuilder` 方法引用，不要在箭头函数里直接构造自定义组件；详见 `docs/arkui-builder-slot.md`。
 - 底部操作区高度必须由 `DsBottomActionBar.onHeightChange` 实测回填内容的 `padding.bottom`；详见 `docs/arkui-bottom-action-bar.md`。
@@ -181,7 +200,7 @@ build() {
 
 - `products/default/src/main/ets/pages/vault/EntrySheet.ets`（条目预览/编辑宿主）
 - `products/default/src/main/ets/pages/vault/EntryPreviewView.ets`、`EntryEditorView.ets`（预览、编辑、生成器）
-- `products/default/src/main/ets/pages/vault/EntryGroupPicker.ets`（分组选择，`titleBarBuilder`）
+- `products/default/src/main/ets/components/DsGroupPicker.ets`（通用分组选择：自定义标题栏 + 底部扩展区 + 滚动穿透）
 - `products/default/src/main/ets/pages/vault/EntryCustomFields.ets`（类型选择）
 - `products/default/src/main/ets/pages/vault/SshKeyGeneratorSheet.ets`、`EntrySshKeysField.ets`（SSH 生成）
 - `products/default/src/main/ets/pages/vault/EntryTemplatePicker.ets`（模板选择）

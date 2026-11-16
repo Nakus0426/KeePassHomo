@@ -1,4 +1,3 @@
-import { LengthMetrics } from '@kit.ArkUI'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { AnimationTokens, ContentSlideTransition, SlideFrame, VaultAuthMode } from '@ohos/common'
 import { DateUtil, ResUtil } from '@pura/harmony-utils'
@@ -11,6 +10,7 @@ import { DsField } from '../../components/DsField'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsInput, DsInputTone } from '../../components/DsInput'
 import { DsPageHeader, DsPageHeaderAction } from '../../components/DsPageHeader'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem, DsSegmentedSwitchSlot } from '../../components/DsSegmentedSwitch'
@@ -696,16 +696,10 @@ export struct CreateVaultPage {
     .titleBar(dsNavPageTitleBarOptions((): void => this.pageHeaderBuilder()))
     .hideBackButton(true)
     .backgroundColor($r('app.color.ds_surface_canvas'))
-    .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
-      backgroundColor: $r('app.color.ds_surface_lowest'),
-      showClose: false,
-      dragBar: false,
-      // 设计稿半模态为直角面板，只有顶部一条描边。
-      radius: LengthMetrics.vp(0),
-      borderWidth: { top: LengthMetrics.vp(1) },
-      borderColor: { top: $r('app.color.ds_outline_variant') },
+    .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), dsSheetOptions({
+      topBorder: true,
       onDisappear: () => this.closeGenerator(),
-    })
+    }))
   }
 }
 

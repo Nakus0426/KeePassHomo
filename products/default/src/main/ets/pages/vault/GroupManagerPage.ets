@@ -9,7 +9,7 @@ import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/Gr
 import { appRouter } from '../../navigation/AppRouter'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from './GroupPickerShared'
+import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from '../../components/GroupPickerShared'
 import { DsToastHost } from '../../components/DsToast'
 
 // 分组名的长度上限：与分组选择器同规则，防异常输入，KDBX 组名本身无硬性限制。

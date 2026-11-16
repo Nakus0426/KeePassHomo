@@ -1,10 +1,11 @@
-import { AnimationTokens, BounceAnimator } from '@ohos/common'
+import { AnimationTokens, BounceAnimator, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsButton, DsButtonTone } from '../../components/DsButton'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { FormItem, Status } from '../../components/FormItem'
 import { FormTextArea } from '../../components/FormTextArea'
 import { FormTextField, FormTextFieldStatus } from '../../components/FormTextField'
@@ -22,7 +23,8 @@ import {
 import { EntryAvatarPicker } from './EntryAvatarPicker'
 import { EntryAttachmentField } from './EntryAttachmentField'
 import { EntryCustomFields } from './EntryCustomFields'
-import { EntryGroupPicker } from './EntryGroupPicker'
+import { DsGroupPicker, GroupPickerSource } from '../../components/DsGroupPicker'
+import { createGroupFromPicker } from './GroupPickerActions'
 import { EntrySshKeysField } from './EntrySshKeysField'
 import { EntryTagEditor } from './EntryTagEditor'
 import { DsToastHost } from '../../components/DsToast'
@@ -544,14 +546,24 @@ export struct EntryEditorView {
   // 选择器自带标题栏与菜单，半模态壳只配容器参数；与编辑半模态同高，故不设挡位。
   @LocalBuilder
   private groupPickerSheet() {
-    EntryGroupPicker({
+    DsGroupPicker({
+      groupSource: (): GroupPickerSource => {
+        const allGroups: VaultGroup[] = this.viewModel.groups()
+        return {
+          rootGroup: allGroups[0],
+          topLevelGroups: this.viewModel.topLevelGroups(),
+          allGroups,
+        }
+      },
       initialGroupUuid: this.editor.groupUuid,
-      bottomOffset: this.bottomOffset,
+      busy: this.viewModel.busy,
       onPicked: (groupUuid: string) => {
         this.editor.setGroup(this.viewModel.requireGroup(groupUuid))
         this.groupPickerVisible = false
       },
       onClose: () => this.groupPickerVisible = false,
+      onCreateGroup: (parentUuid: string, name: string) =>
+      createGroupFromPicker(this.getUIContext(), this.viewModel, parentUuid, name),
       onActivity: () => this.viewModel.recordActivity(),
       onBackHandler: (handler: () => boolean) => this.groupPickerBackHandler = handler,
     })
@@ -678,12 +690,9 @@ export struct EntryEditorView {
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
       .onTouch(() => this.viewModel.recordActivity())
-      .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), {
-        dragBar: true,
-        backgroundColor: $r('app.color.ds_surface_lowest'),
-        showClose: false,
+      .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), dsSheetOptions({
         onDisappear: () => this.closeGeneratorSheet(),
-      })
+      }))
       .clip(false)
   }
 
@@ -709,15 +718,12 @@ export struct EntryEditorView {
     }
     .width('100%')
     .height('100%')
-    .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), {
-      dragBar: true,
-      backgroundColor: $r('app.color.ds_surface_lowest'),
-      showClose: false,
+    .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), dsSheetOptions({
       onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
       onDisappear: () => {
         this.groupPickerVisible = false
         this.groupPickerBackHandler = undefined
       },
-    })
+    }))
   }
 }

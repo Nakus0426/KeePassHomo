@@ -93,7 +93,7 @@
 - 设计系统组件位于 `products/default/src/main/ets/components/Ds*.ets`。新页面和改版页面必须复用 `DsButton`、`DsInput`、`DsField`、`DsPageHeader`；缺能力先扩展现有组件，不在页面内复制同视觉组件。
 - 视觉语言为扁平实色：常态不描边，层次由 `ds_surface_*` 底色差表达；页面组件（卡片、输入框、按钮、页头）圆角为 0，仅小徽标和圆形控件可按设计稿使用 4vp 圆角或 `50%`；禁止装饰性渐变、阴影、玻璃和光斑。聚焦与错误态描边、分隔线、设计稿指定的卡面皮肤除外。
 - 半模态、菜单和弹层的面底使用设计稿指定的 `ds_surface_*` Token，不使用 `sys.color.comp_background_*`。
-- 半模态统一使用 `DsHalfModalSheet`（悬浮标题栏 + 滚动穿透，含密码生成器沉浸式预览示例），详见 `docs/arkui-half-modal.md`。
+- 半模态统一使用 `DsHalfModalSheet`（悬浮标题栏 + 滚动穿透，含密码生成器沉浸式预览示例）；宿主 `bindSheet` 容器参数统一使用 `dsSheetOptions()`（直角面板 + 设计系统面底，禁止手写选项），详见 `docs/arkui-half-modal.md`。
 - 页面底部固定操作区统一使用 `DsBottomActionBar`（`products/default/src/main/ets/components/DsBottomActionBar.ets`），不得在页面内重复实现。
 - 底部操作区使用 `ds_surface_canvas_transparent` → `ds_surface_canvas` 的垂直渐变淡出，滚动内容按 `onHeightChange` 实测高度避让；禁止实色底板、`Scroll.fadingEdge` 或页面自绘渐变。详见 `docs/arkui-bottom-action-bar.md`。
 

@@ -12,6 +12,7 @@ import { SshKeyCard } from './SshKeyCard'
 import { isPasteboardReadGranted, requestPasteboardRead } from '../../model/PasteboardAccess'
 import { SshKeyGeneratorSheet } from './SshKeyGeneratorSheet'
 import { DsToastHost } from '../../components/DsToast'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
 // 单条密钥文本上限：PEM 最大档 RSA8192 也远小于此值，用于拦住误粘贴的大文件。
@@ -412,12 +413,9 @@ export struct EntrySshKeysField {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .bindSheet($$this.generateSheetVisible, this.generateSheet(), {
-      dragBar: true,
-      backgroundColor: $r('app.color.ds_surface_lowest'),
-      showClose: false,
+    .bindSheet($$this.generateSheetVisible, this.generateSheet(), dsSheetOptions({
       detents: [SheetSize.MEDIUM],
       onDisappear: () => this.generateSheetVisible = false,
-    })
+    }))
   }
 }

@@ -16,6 +16,7 @@ import { DsContextMenu } from '../../components/DsContextMenu'
 import { DsDialog, DsDialogTone } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { TAB_BAR_FLOAT_TOP_INSET_VP } from '../../constants/TabBarMetrics'
@@ -1012,12 +1013,9 @@ export struct VaultHomePage {
           Stack()
             .width(0)
             .height(0)
-            .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), {
-              dragBar: true,
-              showClose: false,
-              backgroundColor: $r('app.color.ds_surface_lowest'),
+            .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), dsSheetOptions({
               onDisappear: () => this.onTemplatePickerDisappeared(),
-            })
+            }))
 
           EntrySheet({ sheet: entrySheetViewModel })
         }

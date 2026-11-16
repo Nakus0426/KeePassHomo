@@ -2,7 +2,7 @@
 // 从零生成测试保险库：条目覆盖全部条目模板，含附件、SSH 密钥、自定义字段、标签、收藏与归档。
 
 const fs = require('fs')
-const { kdbxweb, registerArgon2, describeError } = require('./kdbx-env')
+const { kdbxweb, registerArgon2, describeError, LAYOUT_TYPE_KEY } = require('./kdbx-env')
 
 const DEFAULT_COUNT = 100
 const VAULT_NAME = '测试保险库'
@@ -11,7 +11,6 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const NOW = Date.now()
 
 // 与 app 侧常量保持一致。
-const LAYOUT_TYPE_KEY = 'KPEX_LayoutType'
 const FIELD_TYPES_KEY = 'KeePassHomo.FieldTypes'
 const FAVORITE_KEY = 'KeePassHomo.Favorite'
 const ARCHIVED_KEY = 'KeePassHomo.Archived'

@@ -15,6 +15,8 @@ export struct DsInput {
   @Param text: string = ''
   @Param placeholder: ResourceStr = ''
   @Param type: InputType = InputType.Normal
+  // -1 为不限制，与系统 TextInput 默认一致。
+  @Param maxLength: number = -1
   @Param showPassword: boolean = false
   @Param inputSize: DsControlSize = DsControlSize.Medium
   @Param tone: DsInputTone = DsInputTone.Default
@@ -171,6 +173,7 @@ export struct DsInput {
 
       TextInput({ placeholder: this.placeholder, text: this.text })
         .type(this.type)
+        .maxLength(this.maxLength)
         .showPasswordIcon(false)
         .showPassword(this.showPassword)
         .height('100%')

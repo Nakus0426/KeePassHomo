@@ -6,6 +6,7 @@ import { FIELD_TYPE_DEFINITIONS, FieldTypeDefinition, fieldTypeDefinition } from
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { dsSheetOptions } from '../../components/DsSheetOptions'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；与模板选择器同档，按组件宽度切档，宽度由列数均分。
 const FIELD_TYPE_CARD_COLUMNS: GridRowColumnOption = {
@@ -434,14 +435,11 @@ export struct EntryCustomFields {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .bindSheet($$this.typeSheetVisible, this.typeSheet(), {
-      dragBar: true,
-      showClose: false,
-      backgroundColor: $r('app.color.ds_surface_lowest'),
+    .bindSheet($$this.typeSheetVisible, this.typeSheet(), dsSheetOptions({
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       // 默认 FOLLOW_DETENT 只在跟手结束后重排内容，多挡位拖动时会看到内容截断与松手跳变。
       scrollSizeMode: ScrollSizeMode.CONTINUOUS,
       onDisappear: () => this.onTypeSheetDisappear(),
-    })
+    }))
   }
 }
