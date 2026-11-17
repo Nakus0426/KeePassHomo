@@ -186,14 +186,17 @@ export struct UnlockPage {
   private playExitAnimation(): void {
     this.exitAnimating = true
     this.unlockSucceeded = true
+    this.viewModel.homeRevealProgress = 0
     this.getUIContext().getFocusController().clearFocus()
     // 设计稿：成功态停留约 120ms 后再沿灰白交界外移，150ms 为最近动效 Token。
     setTimeout(() => {
+      // 首页与上下两片同帧启动：分屏外移的同时首页按设计稿缩放淡入。
       this.getUIContext().animateTo({
         duration: AnimationTokens.DURATION_STRUCTURAL,
         curve: AnimationTokens.EASE_ENTER,
       }, () => {
         this.bandProgress = 1
+        this.viewModel.homeRevealProgress = 1
       })
       this.getUIContext().animateTo({
         duration: AnimationTokens.DURATION_STRUCTURAL,
@@ -564,7 +567,9 @@ export struct UnlockPage {
     }
     .hideTitleBar(true)
     .hideBackButton(true)
-    .backgroundColor($r('app.color.ds_surface_canvas'))
+    .mode(NavDestinationMode.DIALOG)
+    // 解锁成功后撤掉本页底色，让分屏外移直接露出下层已渲染的首页，拆页时不再出现画布空帧。
+    .backgroundColor(this.unlockSucceeded ? Color.Transparent : $r('app.color.ds_surface_canvas'))
     .onBackPressed(() => {
       appRouter.handleRootBack(ROUTE_UNLOCK)
       return true

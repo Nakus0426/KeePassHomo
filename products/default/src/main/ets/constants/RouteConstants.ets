@@ -1,6 +1,6 @@
 export const INDEX_ROUTE: string = 'pages/Index'
 
-// 首页哨兵：不进 route_map，仅作 currentRoute 标记。
+// 首页哨兵：不进 route_map，仅作首页路由名。
 export const ROUTE_HOME: string = 'home'
 
 export const ROUTE_WELCOME: string = 'welcome'

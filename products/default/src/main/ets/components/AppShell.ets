@@ -1,4 +1,3 @@
-import { UIObserver } from '@kit.ArkUI'
 import { AnimationTokens } from '@ohos/common'
 import {
   CustomTransitionDelegate,
@@ -12,7 +11,7 @@ import { TAB_BAR_GRADIENT_HEIGHT_VP } from '../constants/TabBarMetrics'
 import { appSessionState, AppSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { fadeNavTransition } from '../navigation/NavFadeTransition'
-import { appViewModel } from '../viewmodel/AppViewModel'
+import { AppViewModel, appViewModel } from '../viewmodel/AppViewModel'
 import { VaultHomePage } from '../pages/vault/VaultHomePage'
 import { DsPageHeader, DsPageHeaderAction } from './DsPageHeader'
 import { dsPageTitleBarOptions } from './DsPageTitleBar'
@@ -55,34 +54,22 @@ const MODULES: ModuleTabDescriptor[] = [
 export struct AppShell {
   @Local private session: AppSessionState = appSessionState
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
+  @Local private app: AppViewModel = appViewModel
   private readonly tabsController: HdsTabsController = new HdsTabsController()
-  private uiObserver: UIObserver | undefined = undefined
-
-  aboutToAppear(): void {
-    this.uiObserver = this.getUIContext().getUIObserver()
-    appRouter.attach(this.uiObserver)
-  }
-
-  aboutToDisappear(): void {
-    if (this.uiObserver !== undefined) {
-      appRouter.detach(this.uiObserver)
-      this.uiObserver = undefined
-    }
-  }
 
   @Monitor('session.vaultLocked')
   onVaultLockChanged(_monitor: IMonitor): void {
-    appViewModel.onVaultLockChanged()
+    this.app.onVaultLockChanged()
   }
 
   @Monitor('session.sensitiveEpoch')
   onSensitiveEpochChanged(_monitor: IMonitor): void {
-    appViewModel.onSensitiveEpochChanged()
+    this.app.onSensitiveEpochChanged()
   }
 
   @Monitor('session.foregroundEpoch')
   onForegroundEpochChanged(_monitor: IMonitor): void {
-    appViewModel.onForegroundEpochChanged()
+    this.app.onForegroundEpochChanged()
   }
 
   // AppViewModel 在创建/解锁时会直接改 currentModule，HdsTabs 没有 index 属性，必须显式同步。
@@ -106,6 +93,13 @@ export struct AppShell {
       }
       return fadeNavTransition(this.getUIContext(), from, to)
     }
+
+  // 设计稿解锁转场：首页与外移分屏并行，从 98% 缩放、全透明收敛回常态。
+  @Computed
+  get homeRevealScale(): number {
+    const from: number = AnimationTokens.UNLOCK_HOME_REVEAL_SCALE
+    return from + (1 - from) * this.app.homeRevealProgress
+  }
 
   @Computed
   get moduleIndex(): number {
@@ -131,7 +125,7 @@ export struct AppShell {
       icon: $r('app.string.symbol_lock'),
       label: $r('app.string.lock'),
       onTap: (): void => {
-        appViewModel.lockVault()
+        this.app.lockVault()
       },
     }
   }
@@ -241,7 +235,7 @@ export struct AppShell {
           .barHeight(0)
           .scrollable(false)
           .animationDuration(AnimationTokens.DURATION_FEEDBACK)
-          .onChange((index: number) => appViewModel.switchModule(MODULES[index].route))
+          .onChange((index: number) => this.app.switchModule(MODULES[index].route))
 
           if (!this.home.batchMode) {
             if (!this.home.chromeHidden) {
@@ -251,6 +245,10 @@ export struct AppShell {
         }
         .width('100%')
         .height('100%')
+        .scale({ x: this.homeRevealScale, y: this.homeRevealScale })
+        .opacity(this.app.homeRevealProgress)
+        // 解锁页为弹窗型子页，首页会保留在其下层绘制；锁定时不得被读屏遍历。
+        .accessibilityLevel(this.session.vaultLocked ? 'no-hide-descendants' : 'auto')
       }
       .width('100%')
       .height('100%')
@@ -269,6 +267,6 @@ export struct AppShell {
     .backgroundColor($r('app.color.ds_surface_canvas'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     // 壳层真正上屏后才让品牌页退场，交接期间不出现空白帧。
-    .onAppear(() => appViewModel.markShellReady())
+    .onAppear(() => this.app.markShellReady())
   }
 }

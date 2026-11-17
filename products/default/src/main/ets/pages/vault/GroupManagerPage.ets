@@ -7,6 +7,7 @@ import { DsPageHeader, DsPageHeaderAction } from '../../components/DsPageHeader'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
 import { GroupRow, GroupRowShift, groupRowTransition } from '../../components/GroupRow'
 import { appRouter } from '../../navigation/AppRouter'
+import { ROUTE_GROUP_MANAGER } from '../../constants/RouteConstants'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO, sameOrder } from '../../components/GroupPickerShared'
@@ -52,6 +53,8 @@ export struct GroupManagerPage {
   @Local private levelSwitching: boolean = false
   // 行版本号：换词后自增让 ForEach 重建行，重排才有转场可播。
   @Local private rowVersion: number = 0
+  // 解锁后从导航栈恢复本页：分屏外移已露出首页，本页淡入接上，避免整页瞬切。
+  @Local private restoreOpacity: number = 1
   private readonly rowShift: GroupRowShift = new GroupRowShift()
   // 面包屑滚动控制器：层级变化后把当前层级滚回视野。
   private readonly breadcrumbScroller: Scroller = new Scroller()
@@ -63,6 +66,16 @@ export struct GroupManagerPage {
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
     })
+
+  aboutToAppear(): void {
+    if (!appRouter.consumeRestoreFade(ROUTE_GROUP_MANAGER)) {
+      return
+    }
+    this.restoreOpacity = 0
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
+      this.restoreOpacity = 1
+    })
+  }
 
   aboutToDisappear(): void {
     this.dialogController.close()
@@ -596,6 +609,7 @@ export struct GroupManagerPage {
     .titleBar(dsNavPageTitleBarOptions((): void => this.pageHeaderBuilder()))
     .hideBackButton(true)
     .backgroundColor($r('app.color.ds_surface_canvas'))
+    .opacity(this.restoreOpacity)
   }
 }
 

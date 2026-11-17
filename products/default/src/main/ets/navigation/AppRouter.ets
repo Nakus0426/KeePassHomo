@@ -1,36 +1,21 @@
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { UIContext, UIObserver, uiObserver } from '@kit.ArkUI'
+import { UIContext } from '@kit.ArkUI'
 import { AppUtil, LogUtil } from '@pura/harmony-utils'
 import { ROUTE_HOME, ROUTE_UNLOCK } from '../constants/RouteConstants'
 import { DsToastHost } from '../components/DsToast'
 
 const ROOT_BACK_CONFIRM_INTERVAL_MS: number = 2000
 
-// 应用内唯一持有 NavPathStack；currentRoute 由 uiObserver 自动同步，页面无需回写
-@ObservedV2
+// 应用内唯一持有 NavPathStack；当前页面一律从栈顶推导，页面无需回写。
 export class AppRouter {
-  @Trace currentRoute: string = ''
   readonly stack: NavPathStack = new NavPathStack()
-  private readonly onNavDestinationUpdate: (info: uiObserver.NavDestinationInfo) => void =
-    (info: uiObserver.NavDestinationInfo): void => {
-      if (info.state === uiObserver.NavDestinationState.ON_SHOWN) {
-        this.currentRoute = info.name as string
-      }
-    }
   private lastBackPressedAt: number = 0
   private lastBackRoute: string = ''
   private homeTransitionPending: boolean = false
+  private restoreFadeRoute: string = ''
   private lockEnterPending: boolean = false
   private lockedStack: Array<NavPathInfo> = []
-
-  attach(observer: UIObserver): void {
-    observer.on('navDestinationUpdate', this.onNavDestinationUpdate)
-  }
-
-  detach(observer: UIObserver): void {
-    observer.off('navDestinationUpdate', this.onNavDestinationUpdate)
-  }
 
   push(route: string, param?: Object, options?: NavigationOptions): void {
     this.stack.pushPath(new NavPathInfo(route, param), options)
@@ -46,11 +31,9 @@ export class AppRouter {
     this.stack.pushPathByName(route, param, animated)
   }
 
-  // 首页不是 NavDestination，uiObserver 收不到事件，需手动标记 currentRoute。
   clearToHome(): void {
     this.lockedStack = []
     this.stack.clear()
-    this.currentRoute = ROUTE_HOME
     this.homeTransitionPending = true
   }
 
@@ -82,7 +65,17 @@ export class AppRouter {
     for (const info of snapshot) {
       restored.push(new NavPathInfo(info.name, info.param))
     }
+    this.restoreFadeRoute = restored[restored.length - 1].name
     this.stack.setPathStack(restored, false)
+  }
+
+  // 原子页恢复时首页已在分屏外移中露出，栈顶页面自己淡入接上，避免整页瞬切。
+  consumeRestoreFade(route: string): boolean {
+    if (this.restoreFadeRoute !== route) {
+      return false
+    }
+    this.restoreFadeRoute = ''
+    return true
   }
 
   consumeLockEnter(): boolean {
@@ -93,9 +86,14 @@ export class AppRouter {
     return false
   }
 
-  // 以栈深判定：pop 回首页时 currentRoute 会滞留旧值
   isHomePage(): boolean {
     return this.stack.size() === 0
+  }
+
+  // 栈顶即当前页面：不依赖导航事件回传，弹窗型子页与 pop 都不会滞留旧值。
+  currentRouteName(): string {
+    const paths: Array<NavPathInfo> = this.stack.getPathStack()
+    return paths.length === 0 ? ROUTE_HOME : paths[paths.length - 1].name
   }
 
   // 供新压入的页面在 aboutToAppear 中读取栈顶入参

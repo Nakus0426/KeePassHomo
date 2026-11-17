@@ -93,6 +93,8 @@ export class AppViewModel {
   @Trace lastError: AppErrorModel | undefined = undefined
   @Trace launchVisible: boolean = true
   @Trace shellVisible: boolean = false
+  // 解锁分屏外移期间首页的进场进度：首页在解锁页之下，与两片外移并行缩放淡入。
+  @Trace homeRevealProgress: number = 1
   @Trace fileSummary: VaultFileSummary | undefined = undefined
   @Trace unlockFailures: number = 0
   @Trace unlockBlocked: boolean = false
@@ -881,12 +883,9 @@ export class AppViewModel {
   }
 
   private isUnlockedRoute(): boolean {
-    if (appRouter.isHomePage()) {
-      return true
-    }
-    return appRouter.currentRoute !== '' && appRouter.currentRoute !== ROUTE_WELCOME &&
-      appRouter.currentRoute !== ROUTE_CREATE_VAULT && appRouter.currentRoute !== ROUTE_FILE_SUMMARY &&
-      appRouter.currentRoute !== ROUTE_UNLOCK
+    const route: string = appRouter.currentRouteName()
+    return route !== ROUTE_WELCOME && route !== ROUTE_CREATE_VAULT && route !== ROUTE_FILE_SUMMARY &&
+      route !== ROUTE_UNLOCK
   }
 
   private refreshVault(): void {
