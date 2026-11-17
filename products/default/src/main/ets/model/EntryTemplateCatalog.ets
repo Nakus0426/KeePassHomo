@@ -36,6 +36,9 @@ export interface ItemTemplateDefinition {
   template: ItemTemplate;
   name: Resource;
   description: Resource;
+
+  // 选择卡片的字段摘要：写成定值资源，避免在 UI 里拼接 Resource 文案。
+  summary: Resource;
   icon: Resource;
   fields: TemplateFieldDefinition[];
 }
@@ -143,6 +146,7 @@ const LOGIN: ItemTemplateDefinition = {
   template: ItemTemplate.Login,
   name: $r('app.string.login_template'),
   description: $r('app.string.login_template_description'),
+  summary: $r('app.string.template_summary_login'),
   icon: $r('app.media.layout_type_login'),
   fields: [
     reservedField('UserName', $r('app.string.username'), $r('sys.symbol.person'), false, false),
@@ -156,6 +160,7 @@ const SECURE_NOTE: ItemTemplateDefinition = {
   template: ItemTemplate.SecureNote,
   name: $r('app.string.secure_note_template'),
   description: $r('app.string.secure_note_template_description'),
+  summary: $r('app.string.template_summary_secure_note'),
   icon: $r('app.media.layout_type_secure_note'),
   fields: [
     reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
@@ -166,6 +171,7 @@ const CREDIT_CARD: ItemTemplateDefinition = {
   template: ItemTemplate.CreditCard,
   name: $r('app.string.credit_card_template'),
   description: $r('app.string.credit_card_template_description'),
+  summary: $r('app.string.template_summary_credit_card'),
   icon: $r('app.media.layout_type_credit_card'),
   fields: [
     customField('CardNumber', $r('app.string.card_number'), $r('sys.symbol.creditcard'), true),
@@ -181,6 +187,7 @@ const PASSWORD: ItemTemplateDefinition = {
   template: ItemTemplate.Password,
   name: $r('app.string.password_template'),
   description: $r('app.string.password_template_description'),
+  summary: $r('app.string.template_summary_password'),
   icon: $r('app.media.layout_type_password'),
   fields: [
     reservedField('Password', $r('app.string.password'), $r('sys.symbol.lock'), true, false),
@@ -192,6 +199,7 @@ const SSH_KEY: ItemTemplateDefinition = {
   template: ItemTemplate.SshKey,
   name: $r('app.string.ssh_key_template'),
   description: $r('app.string.ssh_key_template_description'),
+  summary: $r('app.string.template_summary_ssh_key'),
   icon: $r('app.media.layout_type_ssh_key'),
   fields: [
     sshKeysField($r('app.string.ssh_key_add'), $r('sys.symbol.key')),
@@ -203,6 +211,7 @@ const ATTACHMENT: ItemTemplateDefinition = {
   template: ItemTemplate.Attachment,
   name: $r('app.string.attachment_template'),
   description: $r('app.string.attachment_template_description'),
+  summary: $r('app.string.template_summary_attachment'),
   icon: $r('app.media.layout_type_attachment'),
   fields: [
     attachmentField($r('app.string.attachment_file'), $r('sys.symbol.paperclip')),

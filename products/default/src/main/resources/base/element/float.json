@@ -45,14 +45,6 @@
       "value": "40vp"
     },
     {
-      "name": "template_icon_size",
-      "value": "48vp"
-    },
-    {
-      "name": "template_card_height",
-      "value": "144vp"
-    },
-    {
       "name": "field_type_icon_size",
       "value": "48vp"
     },
@@ -419,6 +411,10 @@
     {
       "name": "ds_template_shortcut_height",
       "value": "96vp"
+    },
+    {
+      "name": "ds_template_icon_size",
+      "value": "40vp"
     },
     {
       "name": "ds_swipe_action_width",

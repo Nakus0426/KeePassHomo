@@ -194,7 +194,10 @@ DsGroupPicker({
 - 只有沉浸式预览开 `contentBehindTitleBar: true`，并在内容里用 `topOffset` 填充上探底色；普通面板保持默认。
 - `titleBarBuilder` / `bodyBuilder` / `bottomBarBuilder` 必须传 `@LocalBuilder` 方法引用，不要在箭头函数里直接构造自定义组件；详见 `docs/arkui-builder-slot.md`。
 - 底部操作区高度必须由 `DsBottomActionBar.onHeightChange` 实测回填内容的 `padding.bottom`；详见 `docs/arkui-bottom-action-bar.md`。
-- 高度由宿主 `bindSheet` 决定（`detents`/`height`）：现有用法只有默认 / `MEDIUM`（约半屏）/ `LARGE`（约全屏）；未提供百分比高度 API，需要时再按真实用例补。
+- 高度由宿主 `bindSheet` 决定（`detents`/`height`）：固定挡位用默认 / `MEDIUM` / `LARGE`，需要「刚好放下内容」时也可以用百分比或数值挡位。模板选择器取 `[MEDIUM, LARGE]` 两档，初始半屏、可上拖展开，未展开时卡片区内部滚动。
+- 多档位 `detents`（如 `[MEDIUM, LARGE]`）会让系统显示自己的控制条，样式不受设计系统控制，且与自绘拖拽条叠成两根：用 `dsSheetOptions({ dragBar: false })` 关掉系统那根，保留 `DsHalfModalSheet` 自绘的。
+- 多档位拖拽时，内容刷新时机由 `scrollSizeMode` 决定，默认 `FOLLOW_DETENT`——拖动过程中新露出的区域**不会渲染**，要等吸附到目标挡位才出内容。需要跟手实时展开时传 `scrollSizeMode: ScrollSizeMode.CONTINUOUS`（官方提示该模式对内容渲染性能要求更高，builder 内避免重活）。模板选择器踩过这个坑。
+- **不要用 `SheetSize.FIT_CONTENT`**：自适应高度要求 builder 根节点由内容决定，而本壳的根是 `HdsNavigation`，它和内容里的 `Scroll` 在无界高度下都会撑满可用空间，实测面板被撑到接近 `LARGE`（底部大片空白）。HDS 外壳与 FIT_CONTENT 不兼容。
 
 ## 已接入位置
 

@@ -46,6 +46,8 @@ export struct VaultHomePage {
   @Local private list: HomeEntryListViewModel = homeEntryListViewModel
   @Local private app: AppViewModel = appViewModel
   @Local private templatePickerVisible: boolean = false
+  // 空白条目不算「选择模板」，不写入最近使用。
+  @Local private pickedSkipRecent: boolean = false
   @Local private fabHasAppeared: boolean = false
   @Local private batchBarHeight: number = 0
   @Local private deleteDialogBatch: boolean = false
@@ -176,6 +178,7 @@ export struct VaultHomePage {
   private openTemplatePicker(groupUuid: string): void {
     this.pickedGroupUuid = groupUuid
     this.pickedTemplate = undefined
+    this.pickedSkipRecent = false
     this.templatePickerVisible = true
   }
 
@@ -186,8 +189,13 @@ export struct VaultHomePage {
       return
     }
     const groupUuid: string = this.pickedGroupUuid
+    const skipRecent: boolean = this.pickedSkipRecent
     this.pickedTemplate = undefined
     this.pickedGroupUuid = ''
+    this.pickedSkipRecent = false
+    if (!skipRecent) {
+      this.app.markTemplateUsed(template)
+    }
     entrySheetViewModel.openNew(template, groupUuid)
   }
 
@@ -910,6 +918,11 @@ export struct VaultHomePage {
         this.pickedTemplate = template
         this.templatePickerVisible = false
       },
+      onStartBlank: () => {
+        this.pickedTemplate = ItemTemplate.Login
+        this.pickedSkipRecent = true
+        this.templatePickerVisible = false
+      },
       onClose: () => this.templatePickerVisible = false,
     })
   }
@@ -1005,6 +1018,12 @@ export struct VaultHomePage {
             .width(0)
             .height(0)
             .bindSheet($$this.templatePickerVisible, this.templatePickerSheet(), dsSheetOptions({
+              // 初始半屏、可上拖到接近全屏；卡片区在未展开时内部滚动。
+              detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+              // 跟手期间实时刷新内容，否则新露出的部分要等吸附到挡位后才渲染。
+              scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+              // 系统控制条样式与设计不符，保留自绘拖拽条。
+              dragBar: false,
               onDisappear: () => this.onTemplatePickerDisappeared(),
             }))
 

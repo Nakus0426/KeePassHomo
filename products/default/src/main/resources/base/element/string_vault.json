@@ -53,8 +53,36 @@
       "value": "生成或存储密码"
     },
     {
-      "name": "recent_used_template",
-      "value": "最近使用"
+      "name": "template_recent_badge",
+      "value": "最近"
+    },
+    {
+      "name": "template_summary_login",
+      "value": "用户名 · 密码 · 网址 · 备注"
+    },
+    {
+      "name": "template_summary_secure_note",
+      "value": "备注"
+    },
+    {
+      "name": "template_summary_credit_card",
+      "value": "卡号 · 发卡行 · 卡类型 · 有效期"
+    },
+    {
+      "name": "template_summary_ssh_key",
+      "value": "私钥 · 公钥 · 备注"
+    },
+    {
+      "name": "template_summary_attachment",
+      "value": "文件 · 备注"
+    },
+    {
+      "name": "template_summary_password",
+      "value": "密码 · 备注"
+    },
+    {
+      "name": "start_blank_entry",
+      "value": "从空白条目开始"
     },
     {
       "name": "card_number",

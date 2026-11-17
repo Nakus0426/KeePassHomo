@@ -58,7 +58,7 @@ const TEMPLATE_PREFERENCES_NAME: string = 'entry_templates'
 const RECENT_TEMPLATES_KEY: string = 'recent_templates'
 // 品牌页最短展示时长（自品牌页首帧出现起算）。
 const MIN_LAUNCH_VISIBLE_MS: number = 600
-// 最近使用只在模板卡片上标注，不改变列表顺序。
+// 最近使用在模板选择器里置顶并带标记，最多 3 项。
 const RECENT_TEMPLATE_LIMIT: number = 3
 const EMPTY_TEMPLATES: string[] = []
 // SSH 模板的字段名，与 EntryTemplateCatalog 的模板定义一致。
@@ -484,6 +484,9 @@ export class AppViewModel {
   }
 
   markTemplateUsed(template: ItemTemplate): void {
+    if (this.recentTemplates[0] === template) {
+      return
+    }
     const next: ItemTemplate[] = [template]
     for (const used of this.recentTemplates) {
       if (used !== template && next.length < RECENT_TEMPLATE_LIMIT) {
@@ -491,7 +494,11 @@ export class AppViewModel {
       }
     }
     this.recentTemplates = next
-    PreferencesUtil.putSync(RECENT_TEMPLATES_KEY, next, TEMPLATE_PREFERENCES_NAME)
+    // 异步落盘：调用点在新建半模态交接路径上，不能阻塞首帧。
+    PreferencesUtil.put(RECENT_TEMPLATES_KEY, next, TEMPLATE_PREFERENCES_NAME)
+      .catch((error: BusinessError) => {
+        LogUtil.error(`最近使用模板写入失败，错误码=${error.code}`)
+      })
   }
 
   // 附件字节按需读取：只在导出时调用，列表不持有内容。
