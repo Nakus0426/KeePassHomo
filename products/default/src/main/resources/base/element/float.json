@@ -409,8 +409,8 @@
       "value": "24vp"
     },
     {
-      "name": "ds_empty_icon_size",
-      "value": "56vp"
+      "name": "ds_empty_illustration_width",
+      "value": "104vp"
     },
     {
       "name": "ds_empty_body_width",

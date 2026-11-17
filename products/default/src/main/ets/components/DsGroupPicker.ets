@@ -513,15 +513,10 @@ export struct DsGroupPicker {
   @LocalBuilder
   private emptyContent() {
     Column({ space: $r('app.float.ds_space_16') }) {
-      Stack({ alignContent: Alignment.Center }) {
-        SymbolGlyph(this.searching ? $r('app.string.symbol_search') : $r('app.string.symbol_folder'))
-          .fontSize($r('app.float.ds_icon_lg'))
-          .fontColor([$r('app.color.ds_text_secondary')])
-          .foregroundColor($r('app.color.ds_text_secondary'))
-      }
-      .width($r('app.float.ds_empty_icon_size'))
-      .height($r('app.float.ds_empty_icon_size'))
-      .backgroundColor($r('app.color.ds_surface_high'))
+      Image(this.searching ? $r('app.media.ds_empty_group_search') : $r('app.media.ds_empty_group'))
+        .width($r('app.float.ds_empty_illustration_width'))
+        .aspectRatio(this.searching ? 485 / 379 : 585 / 448)
+        .objectFit(ImageFit.Contain)
 
       Text(this.emptyCopy.title)
         .fontSize($r('app.float.ds_font_headline_md'))

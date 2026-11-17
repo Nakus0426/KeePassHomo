@@ -732,15 +732,10 @@ export struct VaultHomePage {
   @Builder
   private emptyVault() {
     Column({ space: $r('app.float.ds_space_24') }) {
-      Stack({ alignContent: Alignment.Center }) {
-        SymbolGlyph($r('app.string.symbol_key'))
-          .fontSize($r('app.float.ds_icon_lg'))
-          .fontColor([$r('app.color.ds_text_secondary')])
-          .foregroundColor($r('app.color.ds_text_secondary'))
-      }
-      .width($r('app.float.ds_empty_icon_size'))
-      .height($r('app.float.ds_empty_icon_size'))
-      .backgroundColor($r('app.color.ds_surface_high'))
+      Image($r('app.media.ds_empty_entry'))
+        .width($r('app.float.ds_empty_illustration_width'))
+        .aspectRatio(428 / 434)
+        .objectFit(ImageFit.Contain)
 
       Text($r('app.string.entry_empty_title'))
         .fontSize($r('app.float.ds_font_headline_md'))
@@ -802,15 +797,11 @@ export struct VaultHomePage {
   @Builder
   private emptyFiltered() {
     Column({ space: $r('app.float.ds_space_16') }) {
-      Stack({ alignContent: Alignment.Center }) {
-        SymbolGlyph($r('app.string.symbol_search'))
-          .fontSize($r('app.float.ds_icon_lg'))
-          .fontColor([$r('app.color.ds_text_secondary')])
-          .foregroundColor($r('app.color.ds_text_secondary'))
-      }
-      .width($r('app.float.ds_empty_icon_size'))
-      .height($r('app.float.ds_empty_icon_size'))
-      .backgroundColor($r('app.color.ds_surface_high'))
+      Image(this.home.searchQuery.length > 0
+        ? $r('app.media.ds_empty_entry_search') : $r('app.media.ds_empty_entry'))
+        .width($r('app.float.ds_empty_illustration_width'))
+        .aspectRatio(this.home.searchQuery.length > 0 ? 474 / 454 : 428 / 434)
+        .objectFit(ImageFit.Contain)
 
       Text(this.emptyTitle)
         .fontSize($r('app.float.ds_font_headline_md'))
