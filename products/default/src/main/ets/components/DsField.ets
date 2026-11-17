@@ -98,30 +98,29 @@ export struct DsField {
     .alignItems(VerticalAlign.Center)
   }
 
+  // 图标与文本常驻，仅切换可见性：预留位与错误态量到同一高度，出现反馈时不顶开布局。
   @Builder
   private defaultFeedback() {
     Row({ space: $r('app.float.ds_space_xs') }) {
-      if (this.hasFeedbackText) {
-        Row() {
-          SymbolGlyph(this.feedbackIcon)
-            .fontSize($r('app.float.ds_icon_tiny'))
-            .fontColor([this.toneColor])
-            .foregroundColor(this.toneColor)
-        }
-        .padding({ top: $r('app.float.ds_space_2') })
-        .flexShrink(0)
+      Row() {
+        SymbolGlyph(this.feedbackIcon)
+          .fontSize($r('app.float.ds_icon_tiny'))
+          .fontColor([this.toneColor])
+          .foregroundColor(this.toneColor)
       }
-      if (this.hasFeedbackText) {
-        Text(this.feedbackText)
-          .fontSize($r('app.float.ds_font_body_sm'))
-          .fontColor(this.toneColor)
-          .lineHeight(FIELD_FEEDBACK_LINE_HEIGHT)
-          .layoutWeight(1)
-      }
+      .padding({ top: $r('app.float.ds_space_2') })
+      .flexShrink(0)
+
+      Text(this.hasFeedbackText ? this.feedbackText : ' ')
+        .fontSize($r('app.float.ds_font_body_sm'))
+        .fontColor(this.toneColor)
+        .lineHeight(FIELD_FEEDBACK_LINE_HEIGHT)
+        .layoutWeight(1)
     }
     .width('100%')
     .constraintSize({ minHeight: FIELD_FEEDBACK_LINE_HEIGHT })
     .alignItems(VerticalAlign.Top)
+    .visibility(this.hasFeedbackText ? Visibility.Visible : Visibility.Hidden)
   }
 
   build() {

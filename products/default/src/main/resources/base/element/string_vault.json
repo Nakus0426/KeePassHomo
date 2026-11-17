@@ -409,6 +409,10 @@
       "value": "请输入分组名称"
     },
     {
+      "name": "group_name_too_long",
+      "value": "分组名称不能超过 64 个字符"
+    },
+    {
       "name": "group_pick_confirm",
       "value": "确认选择"
     },

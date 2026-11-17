@@ -49,44 +49,49 @@ export struct DsDialog {
   build() {
     Column() {
       Scroll() {
-        Column({ space: $r('app.float.ds_space_sm') }) {
-          Row({ space: $r('app.float.ds_space_sm') }) {
-            if (this.icon !== undefined) {
-              SymbolGlyph(this.icon)
-                .fontSize($r('app.float.ds_icon_md'))
-                .fontColor([this.iconColor])
-                .foregroundColor(this.iconColor)
-            }
+        Column() {
+          Column({ space: $r('app.float.ds_space_sm') }) {
+            Row({ space: $r('app.float.ds_space_sm') }) {
+              if (this.icon !== undefined) {
+                SymbolGlyph(this.icon)
+                  .fontSize($r('app.float.ds_icon_md'))
+                  .fontColor([this.iconColor])
+                  .foregroundColor(this.iconColor)
+              }
 
-            Text(this.title)
-              .fontSize($r('app.float.ds_font_title_md'))
-              .fontWeight(600)
-              .fontColor($r('app.color.ds_text_primary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .layoutWeight(1)
+              Text(this.title)
+                .fontSize($r('app.float.ds_font_title_md'))
+                .fontWeight(600)
+                .fontColor($r('app.color.ds_text_primary'))
+                .maxLines(2)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+
+            if (this.message !== '') {
+              Text(this.message)
+                .width('100%')
+                .fontSize($r('app.float.ds_font_body'))
+                .lineHeight($r('app.float.ds_line_height_body_sm'))
+                .fontColor($r('app.color.ds_text_secondary'))
+            }
           }
           .width('100%')
-          .alignItems(VerticalAlign.Center)
-
-          if (this.message !== '') {
-            Text(this.message)
-              .width('100%')
-              .fontSize($r('app.float.ds_font_body'))
-              .lineHeight($r('app.float.ds_line_height_body_sm'))
-              .fontColor($r('app.color.ds_text_secondary'))
-          }
+          .alignItems(HorizontalAlign.Start)
+          // 标题区、内容槽、底栏共用 16 内边距，三段左缘对齐。
+          .padding($r('app.float.ds_gutter'))
 
           if (this.contentBuilder !== undefined) {
             Column() {
               this.contentBuilder()
             }
             .width('100%')
+            .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
           }
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Start)
-        .padding($r('app.float.ds_space_lg'))
       }
       .width('100%')
       .scrollBar(BarState.Off)

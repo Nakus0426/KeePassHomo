@@ -7,10 +7,10 @@ import { DsBreadcrumb, DsBreadcrumbItemData, DsBreadcrumbSize } from './DsBreadc
 import { DsButton, DsButtonVariant } from './DsButton'
 import { DsControlSize } from './DsControlSize'
 import { DsDialog } from './DsDialog'
+import { DsField } from './DsField'
 import { DsHalfModalSheet } from './DsHalfModalSheet'
-import { DsInput } from './DsInput'
+import { DsInput, DsInputTone } from './DsInput'
 import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from './DsPageHeader'
-import { DsToastHost } from './DsToast'
 import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO } from './GroupPickerShared'
 
 // 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
@@ -138,6 +138,8 @@ export struct DsGroupPicker {
   // 搜索态选中项独立存放：浏览层不参与搜索确认，避免确认到看不见的分组。
   @Local private searchSelectionUuid: string = ''
   @Local private newGroupName: string = ''
+  // 新建分组名的校验反馈：提交时置入，输入变化后按同一规则即时重算。
+  @Local private newGroupNameError: ResourceStr | undefined = undefined
   // 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。
   @Local private levelOffsetX: number = 0
   @Local private levelOpacity: number = 1
@@ -585,6 +587,7 @@ export struct DsGroupPicker {
 
   private openNewGroupDialog(): void {
     this.newGroupName = ''
+    this.newGroupNameError = undefined
     this.presentNewGroupDialog()
   }
 
@@ -604,16 +607,43 @@ export struct DsGroupPicker {
       })
   }
 
+  // 同一套规则既用于提交，也用于错误已出现后的即时重算。
+  private validateNewGroupName(value: string): ResourceStr | undefined {
+    const name: string = value.trim()
+    if (name.length === 0) {
+      return $r('app.string.group_name_required')
+    }
+    if (name.length > NEW_GROUP_NAME_MAX_LENGTH) {
+      return $r('app.string.group_name_too_long')
+    }
+    return undefined
+  }
+
+  private applyNewGroupName(value: string): void {
+    this.newGroupName = value
+    if (this.newGroupNameError !== undefined) {
+      this.newGroupNameError = this.validateNewGroupName(value)
+    }
+  }
+
   @LocalBuilder
-  private newGroupInput() {
+  private newGroupInputField() {
     DsInput({
       text: this.newGroupName,
       placeholder: $r('app.string.group_name_placeholder'),
-      maxLength: NEW_GROUP_NAME_MAX_LENGTH,
-      onChange: (value: string) => this.newGroupName = value,
+      tone: this.newGroupNameError === undefined ? DsInputTone.Default : DsInputTone.Error,
+      onChange: (value: string) => this.applyNewGroupName(value),
       onSubmit: () => this.submitNewGroup(),
     })
-      .margin({ top: $r('app.float.ds_space_md') })
+  }
+
+  @LocalBuilder
+  private newGroupInput() {
+    DsField({
+      feedback: this.newGroupNameError,
+      reserveFeedbackSpace: true,
+      contentBuilder: this.newGroupInputField,
+    })
   }
 
   @Builder
@@ -635,8 +665,9 @@ export struct DsGroupPicker {
       return
     }
     const name: string = this.newGroupName.trim()
-    if (name.length === 0) {
-      DsToastHost.show(this.getUIContext(), $r('app.string.group_name_required'))
+    const error: ResourceStr | undefined = this.validateNewGroupName(name)
+    this.newGroupNameError = error
+    if (error !== undefined) {
       return
     }
     // 先关弹窗再落盘：落盘是异步写文件，等它的回调再 close 弹窗不会被关掉。
