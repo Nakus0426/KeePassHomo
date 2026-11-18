@@ -99,7 +99,7 @@
 
 ### 图标、字体与动效
 
-- 图标使用 `DefaultAbility.onWindowStageCreate` 注册的自定义 Material Symbols TTF，资源键为 `app.string.symbol_*`；新增图标先补 `tools/icon-migration` 映射与字体，不使用 `sys.symbol.*`。
+- 图标使用 `DefaultAbility.onWindowStageCreate` 注册的自定义 Material Symbols Sharp TTF，资源键为 `app.string.symbol_*`；新增图标先补 `tools/icon-migration` 映射与字体，不使用 `sys.symbol.*`。
 - 自定义 `SymbolGlyph` / `SymbolGlyphModifier` 必须同时设置 `fontColor` 与 `foregroundColor`，两者使用同一颜色表达式。
 - 字体：UI 使用 `HarmonyOS Sans SC`；密码、密钥和代码使用 `PASSWORD_FONT_FAMILY`（Maple Mono NF CN）。禁止新增其他字体族。
 - 动效数值统一来自 `common/src/main/ets/animation/AnimationTokens.ets`：反馈 300ms、`cubic-bezier(0.2, 0, 0, 1)`；禁止在组件内写临时时长或曲线。

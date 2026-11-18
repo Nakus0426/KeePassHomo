@@ -1,10 +1,10 @@
-# 图标迁移映射表（Material Symbols Outlined）
+# 图标迁移映射表（Material Symbols Sharp）
 
 状态：映射表已确认，POC 已通过。进入全量 TTF 生成与按模块迁移阶段。
 
 ## 决策
 
-- 目标：摆脱系统 Symbol 版本依赖，统一为 Material Symbols Outlined。
+- 目标：摆脱系统 Symbol 版本依赖，统一为 Material Symbols Sharp（设计稿与代码同一来源）。
 - 渲染：自定义 Symbol TTF + `symbolRegister`，保留 `SymbolGlyph` / `SymbolGlyphModifier` API。
 - 填充态：`FILL=1` 作为独立 glyph，不复用描边 glyph。
 - 迁移：按模块分批，先组件层，再 onboarding，再 vault。
@@ -16,7 +16,7 @@
 
 ## 实测体积
 
-- Material Symbols Outlined 完整可变字体：10.7 MB。
+- Material Symbols Sharp 完整可变字体：8.9 MB。
 - 固定 `wght=400, opsz=24, FILL=0, GRAD=0` 的全量静态字体：1.4 MB。
 - 当前映射 + 设计新增共 57 个基础图标：8.9 KB。
 - 加入 6 个 `FILL=1` glyph 后：约 10–12 KB。
@@ -135,9 +135,19 @@ POC 发现：
 - 全量迁移约束：所有自定义 `SymbolGlyph` / `SymbolGlyphModifier` 必须同时设置 `fontColor` 与 `foregroundColor`，两者使用同一颜色表达式。
 - 填充态按独立 `FILL=1` glyph 处理；本表共 57 个基础图标 + 6 个填充变体。
 
+## 设计稿侧：Icon 组件集
+
+设计稿不再逐处画图标，统一引用 `Band · 07 · 图标` 的 `Icon` 组件集：
+
+- 变体属性 `Glyph`，值 = 语义资源键去掉 `symbol_` 前缀（`symbol_eye_off` → `Glyph=eye_off`）；字形同为 Sharp。
+- 字形按 em 盒对齐（24 单位网格缩放到 20），墨迹与 `SymbolGlyph` 在 20vp 下一致；不要按墨迹包围盒缩放。
+- 主控向量绑 `$text-primary`；实例按语义覆盖为 `$error` / `$primary` / `$text-secondary`。
+- 新增图标：先补 `tools/icon-migration/mapping.json` 并重生成字体，再在设计稿加同名变体，两侧顺序一致。
+- 全仓不再使用 `sys.symbol.*`：系统图标无法指定 Sharp，混用会破坏轮廓一致性。
+
 ## TTF 生成约束
 
-- 源文件：`google/material-design-icons` 的 `MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf`，固定 `wght=400, opsz=24, GRAD=0`。
+- 源文件：`google/material-design-icons` 的 `MaterialSymbolsSharp[FILL,GRAD,opsz,wght].ttf`，固定 `wght=400, opsz=24, GRAD=0`。mapping.json 顶层 `source` 决定默认来源。
 - 每个语义键分配 `0x100000` 以上的 PUA-B codepoint，写入 `app.string.symbol_*`，值为 `0x...`。
 - 注册 JSON 采用 `{ version, axes, icons }` 清单；描边与填充字体分别注册。
 - 生成脚本和映射表一起提交，保证可重现；生成产物放 `products/default/src/main/resources/rawfile/symbol/`。

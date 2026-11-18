@@ -34,7 +34,7 @@ export struct AttachmentCard {
     Menu() {
       MenuItem({
         content: $r('app.string.attachment_export'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_down_to_line')).fontSize(
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_download')).fontSize(
           $r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
@@ -43,7 +43,7 @@ export struct AttachmentCard {
       if (this.editable) {
         MenuItem({
           content: $r('app.string.attachment_remove'),
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash')).fontSize($r('sys.float.Body_L'))
+          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_delete')).fontSize($r('sys.float.Body_L'))
             .fontColor([$r('sys.color.warning')]),
         })
           .labelFont({ size: $r('sys.float.Body_M') })

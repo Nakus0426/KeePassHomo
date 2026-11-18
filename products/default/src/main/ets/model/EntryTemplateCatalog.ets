@@ -149,10 +149,10 @@ const LOGIN: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_login'),
   icon: $r('app.media.layout_type_login'),
   fields: [
-    reservedField('UserName', $r('app.string.username'), $r('sys.symbol.person'), false, false),
-    reservedField('Password', $r('app.string.password'), $r('sys.symbol.lock'), true, false),
-    reservedField('URL', $r('app.string.website'), $r('sys.symbol.link'), false, false),
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    reservedField('UserName', $r('app.string.username'), $r('app.string.symbol_person'), false, false),
+    reservedField('Password', $r('app.string.password'), $r('app.string.symbol_lock'), true, false),
+    reservedField('URL', $r('app.string.website'), $r('app.string.symbol_link'), false, false),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 
@@ -163,7 +163,7 @@ const SECURE_NOTE: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_secure_note'),
   icon: $r('app.media.layout_type_secure_note'),
   fields: [
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 
@@ -174,12 +174,12 @@ const CREDIT_CARD: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_credit_card'),
   icon: $r('app.media.layout_type_credit_card'),
   fields: [
-    customField('CardNumber', $r('app.string.card_number'), $r('sys.symbol.creditcard'), true),
-    customField('Issuer', $r('app.string.card_issuer'), $r('sys.symbol.building'), false),
-    customField('CardType', $r('app.string.card_type'), $r('sys.symbol.card'), false, false, CARD_TYPE_OPTIONS),
-    customField('CardHolderName', $r('app.string.card_holder'), $r('sys.symbol.person'), false),
-    customField('Expiry', $r('app.string.card_expiry'), $r('sys.symbol.calendar'), false),
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    customField('CardNumber', $r('app.string.card_number'), $r('app.string.symbol_credit_card'), true),
+    customField('Issuer', $r('app.string.card_issuer'), $r('app.string.symbol_business'), false),
+    customField('CardType', $r('app.string.card_type'), $r('app.string.symbol_credit_card'), false, false, CARD_TYPE_OPTIONS),
+    customField('CardHolderName', $r('app.string.card_holder'), $r('app.string.symbol_person'), false),
+    customField('Expiry', $r('app.string.card_expiry'), $r('app.string.symbol_calendar'), false),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 
@@ -190,8 +190,8 @@ const PASSWORD: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_password'),
   icon: $r('app.media.layout_type_password'),
   fields: [
-    reservedField('Password', $r('app.string.password'), $r('sys.symbol.lock'), true, false),
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    reservedField('Password', $r('app.string.password'), $r('app.string.symbol_lock'), true, false),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 
@@ -202,8 +202,8 @@ const SSH_KEY: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_ssh_key'),
   icon: $r('app.media.layout_type_ssh_key'),
   fields: [
-    sshKeysField($r('app.string.ssh_key_add'), $r('sys.symbol.key')),
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    sshKeysField($r('app.string.ssh_key_add'), $r('app.string.symbol_key')),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 
@@ -214,8 +214,8 @@ const ATTACHMENT: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_attachment'),
   icon: $r('app.media.layout_type_attachment'),
   fields: [
-    attachmentField($r('app.string.attachment_file'), $r('sys.symbol.paperclip')),
-    reservedField('Notes', $r('app.string.notes'), $r('sys.symbol.doc_text'), false, true),
+    attachmentField($r('app.string.attachment_file'), $r('app.string.symbol_attach_file')),
+    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
   ],
 }
 

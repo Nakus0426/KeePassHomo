@@ -12,7 +12,7 @@ export struct PageTopBar {
     Row({ space: 12 }) {
       if (this.showBack) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.chevron_backward'))
+          SymbolGlyph($r('app.string.symbol_chevron_left'))
             .fontSize(22)
             .fontColor([$r('sys.color.brand')])
         }
@@ -28,7 +28,7 @@ export struct PageTopBar {
         .layoutWeight(1)
       if (this.showLock) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('sys.symbol.lock_fill'))
+          SymbolGlyph($r('app.string.symbol_lock_filled'))
             .fontSize(22)
             .fontColor([$r('sys.color.brand')])
         }

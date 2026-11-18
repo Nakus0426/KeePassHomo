@@ -1,312 +1,312 @@
 {
   "string": [
     {
+      "name": "symbol_account_circle_filled",
+      "value": "0x100305"
+    },
+    {
       "name": "symbol_add",
-      "value": "0x100000"
+      "value": "0x100200"
     },
     {
       "name": "symbol_add_square",
-      "value": "0x100001"
-    },
-    {
-      "name": "symbol_archive",
-      "value": "0x100002"
-    },
-    {
-      "name": "symbol_arrow_back",
-      "value": "0x100004"
-    },
-    {
-      "name": "symbol_arrow_forward",
-      "value": "0x100005"
-    },
-    {
-      "name": "symbol_arrow_upward",
-      "value": "0x100042"
-    },
-    {
-      "name": "symbol_attach_file",
-      "value": "0x100006"
-    },
-    {
-      "name": "symbol_bolt",
-      "value": "0x100007"
-    },
-    {
-      "name": "symbol_business",
-      "value": "0x100008"
-    },
-    {
-      "name": "symbol_calendar",
-      "value": "0x100009"
-    },
-    {
-      "name": "symbol_check",
-      "value": "0x10000A"
-    },
-    {
-      "name": "symbol_check_box",
-      "value": "0x100044"
-    },
-    {
-      "name": "symbol_check_box_sharp",
       "value": "0x100201"
     },
     {
-      "name": "symbol_check_circle",
-      "value": "0x10000B"
-    },
-    {
-      "name": "symbol_chevron_down",
-      "value": "0x10000C"
-    },
-    {
-      "name": "symbol_chevron_left",
-      "value": "0x10000D"
-    },
-    {
-      "name": "symbol_chevron_right",
-      "value": "0x10000E"
-    },
-    {
-      "name": "symbol_chevron_up",
-      "value": "0x10000F"
-    },
-    {
-      "name": "symbol_close",
-      "value": "0x100010"
-    },
-    {
-      "name": "symbol_cloud_sync",
-      "value": "0x100011"
-    },
-    {
-      "name": "symbol_copy",
-      "value": "0x100012"
-    },
-    {
-      "name": "symbol_create_folder",
-      "value": "0x100013"
-    },
-    {
-      "name": "symbol_credit_card",
-      "value": "0x100014"
-    },
-    {
-      "name": "symbol_data_object",
-      "value": "0x100015"
-    },
-    {
-      "name": "symbol_database",
-      "value": "0x100016"
-    },
-    {
-      "name": "symbol_delete",
-      "value": "0x100017"
-    },
-    {
-      "name": "symbol_description",
-      "value": "0x100018"
-    },
-    {
-      "name": "symbol_disabled_by_default_sharp",
+      "name": "symbol_archive",
       "value": "0x100202"
     },
     {
+      "name": "symbol_arrow_back",
+      "value": "0x100204"
+    },
+    {
+      "name": "symbol_arrow_forward",
+      "value": "0x100205"
+    },
+    {
+      "name": "symbol_arrow_upward",
+      "value": "0x100242"
+    },
+    {
+      "name": "symbol_attach_file",
+      "value": "0x100206"
+    },
+    {
+      "name": "symbol_bolt",
+      "value": "0x100207"
+    },
+    {
+      "name": "symbol_business",
+      "value": "0x100208"
+    },
+    {
+      "name": "symbol_calendar",
+      "value": "0x100209"
+    },
+    {
+      "name": "symbol_check",
+      "value": "0x10020A"
+    },
+    {
+      "name": "symbol_check_box",
+      "value": "0x100244"
+    },
+    {
+      "name": "symbol_check_circle",
+      "value": "0x10020B"
+    },
+    {
+      "name": "symbol_chevron_down",
+      "value": "0x10020C"
+    },
+    {
+      "name": "symbol_chevron_left",
+      "value": "0x10020D"
+    },
+    {
+      "name": "symbol_chevron_right",
+      "value": "0x10020E"
+    },
+    {
+      "name": "symbol_chevron_up",
+      "value": "0x10020F"
+    },
+    {
+      "name": "symbol_close",
+      "value": "0x100210"
+    },
+    {
+      "name": "symbol_cloud_sync",
+      "value": "0x100211"
+    },
+    {
+      "name": "symbol_copy",
+      "value": "0x100212"
+    },
+    {
+      "name": "symbol_create_folder",
+      "value": "0x100213"
+    },
+    {
+      "name": "symbol_credit_card",
+      "value": "0x100214"
+    },
+    {
+      "name": "symbol_data_object",
+      "value": "0x100215"
+    },
+    {
+      "name": "symbol_database",
+      "value": "0x100216"
+    },
+    {
+      "name": "symbol_delete",
+      "value": "0x100217"
+    },
+    {
+      "name": "symbol_description",
+      "value": "0x100218"
+    },
+    {
+      "name": "symbol_disabled_by_default",
+      "value": "0x100245"
+    },
+    {
       "name": "symbol_divider",
-      "value": "0x100019"
+      "value": "0x100219"
     },
     {
       "name": "symbol_dns",
-      "value": "0x10001A"
+      "value": "0x10021A"
+    },
+    {
+      "name": "symbol_docs",
+      "value": "0x100246"
     },
     {
       "name": "symbol_download",
-      "value": "0x10001B"
+      "value": "0x10021B"
     },
     {
       "name": "symbol_edit",
-      "value": "0x10001C"
+      "value": "0x10021C"
     },
     {
       "name": "symbol_error",
-      "value": "0x10001D"
+      "value": "0x10021D"
     },
     {
       "name": "symbol_eye",
-      "value": "0x10001E"
+      "value": "0x10021E"
     },
     {
       "name": "symbol_eye_off",
-      "value": "0x10001F"
+      "value": "0x10021F"
     },
     {
       "name": "symbol_fact_check",
-      "value": "0x100043"
+      "value": "0x100243"
     },
     {
       "name": "symbol_fingerprint",
-      "value": "0x100020"
+      "value": "0x100220"
     },
     {
       "name": "symbol_folder",
-      "value": "0x100021"
+      "value": "0x100221"
     },
     {
       "name": "symbol_folder_filled",
-      "value": "0x100100"
+      "value": "0x100300"
     },
     {
       "name": "symbol_folder_open",
-      "value": "0x100022"
+      "value": "0x100222"
     },
     {
       "name": "symbol_generate",
-      "value": "0x100023"
+      "value": "0x100223"
     },
     {
       "name": "symbol_grid",
-      "value": "0x100024"
+      "value": "0x100224"
     },
     {
       "name": "symbol_grid_filled",
-      "value": "0x100101"
+      "value": "0x100301"
     },
     {
       "name": "symbol_image",
-      "value": "0x100025"
+      "value": "0x100225"
     },
     {
       "name": "symbol_info",
-      "value": "0x100026"
+      "value": "0x100226"
     },
     {
       "name": "symbol_info_filled",
-      "value": "0x100102"
+      "value": "0x100302"
     },
     {
       "name": "symbol_key",
-      "value": "0x100027"
+      "value": "0x100227"
     },
     {
       "name": "symbol_keyboard_tab",
-      "value": "0x100028"
+      "value": "0x100228"
     },
     {
       "name": "symbol_label",
-      "value": "0x100029"
+      "value": "0x100229"
     },
     {
       "name": "symbol_link",
-      "value": "0x10002A"
+      "value": "0x10022A"
     },
     {
       "name": "symbol_lock",
-      "value": "0x10002B"
+      "value": "0x10022B"
     },
     {
       "name": "symbol_lock_filled",
-      "value": "0x100103"
+      "value": "0x100303"
     },
     {
       "name": "symbol_lock_open",
-      "value": "0x10002C"
+      "value": "0x10022C"
     },
     {
       "name": "symbol_more",
-      "value": "0x10002D"
+      "value": "0x10022D"
     },
     {
       "name": "symbol_notes",
-      "value": "0x10002E"
+      "value": "0x10022E"
     },
     {
       "name": "symbol_open_in_new",
-      "value": "0x10002F"
+      "value": "0x10022F"
     },
     {
       "name": "symbol_person",
-      "value": "0x100030"
+      "value": "0x100230"
     },
     {
       "name": "symbol_radio_selected",
-      "value": "0x100031"
+      "value": "0x100231"
     },
     {
       "name": "symbol_radio_unselected",
-      "value": "0x100032"
+      "value": "0x100232"
     },
     {
       "name": "symbol_refresh",
-      "value": "0x100033"
+      "value": "0x100233"
     },
     {
       "name": "symbol_remove",
-      "value": "0x100034"
+      "value": "0x100234"
     },
     {
       "name": "symbol_save",
-      "value": "0x100035"
+      "value": "0x100235"
     },
     {
       "name": "symbol_schedule",
-      "value": "0x100036"
+      "value": "0x100236"
     },
     {
       "name": "symbol_search",
-      "value": "0x100037"
+      "value": "0x100237"
     },
     {
       "name": "symbol_security_warning",
-      "value": "0x100038"
+      "value": "0x100238"
     },
     {
       "name": "symbol_settings",
-      "value": "0x100039"
+      "value": "0x100239"
     },
     {
       "name": "symbol_space_bar",
-      "value": "0x10003A"
+      "value": "0x10023A"
     },
     {
       "name": "symbol_star",
-      "value": "0x10003B"
+      "value": "0x10023B"
     },
     {
       "name": "symbol_star_filled",
-      "value": "0x100104"
+      "value": "0x100304"
     },
     {
       "name": "symbol_swap_horiz",
-      "value": "0x100041"
+      "value": "0x100241"
     },
     {
       "name": "symbol_sync",
-      "value": "0x10003C"
+      "value": "0x10023C"
     },
     {
       "name": "symbol_unarchive",
-      "value": "0x100003"
+      "value": "0x100203"
     },
     {
       "name": "symbol_upload",
-      "value": "0x10003D"
+      "value": "0x10023D"
     },
     {
       "name": "symbol_upload_file",
-      "value": "0x10003E"
+      "value": "0x10023E"
     },
     {
       "name": "symbol_verified_user",
-      "value": "0x10003F"
+      "value": "0x10023F"
     },
     {
       "name": "symbol_warning",
-      "value": "0x100040"
-    },
-    {
-      "name": "symbol_warning_sharp",
-      "value": "0x100200"
+      "value": "0x100240"
     }
   ]
 }

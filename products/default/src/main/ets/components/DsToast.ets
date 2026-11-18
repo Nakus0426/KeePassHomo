@@ -45,16 +45,16 @@ export struct DsToast {
   @Param message: ResourceStr = ''
   @Param tone: DsToastTone = DsToastTone.Default
 
-  // 四档语义只换 sharp 轮廓图标；default 不带图标，靠文案独立成立。
+  // 四档语义只换图标；default 不带图标，靠文案独立成立。
   @Computed
   get icon(): Resource | undefined {
     switch (this.tone) {
       case DsToastTone.Success:
-        return $r('app.string.symbol_check_box_sharp')
+        return $r('app.string.symbol_check_box')
       case DsToastTone.Warning:
-        return $r('app.string.symbol_warning_sharp')
+        return $r('app.string.symbol_warning')
       case DsToastTone.Error:
-        return $r('app.string.symbol_disabled_by_default_sharp')
+        return $r('app.string.symbol_disabled_by_default')
       default:
         return undefined
     }

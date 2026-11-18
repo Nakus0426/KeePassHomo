@@ -45,7 +45,7 @@ export struct Cell {
             this.valueBuilder()
           }
           if (this.arrowVisible) {
-            SymbolGlyph($r('sys.symbol.chevron_forward'))
+            SymbolGlyph($r('app.string.symbol_chevron_right'))
               .fontSize($r('sys.float.Title_S'))
               .fontColor([$r('sys.color.font_secondary')])
               .fontWeight(FontWeight.Medium)

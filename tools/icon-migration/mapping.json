@@ -1,5 +1,5 @@
 {
-  "source": "Material Symbols Outlined",
+  "source": "Material Symbols Sharp",
   "variation": {
     "wght": 400,
     "opsz": 24,
@@ -377,22 +377,19 @@
       "fill": 0
     },
     {
-      "key": "symbol_warning_sharp",
-      "material": "warning",
-      "fill": 0,
-      "source": "sharp"
-    },
-    {
-      "key": "symbol_check_box_sharp",
-      "material": "check_box",
-      "fill": 0,
-      "source": "sharp"
-    },
-    {
-      "key": "symbol_disabled_by_default_sharp",
+      "key": "symbol_disabled_by_default",
       "material": "disabled_by_default",
-      "fill": 0,
-      "source": "sharp"
+      "fill": 0
+    },
+    {
+      "key": "symbol_docs",
+      "material": "docs",
+      "fill": 0
+    },
+    {
+      "key": "symbol_account_circle_filled",
+      "material": "account_circle",
+      "fill": 1
     }
   ]
 }

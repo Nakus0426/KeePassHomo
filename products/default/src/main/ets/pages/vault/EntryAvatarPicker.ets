@@ -137,7 +137,7 @@ export struct EntryAvatarPicker {
     Menu() {
       MenuItem({
         content: $r('app.string.avatar_pick'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.picture')),
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_image')),
       })
         .enabled(!this.avatarBusy)
         .onClick(() => {
@@ -145,7 +145,7 @@ export struct EntryAvatarPicker {
         })
       MenuItem({
         content: $r('app.string.avatar_reset'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_counterclockwise'))
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_refresh'))
           .fontColor([$r('sys.color.warning')]),
       })
         .contentFontColor($r('sys.color.warning'))
@@ -191,7 +191,7 @@ export struct EntryAvatarPicker {
             .height($r('sys.float.Body_L'))
             .color($r('sys.color.icon_primary'))
         } else {
-          SymbolGlyph($r('sys.symbol.square_and_pencil'))
+          SymbolGlyph($r('app.string.symbol_edit'))
             .fontColor([$r('sys.color.icon_primary')])
             .fontSize($r('sys.float.Body_L'))
         }

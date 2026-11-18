@@ -34,7 +34,7 @@ export struct GridComponent {
     Column() {
       Row() {
         Stack() {
-          SymbolGlyph($r('sys.symbol.chevron_left'))
+          SymbolGlyph($r('app.string.symbol_chevron_left'))
             .fontSize($r('app.float.arrow_width'))
             .onClick(() => {
               this.getUIContext().getRouter().back();

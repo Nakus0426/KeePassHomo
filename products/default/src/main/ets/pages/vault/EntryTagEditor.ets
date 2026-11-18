@@ -98,7 +98,7 @@ export struct EntryTagEditor {
       if (!this.readOnly && !this.editing) {
         ChipV2({
           chipV2Options: new ChipV2Options({
-            prefixIcon: new ChipV2PrefixSymbolIcon({ normal: new SymbolGlyphModifier($r('sys.symbol.plus')) }),
+            prefixIcon: new ChipV2PrefixSymbolIcon({ normal: new SymbolGlyphModifier($r('app.string.symbol_add')) }),
             label: new ChipV2Label({ text: ResUtil.getStringSync($r('app.string.add_tag')) }),
             allowClose: false,
             onClicked: () => this.openInput(),

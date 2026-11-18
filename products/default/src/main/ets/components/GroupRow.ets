@@ -70,7 +70,7 @@ export struct GroupRow {
   private swipeActions() {
     Row() {
       Button({ type: ButtonType.Normal }) {
-        SymbolGlyph($r('sys.symbol.square_and_pencil'))
+        SymbolGlyph($r('app.string.symbol_edit'))
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
       }
@@ -80,7 +80,7 @@ export struct GroupRow {
       .onClick(() => this.onEdit())
 
       Button({ type: ButtonType.Normal }) {
-        SymbolGlyph($r('sys.symbol.trash'))
+        SymbolGlyph($r('app.string.symbol_delete'))
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
       }
@@ -96,7 +96,7 @@ export struct GroupRow {
     ListItem() {
       Row({ space: $r('sys.float.padding_level8') }) {
         Stack() {
-          SymbolGlyph($r('sys.symbol.folder'))
+          SymbolGlyph($r('app.string.symbol_folder'))
             .fontSize($r('sys.float.Title_L'))
             .fontColor([$r('sys.color.brand')])
         }
@@ -121,11 +121,11 @@ export struct GroupRow {
         .alignItems(HorizontalAlign.Start)
 
         if (this.selected) {
-          SymbolGlyph($r('sys.symbol.checkmark'))
+          SymbolGlyph($r('app.string.symbol_check'))
             .fontSize($r('sys.float.Title_S'))
             .fontColor([$r('sys.color.confirm')])
         } else if (this.showChevron) {
-          SymbolGlyph($r('sys.symbol.chevron_forward'))
+          SymbolGlyph($r('app.string.symbol_chevron_right'))
             .fontSize($r('sys.float.Title_S'))
             .fontColor([$r('sys.color.font_secondary')])
         }

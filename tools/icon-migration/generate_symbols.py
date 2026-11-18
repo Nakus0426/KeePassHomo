@@ -121,12 +121,14 @@ def write_strings(assigned: dict[str, int]) -> None:
 
 
 def main() -> None:
-    icons = json.loads(MAPPING_PATH.read_text(encoding="utf-8"))["icons"]
+    mapping = json.loads(MAPPING_PATH.read_text(encoding="utf-8"))
+    icons = mapping["icons"]
+    default_source = mapping.get("source", "outlined").removeprefix("Material Symbols ").lower()
     keys = [icon["key"] for icon in icons]
     if len(keys) != len(set(keys)):
         raise ValueError("mapping.json 存在重复语义键")
 
-    used_sources = {icon.get("source", "outlined") for icon in icons}
+    used_sources = {icon.get("source", default_source) for icon in icons}
     unknown = used_sources - set(SOURCES)
     if unknown:
         raise ValueError(f"mapping.json 存在未登记的图标来源: {sorted(unknown)}")
@@ -141,7 +143,7 @@ def main() -> None:
             continue
         for fill in (0, 1):
             group = [icon for icon in icons
-                     if icon.get("source", "outlined") == source and icon["fill"] == fill]
+                     if icon.get("source", default_source) == source and icon["fill"] == fill]
             if not group:
                 continue
             assigned.update(generate_font(group, fill, config["starts"][fill], source))

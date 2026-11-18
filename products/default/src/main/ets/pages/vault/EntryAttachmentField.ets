@@ -184,7 +184,7 @@ export struct EntryAttachmentField {
       if (!this.readOnly) {
         Button() {
           Row({ space: $r('sys.float.padding_level4') }) {
-            SymbolGlyph($r('sys.symbol.plus'))
+            SymbolGlyph($r('app.string.symbol_add'))
               .fontSize($r('sys.float.chip_normal_icon_size'))
               .fontColor([$r('sys.color.font_emphasize')])
 

@@ -25,7 +25,7 @@ export struct SshKeyCard {
     Menu() {
       MenuItem({
         content: $r('app.string.ssh_key_copy_private'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.doc_text_on_doc_text')).fontSize(
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_docs')).fontSize(
           $r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
@@ -33,14 +33,14 @@ export struct SshKeyCard {
 
       MenuItem({
         content: $r('app.string.ssh_key_copy_public'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.key')).fontSize($r('sys.float.Body_L')),
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_key')).fontSize($r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
         .onClick(() => this.onCopyPublic())
 
       MenuItem({
         content: $r('app.string.ssh_key_export'),
-        symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_down_to_line')).fontSize(
+        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_download')).fontSize(
           $r('sys.float.Body_L')),
       })
         .labelFont({ size: $r('sys.float.Body_M') })
@@ -49,7 +49,7 @@ export struct SshKeyCard {
       if (this.editable) {
         MenuItem({
           content: $r('app.string.ssh_key_rename'),
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.square_and_pencil')).fontSize(
+          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_edit')).fontSize(
             $r('sys.float.Body_L')),
         })
           .labelFont({ size: $r('sys.float.Body_M') })
@@ -57,7 +57,7 @@ export struct SshKeyCard {
 
         MenuItem({
           content: $r('app.string.ssh_key_remove'),
-          symbolStartIcon: new SymbolGlyphModifier($r('sys.symbol.trash')).fontSize($r('sys.float.Body_L'))
+          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_delete')).fontSize($r('sys.float.Body_L'))
             .fontColor([$r('sys.color.warning')]),
         })
           .labelFont({ size: $r('sys.float.Body_M') })
