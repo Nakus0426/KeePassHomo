@@ -51,6 +51,8 @@ export struct CreateVaultPage {
   private readonly viewModel: AppViewModel = appViewModel
   @Local private form: CreateVaultViewModel = new CreateVaultViewModel()
   @Local private submitted: boolean = false
+  @Local private vaultNameShake: number = 0
+  @Local private masterPasswordShake: number = 0
   @Local private masterPasswordVisible: boolean = false
   @Local private confirmPasswordVisible: boolean = false
   // 悬浮操作区随底部安全区变化，实测高度用于滚动内容避让。
@@ -157,6 +159,19 @@ export struct CreateVaultPage {
     this.submitted = true
     if (this.form.validate(this.keyFileBound)) {
       this.viewModel.createVault(this.form.vaultName, this.form.masterPassword, this.form.authMode)
+      return
+    }
+    this.shakeInvalidFields()
+  }
+
+  // 整次提交失败不等于每个字段都错，只抖本次校验未通过的字段。
+  private shakeInvalidFields(): void {
+    if (this.form.vaultNameController.status === Status.Invalid) {
+      this.vaultNameShake++
+    }
+    if (this.form.needsPassword && (this.form.masterPasswordController.status === Status.Invalid ||
+      this.form.confirmPasswordController.status === Status.Invalid)) {
+      this.masterPasswordShake++
     }
   }
 
@@ -185,6 +200,7 @@ export struct CreateVaultPage {
       feedback: this.errorOf(this.form.vaultNameController.message,
         this.form.vaultNameController.status === Status.Invalid),
       reserveFeedbackSpace: true,
+      shakeTrigger: this.vaultNameShake,
       contentBuilder: () => {
         this.vaultNameContent()
       },
@@ -340,6 +356,7 @@ export struct CreateVaultPage {
       required: true,
       feedback: this.masterPasswordFeedback(),
       reserveFeedbackSpace: true,
+      shakeTrigger: this.masterPasswordShake,
       contentBuilder: () => {
         this.masterPasswordContent()
       },

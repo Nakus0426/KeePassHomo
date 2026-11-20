@@ -32,4 +32,12 @@ export class AnimationTokens {
   // 底部提示条出现上浮 / 消失下沉距离，单位 vp。
   static readonly BANNER_ENTER_OFFSET: number = 12
   static readonly BANNER_EXIT_OFFSET: number = 8
+  // 校验失败抖动：左右各 6vp，四段往复共 300ms，沿用反馈曲线。
+  static readonly SHAKE_OFFSET: number = 6
+  static readonly SHAKE_DURATION: number = 300
+  static readonly SHAKE_SEGMENT_DURATION: number = AnimationTokens.SHAKE_DURATION / 4
+  static readonly SHAKE_SEGMENT: AnimateParam = {
+    duration: AnimationTokens.SHAKE_SEGMENT_DURATION,
+    curve: AnimationTokens.EASE_STATE,
+  }
 }

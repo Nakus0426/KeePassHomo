@@ -8,6 +8,8 @@ export { measureVp } from './src/main/ets/utils/MeasureUtil'
 
 export { BounceAnimator } from './src/main/ets/animation/BounceAnimator'
 
+export { ShakeAnimator } from './src/main/ets/animation/ShakeAnimator'
+
 export { AnimationTokens } from './src/main/ets/animation/AnimationTokens'
 
 export {

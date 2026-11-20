@@ -64,6 +64,7 @@ export struct EntryEditorView {
   // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
   @Local private invalidFieldId: number = -1
+  @Local private titleShake: number = 0
   private readonly viewModel: AppViewModel = appViewModel
   private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
@@ -177,7 +178,9 @@ export struct EntryEditorView {
       })
       return
     }
-    if (invalidFieldKey !== 'title') {
+    if (invalidFieldKey === 'title') {
+      this.titleShake++
+    } else {
       this.invalidFieldId = Number(invalidFieldKey)
       DsToastHost.show(this.getUIContext(), $r('app.string.field_name_required'))
       this.advancedExpanded = true
@@ -593,6 +596,7 @@ export struct EntryEditorView {
           required: true,
           feedback: this.titleFeedback,
           reserveFeedbackSpace: true,
+          shakeTrigger: this.titleShake,
           contentBuilder: this.titleInput,
         })
           .id('field_title')

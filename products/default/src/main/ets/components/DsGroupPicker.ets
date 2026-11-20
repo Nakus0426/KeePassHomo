@@ -140,6 +140,7 @@ export struct DsGroupPicker {
   @Local private newGroupName: string = ''
   // 新建分组名的校验反馈：提交时置入，输入变化后按同一规则即时重算。
   @Local private newGroupNameError: ResourceStr | undefined = undefined
+  @Local private newGroupNameShake: number = 0
   // 层级切换动画状态：横移量与透明度由 switchLevel 两段式驱动，宽度经 onAreaChange 实测。
   @Local private levelOffsetX: number = 0
   @Local private levelOpacity: number = 1
@@ -637,6 +638,7 @@ export struct DsGroupPicker {
     DsField({
       feedback: this.newGroupNameError,
       reserveFeedbackSpace: true,
+      shakeTrigger: this.newGroupNameShake,
       contentBuilder: this.newGroupInputField,
     })
   }
@@ -663,6 +665,7 @@ export struct DsGroupPicker {
     const error: ResourceStr | undefined = this.validateNewGroupName(name)
     this.newGroupNameError = error
     if (error !== undefined) {
+      this.newGroupNameShake++
       return
     }
     // 先关弹窗再落盘：落盘是异步写文件，等它的回调再 close 弹窗不会被关掉。

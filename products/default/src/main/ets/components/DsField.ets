@@ -1,3 +1,5 @@
+import { ShakeAnimator } from '@ohos/common'
+
 const FIELD_LABEL_LETTER_SPACING: number = 0.6
 const FIELD_FEEDBACK_LINE_HEIGHT: number = 17
 
@@ -18,9 +20,18 @@ export struct DsField {
   @Param tone: DsFieldTone = DsFieldTone.Error
   // 预留一行反馈高度，避免校验消息出现时把下方内容顶下去。
   @Param reserveFeedbackSpace: boolean = false
+  // 每次自增触发一次输入行抖动；调用方在校验失败时自增，抖动中重复触发被忽略。
+  @Param shakeTrigger: number = 0
   @BuilderParam labelBuilder?: () => void
   @BuilderParam contentBuilder: () => void
   @BuilderParam feedbackBuilder?: () => void
+
+  private readonly shake: ShakeAnimator = new ShakeAnimator()
+
+  @Monitor('shakeTrigger')
+  private onShakeTrigger(): void {
+    this.shake.play(this.getUIContext())
+  }
 
   @Computed
   get hasLabel(): boolean {
@@ -108,7 +119,8 @@ export struct DsField {
           .fontColor([this.toneColor])
           .foregroundColor(this.toneColor)
       }
-      .padding({ top: $r('app.float.ds_space_2') })
+      .height(FIELD_FEEDBACK_LINE_HEIGHT)
+      .alignItems(VerticalAlign.Center)
       .flexShrink(0)
 
       Text(this.hasFeedbackText ? this.feedbackText : ' ')
@@ -119,7 +131,7 @@ export struct DsField {
     }
     .width('100%')
     .constraintSize({ minHeight: FIELD_FEEDBACK_LINE_HEIGHT })
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
     .visibility(this.hasFeedbackText ? Visibility.Visible : Visibility.Hidden)
   }
 
@@ -142,6 +154,7 @@ export struct DsField {
         this.contentBuilder()
       }
       .width('100%')
+      .translate({ x: this.shake.offsetX })
 
       if (this.hasFeedbackRow) {
         if (this.feedbackBuilder !== undefined) {

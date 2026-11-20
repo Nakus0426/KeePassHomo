@@ -97,6 +97,10 @@ export class EntryEditorViewModel {
   readonly titleController: FormItemController = new FormItemController()
   readonly titleSchema: ValidationSchema = stringSchema([required($r('app.string.entry_title_required'))])
 
+  constructor() {
+    this.titleController.setSchema(this.titleSchema)
+  }
+
   // 返回首个未通过字段的 key（自定义字段为 EntryFieldEditor.id），全部通过返回 undefined。
   validate(): string | undefined {
     if (!this.titleController.validate(this.title)) {
