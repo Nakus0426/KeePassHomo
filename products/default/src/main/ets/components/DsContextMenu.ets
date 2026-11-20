@@ -1,7 +1,8 @@
+// ArkUI 菜单容器固定 4vp 内边距，负边距须按实际值补偿。
+const MENU_SYSTEM_INSET: number = 4
+
 @ComponentV2
 export struct DsContextMenu {
-  // 系统菜单内容区自带内边距；负边距抵消后菜单面底与设计稿等宽。
-  @Param systemInset: number = 8
   @BuilderParam header: () => void = this.empty
   @BuilderParam content: () => void = this.empty
   @BuilderParam footer: () => void = this.empty
@@ -32,10 +33,10 @@ export struct DsContextMenu {
     .backgroundColor($r('app.color.ds_surface_lowest'))
     .clip(true)
     .margin({
-      left: -this.systemInset,
-      right: -this.systemInset,
-      top: -this.systemInset,
-      bottom: -this.systemInset,
+      left: -MENU_SYSTEM_INSET,
+      right: -MENU_SYSTEM_INSET,
+      top: -MENU_SYSTEM_INSET,
+      bottom: -MENU_SYSTEM_INSET,
     })
   }
 }

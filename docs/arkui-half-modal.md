@@ -189,7 +189,7 @@ DsGroupPicker({
 - 禁止 `systemMaterial`、禁止 `backgroundColor: Color.Transparent`。
 - 标题栏统一 `ADAPTIVE` + `GRADIENT_BLUR`；不要在半模态上用其它材质档位。
 - 内容区不要手算 `titleBarOffset` / 状态栏高度 / 标题栏高度；避让交给 `enableComponentSafeArea`，穿透交给 `Scroll.clip(false)`。生成器改为「固定预览/页签 + 参数区独立 `Scroll`」，不再整块 `Scroll.clip(false)`。
-- 内容区的 `Scroll` / `List` 必须 `edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })`：内容不足一屏时也由滚动容器接管竖向手势并回弹，否则上下滑动会拖动整个半模态（只剩顶部拖拽条可拖动）。
+- 内容区的 `Scroll` / `List` 必须 `edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })`：内容不足一屏时也由滚动容器接管竖向手势并回弹，否则上下滑动会拖动整个半模态（只剩顶部拖拽条可拖动）。内容区的 `Scroll` 还必须 `.align(Alignment.Top)`：通用属性 `align` 默认居中，内容不足一屏时整块表单会悬在面板中部。
 - 列表底部按 `bottomBarBuilder` 实测高度留 `padding.bottom`，顶部由 `enableComponentSafeArea` 避让标题栏，禁止让首行/末行被悬浮标题栏或底栏压住。
 - 只有沉浸式预览开 `contentBehindTitleBar: true`，并在内容里用 `topOffset` 填充上探底色；普通面板保持默认。
 - `titleBarBuilder` / `bodyBuilder` / `bottomBarBuilder` 必须传 `@LocalBuilder` 方法引用，不要在箭头函数里直接构造自定义组件；详见 `docs/arkui-builder-slot.md`。

@@ -1,11 +1,16 @@
+import { LengthMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { FileUtil, LogUtil } from '@pura/harmony-utils'
+import { AnimationTokens, DelayedVisibility } from '@ohos/common'
 import { DsToastHost } from '../../components/DsToast'
 import { DsContextMenu } from '../../components/DsContextMenu'
+import { EntryAvatar } from '../../components/EntryAvatar'
+import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
+import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 
 // 设计稿的紧凑方形头像：48×48，与标题输入井同高。
@@ -14,6 +19,8 @@ const AVATAR_MAX_EDGE: number = 384
 const AVATAR_IMAGE_FORMAT: string = 'image/jpeg'
 const AVATAR_QUALITY: number = 85
 const AVATAR_BACKGROUND: number = 0xFFFFFF
+// 菜单与头像的间距，设计稿里的 8。
+const MENU_TARGET_SPACE: number = 8
 
 function avatarDecodeSize(size: image.Size): image.Size {
   const longest: number = Math.max(size.width, size.height)
@@ -27,7 +34,7 @@ function avatarDecodeSize(size: image.Size): image.Size {
   }
 }
 
-// 选图、沙箱暂存、压缩与预览解码都封在这里，宿主只负责把结果接进编辑器。
+// 选图、沙箱暂存与压缩封在这里；头像面的解码与占位复用 EntryAvatar。
 @ComponentV2
 export struct EntryAvatarPicker {
   @Param title: string = ''
@@ -37,29 +44,21 @@ export struct EntryAvatarPicker {
   }
   @Event onReset: () => void = () => {
   }
-  @Local private avatarPixelMap: image.PixelMap | undefined = undefined
   @Local private avatarBusy: boolean = false
+  @Local private hovered: boolean = false
+  @Local private pressed: boolean = false
+  @Local private loadingGate: DelayedVisibility = new DelayedVisibility()
 
-  aboutToAppear(): void {
-    this.refreshPreview()
+  aboutToDisappear(): void {
+    this.loadingGate.dispose()
   }
 
-  @Monitor('avatarData')
-  onAvatarDataChanged(): void {
-    this.refreshPreview()
-  }
-
-  @Computed
-  get initials(): string {
-    const title: string = this.title.trim()
-    if (title.length === 0) {
-      return '?'
-    }
-    return title.slice(0, 2).toUpperCase()
+  @Monitor('avatarBusy')
+  onAvatarBusyChanged(): void {
+    this.loadingGate.setActive(this.avatarBusy)
   }
 
   private async pickAvatar(): Promise<void> {
-    this.avatarBusy = true
     try {
       const options: photoAccessHelper.PhotoSelectOptions = new photoAccessHelper.PhotoSelectOptions()
       options.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE
@@ -69,11 +68,15 @@ export struct EntryAvatarPicker {
       if (result.photoUris.length === 0) {
         return
       }
-      this.onPicked(await this.compressAvatar(result.photoUris[0]))
+      // 加载态只覆盖压图与编码，不覆盖用户在系统相册里的选择过程。
+      this.avatarBusy = true
+      try {
+        this.onPicked(await this.compressAvatar(result.photoUris[0]))
+      } finally {
+        this.avatarBusy = false
+      }
     } catch (error) {
       this.reportAvatarError(error)
-    } finally {
-      this.avatarBusy = false
     }
   }
 
@@ -112,39 +115,46 @@ export struct EntryAvatarPicker {
     }
   }
 
-  private async refreshPreview(): Promise<void> {
-    const data: ArrayBuffer | undefined = this.avatarData
-    if (data === undefined) {
-      this.avatarPixelMap = undefined
-      return
-    }
-    try {
-      const pixelMap: image.PixelMap = await image.createImageSource(data).createPixelMap()
-      // 解码期间头像可能已被替换，只有来源仍是同一份字节才应用结果。
-      if (this.avatarData === data) {
-        this.avatarPixelMap = pixelMap
-      }
-    } catch (error) {
-      this.reportAvatarError(error)
-    }
-  }
-
   private reportAvatarError(error: Object): void {
     const businessError: BusinessError = error as BusinessError
     LogUtil.error(`头像处理失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
     DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed'))
   }
 
+  @LocalBuilder
+  private avatarMenuHeader() {
+    Column({ space: $r('app.float.ds_space_6') }) {
+      Text($r('app.string.avatar_menu_title'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+      Text($r('app.string.avatar_menu_note'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
   // @BuilderParam 传内容必须委托给 @Builder 方法，箭头函数里直接构造组件会报 class constructor 错误。
   @LocalBuilder
-  private avatarMenuItems() {
+  private avatarPickItem() {
     DsMenuItem({
       icon: $r('app.string.symbol_image'),
       label: $r('app.string.avatar_pick'),
-      onAction: () => {
-        this.pickAvatar()
-      },
+      onAction: () => this.pickAvatar(),
     })
+  }
+
+  @LocalBuilder
+  private avatarResetItem() {
     DsMenuItem({
       icon: $r('app.string.symbol_refresh'),
       label: $r('app.string.avatar_reset'),
@@ -154,32 +164,61 @@ export struct EntryAvatarPicker {
   }
 
   @LocalBuilder
+  private avatarMenuItems() {
+    DsMenuGroup({
+      content: this.avatarPickItem,
+    })
+    // 没有自定义头像时重置没有意义，菜单只保留选择。
+    if (this.avatarData !== undefined) {
+      DsMenuGroup({
+        dividerTop: true,
+        content: this.avatarResetItem,
+      })
+    }
+  }
+
+  @LocalBuilder
   private avatarMenu() {
     DsContextMenu({
+      header: this.avatarMenuHeader,
       content: this.avatarMenuItems,
     })
   }
 
   build() {
     Stack() {
-      if (this.avatarPixelMap !== undefined) {
-        Image(this.avatarPixelMap)
-          .draggable(false)
+      EntryAvatar({
+        title: this.title,
+        avatarData: this.avatarData,
+        avatarSize: AVATAR_SIZE,
+        square: true,
+        initialsFontSize: $r('app.float.ds_font_title_md'),
+        onDecodeError: () => DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed')),
+      })
+
+      // 状态层盖在图片之上：hover / press 只叠色，不换底、不位移。
+      if (!this.readOnly && !this.avatarBusy) {
+        Row()
           .width('100%')
           .height('100%')
-          .objectFit(ImageFit.Cover)
-      } else {
-        Text(this.initials)
-          .fontSize($r('app.float.ds_font_title_md'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_text_primary'))
+          .backgroundColor(this.pressed
+            ? $r('app.color.ds_overlay_muted')
+            : (this.hovered ? $r('app.color.ds_overlay_subtle') : Color.Transparent))
+          .animation(AnimationTokens.FEEDBACK_ANIMATION)
+          .hitTestBehavior(HitTestMode.None)
       }
 
-      if (this.avatarBusy) {
-        LoadingProgress()
-          .width($r('app.float.ds_icon_md'))
-          .height($r('app.float.ds_icon_md'))
-          .color($r('app.color.ds_text_secondary'))
+      if (this.loadingGate.visible) {
+        Column() {
+          DsLoadingIndicator({
+            indicatorSize: DsLoadingIndicatorSize.Small,
+            tone: DsLoadingIndicatorTone.Scrim,
+          })
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor($r('app.color.ds_scrim_strong'))
       }
     }
     .width(AVATAR_SIZE)
@@ -187,7 +226,31 @@ export struct EntryAvatarPicker {
     .backgroundColor($r('app.color.ds_surface_high'))
     .borderRadius($r('app.float.ds_radius_none'))
     .clip(true)
-    .enabled(!this.avatarBusy && !this.readOnly)
-    .bindMenu(this.avatarMenu())
+    .enabled(!this.avatarBusy && !this.loadingGate.visible && !this.readOnly)
+    .accessibilityText($r('app.string.avatar_menu_title'))
+    .onHover((isHover: boolean) => {
+      this.hovered = isHover
+    })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressed = true
+        return
+      }
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressed = false
+      }
+    })
+    // 系统菜单负责弹出/收起动画与遮罩，内容仍由 DsContextMenu 自绘。
+    .bindMenu(this.readOnly ? undefined : this.avatarMenu, {
+      placement: Placement.BottomLeft,
+      targetSpace: LengthMetrics.vp(MENU_TARGET_SPACE),
+      borderRadius: $r('app.float.ds_radius_none'),
+      backgroundColor: $r('app.color.ds_surface_lowest'),
+      backgroundBlurStyle: BlurStyle.NONE,
+      mask: {
+        color: $r('app.color.ds_scrim'),
+        backgroundBlurStyle: BlurStyle.NONE,
+      },
+    })
   }
 }

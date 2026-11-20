@@ -701,6 +701,14 @@
       "value": "头像处理失败"
     },
     {
+      "name": "avatar_menu_title",
+      "value": "更换头像"
+    },
+    {
+      "name": "avatar_menu_note",
+      "value": "从相册选择图片，或重置为标题首字母"
+    },
+    {
       "name": "delete_entry_title",
       "value": "删除条目"
     },

@@ -189,6 +189,10 @@
       "value": "#A6000000"
     },
     {
+      "name": "ds_scrim_strong",
+      "value": "#D9000000"
+    },
+    {
       "name": "ds_inverse_surface",
       "value": "#F1F3F3"
     },

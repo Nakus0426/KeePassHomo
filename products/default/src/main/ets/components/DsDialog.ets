@@ -96,6 +96,7 @@ export struct DsDialog {
       .width('100%')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.None)
+      .align(Alignment.Top)
 
       Row({ space: $r('app.float.ds_space_sm') }) {
         if (this.cancelLabel !== undefined) {

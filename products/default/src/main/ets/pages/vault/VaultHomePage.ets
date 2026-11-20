@@ -62,8 +62,6 @@ export struct VaultHomePage {
   private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private pendingDeleteRow: EntryRowModel | undefined = undefined
   private pendingMenuAction: (() => void) | undefined = undefined
-  // ArkUI 菜单容器固定 4vp 内边距，负边距盖住，避免露出默认模糊材质圈。
-  private readonly contextMenuSystemInset: number = 4
   private pickedTemplate: ItemTemplate | undefined = undefined
   private pickedGroupUuid: string = ''
   private readonly stateSwitchTransition: TransitionEffect = TransitionEffect.OPACITY
@@ -600,7 +598,6 @@ export struct VaultHomePage {
   @Builder
   private rowMenu(row: EntryRowModel) {
     DsContextMenu({
-      systemInset: this.contextMenuSystemInset,
       header: () => {
         this.menuHeader(row)
       },

@@ -237,10 +237,6 @@ export struct EntryEditorView {
 
   private toggleFavorite(): void {
     this.editor.favorite = !this.editor.favorite
-    // 新建条目还没有可写入的收藏位，先记在草稿上，保存后随条目落盘。
-    if (this.isNewEntry) {
-      return
-    }
     this.viewModel.toggleFavorite(this.editor.entryUuid).then(() => {
       this.editor.favorite = this.viewModel.entry(this.editor.entryUuid).favorite
     })
@@ -527,23 +523,26 @@ export struct EntryEditorView {
     })
   }
 
+  // 新建条目还没有收藏位，收藏与更多菜单在保存后才出现。
   @Computed
   get headerActions(): DsPageHeaderAction[] {
-    const actions: DsPageHeaderAction[] = [{
+    const actions: DsPageHeaderAction[] = []
+    if (this.isNewEntry) {
+      return actions
+    }
+    actions.push({
       icon: this.editor.favorite ? $r('app.string.symbol_star_filled') : $r('app.string.symbol_star'),
       label: this.editor.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
       iconColor: this.editor.favorite ? $r('app.color.ds_primary') : $r('app.color.ds_text_tertiary'),
       onTap: () => this.toggleFavorite(),
-    }]
-    if (!this.isNewEntry) {
-      actions.push({
-        icon: $r('app.string.symbol_more'),
-        label: $r('app.string.more'),
-        menuBuilder: this.overflowMenu,
-        onTap: () => {
-        },
-      })
-    }
+    })
+    actions.push({
+      icon: $r('app.string.symbol_more'),
+      label: $r('app.string.more'),
+      menuBuilder: this.overflowMenu,
+      onTap: () => {
+      },
+    })
     return actions
   }
 
@@ -580,11 +579,7 @@ export struct EntryEditorView {
           title: this.editor.title,
           avatarData: this.editor.avatarData,
           readOnly: this.readOnly,
-          onPicked: (data: ArrayBuffer) => {
-            if (this.sheet.mode === EntrySheetMode.Edit) {
-              this.editor.setAvatar(data)
-            }
-          },
+          onPicked: (data: ArrayBuffer) => this.editor.setAvatar(data),
           onReset: () => this.editor.clearAvatar(),
         })
       }
@@ -947,6 +942,8 @@ export struct EntryEditorView {
       onDisappear: () => this.closeGeneratorSheet(),
     }))
     .clip(false)
+    // 内容不足一屏时按首部对齐，默认居中会让表单悬在面板中部。
+    .align(Alignment.Top)
   }
 
   @LocalBuilder

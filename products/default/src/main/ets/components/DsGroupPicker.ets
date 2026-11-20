@@ -503,6 +503,7 @@ export struct DsGroupPicker {
     // 空态同样由滚动容器接管竖向手势，避免上下滑动带动半模态。
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
     .clip(false)
+    .align(Alignment.Top)
     .translate({ x: this.levelOffsetX })
     .opacity(this.levelOpacity)
     .onAreaChange((_oldValue: Area, newValue: Area) => {

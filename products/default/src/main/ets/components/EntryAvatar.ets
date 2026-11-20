@@ -16,6 +16,9 @@ export struct EntryAvatar {
   // 无自定义头像时优先显示的模板图标，仍无则退回首字。
   @Param fallbackIcon: Resource | undefined = undefined
   @Param fallbackIconSize: Length = $r('app.float.ds_icon_sm')
+  // 列表里静默退回首字；编辑态需要额外提示时由宿主接。
+  @Event onDecodeError: () => void = () => {
+  }
   @Local private avatarPixelMap: image.PixelMap | undefined = undefined
   // 已解码的来源字节：列表节点换条目复用时据此判断旧图需先清空
   private decodedSource: ArrayBuffer | undefined = undefined
@@ -56,6 +59,7 @@ export struct EntryAvatar {
       // 条目卡片成列出现，逐行弹提示会盖住内容；解码失败退回头像字母态并记录上下文。
       const businessError: BusinessError = error as BusinessError
       LogUtil.error(`头像解码失败，错误码=${businessError.code}，错误信息=${businessError.message}`)
+      this.onDecodeError()
     }
   }
 
