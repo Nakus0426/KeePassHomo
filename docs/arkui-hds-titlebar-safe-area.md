@@ -129,6 +129,13 @@ HdsNavDestination() {
 - 需要滚动穿透时，不要只设置 `enableComponentSafeArea: true` 而漏掉 `Scroll.clip(false)`。
 - 不要给其他模块直接套用本方案；保险库首页的 `HdsNavigation`、滚动列表和自定义标题栏在同一组件内，迁移前先核对结构。已接入页面见上一节。
 
+## 标题栏动作里的菜单
+
+标题栏 `stackBuilder` 里自绘的按钮，`bindMenu` 弹出菜单不可靠：装在自定义组件上时属性会落到工具链生成的 `__Common__` 包装节点，点击又被内层的真实按钮节点消费；而 `bindMenu(isShow, ...)` 的受控写法虽然能弹，但不会带系统模态遮罩。
+
+- 官方给标题栏图标配菜单的路径是 HDS 自带的菜单区：`titleBar.content.menu.value[]` 里给 `HdsNavigationIconOptions.componentId`，`action` 中调用 `promptAction.openMenu(contentNode, { id: componentId })`。代价是图标由 HDS 绘制，与 `DsPageHeader` 自绘标题栏的视觉体系不同。
+- 保持自绘标题栏时，用页面层一个与按钮同尺寸的透明节点接管点击并挂 `bindMenu`（触发式），菜单与遮罩都交给系统。条目编辑页的「更多」即此写法，见 `EntryEditorView.overflowButtonTop`。
+
 ## 参考
 
 - UI Design Kit 开发指南《设置自定义区域》中的 `HdsNavDestination` 示例：`enableComponentSafeArea: true` 配合 `Scroll.clip(false)`，实现内容区避让标题栏并允许穿透。

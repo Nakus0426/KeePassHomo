@@ -1,11 +1,13 @@
-import { promptAction } from '@kit.ArkUI'
-import { AnimationTokens, BounceAnimator, VaultGroup } from '@ohos/common'
+import { LengthMetrics, promptAction } from '@kit.ArkUI'
+import { AnimationTokens, BounceAnimator, measureVp, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsColorLadder } from '../../components/DsColorLadder'
 import { DsContextMenu } from '../../components/DsContextMenu'
+import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { DsDialog, DsDialogTone } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
@@ -41,6 +43,8 @@ const TITLE_ROW_GAP: number = 12
 const ADVANCED_HEADER_HEIGHT: number = 44
 // 头像对齐的是输入井而不是字段标签：标签行（含行高与 4vp 间距）实测 24vp。
 const TITLE_LABEL_OFFSET: number = 24
+// 菜单与按钮的间距，设计稿的 8。
+const MENU_TARGET_SPACE: number = 8
 
 @ComponentV2
 export struct EntryEditorView {
@@ -65,6 +69,8 @@ export struct EntryEditorView {
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
   @Local private invalidFieldId: number = -1
   @Local private titleShake: number = 0
+  @Local private overflowHovered: boolean = false
+  @Local private overflowPressed: boolean = false
   private readonly viewModel: AppViewModel = appViewModel
   private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
@@ -425,10 +431,10 @@ export struct EntryEditorView {
       iconSizeOverride: $r('app.float.ds_icon_md'),
       iconColorOverride: $r('app.color.ds_on_surface_variant'),
       accessibilityLabelResource: $r('app.string.select_type'),
+      menu: definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)),
       onTap: () => {
       },
     })
-      .bindMenu(definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)))
   }
 
   private optionMenuItem(field: EntryFieldEditor, option: TemplateFieldOption): MenuElement {
@@ -520,6 +526,8 @@ export struct EntryEditorView {
       headerSize: DsPageHeaderSize.Small,
       showBack: false,
       actions: this.headerActions,
+      // 收藏带切换动效，图标按钮表达不了，走动作区前置插槽。
+      actionsBuilder: this.favoriteAction,
     })
   }
 
@@ -531,19 +539,59 @@ export struct EntryEditorView {
       return actions
     }
     actions.push({
-      icon: this.editor.favorite ? $r('app.string.symbol_star_filled') : $r('app.string.symbol_star'),
-      label: this.editor.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
-      iconColor: this.editor.favorite ? $r('app.color.ds_primary') : $r('app.color.ds_text_tertiary'),
-      onTap: () => this.toggleFavorite(),
-    })
-    actions.push({
       icon: $r('app.string.symbol_more'),
       label: $r('app.string.more'),
-      menuBuilder: this.overflowMenu,
+      // 点击由面板上覆盖的同尺寸透明节点接管，这里不处理。
       onTap: () => {
       },
     })
     return actions
+  }
+
+  // 透明点击层与页头「更多」按钮重合并随标题栏居中：拖拽条 + 标题栏内垂直居中。
+  @Computed
+  get overflowButtonTop(): number {
+    const handle: number = measureVp(this.getUIContext(), $r('app.float.ds_space_16'))
+    const header: number = measureVp(this.getUIContext(), $r('app.float.ds_page_header_height_sm'))
+    const button: number = measureVp(this.getUIContext(), $r('app.float.ds_button_height'))
+    return handle + (header - button) / 2
+  }
+
+  @LocalBuilder
+  private favoriteAction() {
+    if (!this.isNewEntry) {
+      HeaderFavoriteAction({
+        editor: this.editor,
+        onToggle: () => this.toggleFavorite(),
+      })
+    }
+  }
+
+  @LocalBuilder
+  private overflowMenuHeader() {
+    Column() {
+      Text($r('app.string.more_actions'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private overflowMenu() {
+    DsContextMenu({
+      header: this.overflowMenuHeader,
+      content: this.overflowMenuItems,
+    })
   }
 
   @LocalBuilder
@@ -561,13 +609,6 @@ export struct EntryEditorView {
         onAction: () => this.openDeleteDialog(),
       })
     }
-  }
-
-  @LocalBuilder
-  private overflowMenu() {
-    DsContextMenu({
-      content: this.overflowMenuItems,
-    })
   }
 
   // 头像与标题输入井对齐：字段标签行占 19，头像下沉同样高度后与输入井同顶。
@@ -986,14 +1027,55 @@ export struct EntryEditorView {
   }
 
   build() {
-    Stack() {
-      DsHalfModalSheet({
-        titleBarBuilder: this.sheetHeader,
-        // 不绑定滚动容器时标题栏材质常驻，内容还没上移就先出现一条模糊带。
-        scrollableScroller: this.scroller,
-        bodyBuilder: this.editorBody,
-        bottomBarBuilder: this.readOnly ? undefined : this.bottomBar,
-      })
+    Stack({ alignContent: Alignment.TopEnd }) {
+      Stack() {
+        DsHalfModalSheet({
+          titleBarBuilder: this.sheetHeader,
+          // 不绑定滚动容器时标题栏材质常驻，内容还没上移就先出现一条模糊带。
+          scrollableScroller: this.scroller,
+          bodyBuilder: this.editorBody,
+          bottomBarBuilder: this.readOnly ? undefined : this.bottomBar,
+        })
+      }
+      .width('100%')
+      .height('100%')
+
+      // 「更多」的图标仍由页头绘制，点击由本层同尺寸节点接管：
+      // 系统菜单只有挂在可点击节点上才带模态遮罩，而标题栏内的菜单绑定不生效。
+      // 反馈色与 DsButton 文字态一致，接管点击后按钮的 hover / press 观感不丢。
+      if (!this.isNewEntry) {
+        Row()
+          .width($r('app.float.ds_button_height'))
+          .height($r('app.float.ds_button_height'))
+          .backgroundColor(this.overflowPressed
+            ? DsColorLadder.RING_MUTED
+            : (this.overflowHovered ? DsColorLadder.RING_SUBTLE : Color.Transparent))
+          .animation(AnimationTokens.FEEDBACK_ANIMATION)
+          .margin({ top: this.overflowButtonTop, right: $r('app.float.ds_gutter') })
+          .onHover((isHover: boolean) => {
+            this.overflowHovered = isHover
+          })
+          .onTouch((event: TouchEvent) => {
+            if (event.type === TouchType.Down) {
+              this.overflowPressed = true
+              return
+            }
+            if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+              this.overflowPressed = false
+            }
+          })
+          .bindMenu(this.overflowMenu, {
+            placement: Placement.BottomRight,
+            targetSpace: LengthMetrics.vp(MENU_TARGET_SPACE),
+            borderRadius: $r('app.float.ds_radius_none'),
+            backgroundColor: $r('app.color.ds_surface_lowest'),
+            backgroundBlurStyle: BlurStyle.NONE,
+            mask: {
+              color: $r('app.color.ds_scrim'),
+              backgroundBlurStyle: BlurStyle.NONE,
+            },
+          })
+      }
     }
     .width('100%')
     .height('100%')
@@ -1004,5 +1086,22 @@ export struct EntryEditorView {
         this.groupPickerBackHandler = undefined
       },
     }))
+  }
+}
+
+// 页头插槽内容放在独立组件里：HDS 标题栏的 builder 链不会随页面状态重建，
+// 由组件自己读编辑器模型，收藏变化时它自行刷新。
+@ComponentV2
+struct HeaderFavoriteAction {
+  @Require @Param editor: EntryEditorViewModel
+  @Event onToggle: () => void = () => {
+  }
+
+  build() {
+    FavoriteToggle({
+      favorite: this.editor.favorite,
+      iconSizeOverride: $r('app.float.ds_icon_md'),
+      onToggle: () => this.onToggle(),
+    })
   }
 }

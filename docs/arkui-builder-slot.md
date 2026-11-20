@@ -62,4 +62,6 @@ DsButton({ contentBuilder: this.iconContent }) // 插槽空白
 - `@LocalBuilder` 只能在所属组件内声明：不能全局声明、不能修饰静态函数、不能与其他装饰器叠加。
 - 传递方式优先传函数本身，其次 `() => { 函数调用 }`，不要传函数执行结果。
 - `@BuilderParam` 内容需要随状态刷新时，参数用「单参数 + 对象字面量」按引用传递；多参数不刷新。
+- 插槽落在 HDS 标题栏这类「builder 只构建一次」的容器里时，页面状态变化不会重建插槽，传参也无效。
+  需要跟随状态的内容要放进独立组件，由组件自己读 `@ObservedV2` 模型（如 `HeaderFavoriteAction`），刷新由该组件自行完成。
 - 插槽内容不要用箭头函数直接构造自定义组件，运行时会报 `class constructor cannot called without 'new'`。

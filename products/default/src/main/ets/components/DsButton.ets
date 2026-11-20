@@ -62,6 +62,8 @@ export struct DsButton {
   @Param accessibilityLabelResource: Resource | undefined = undefined
   // 插槽内容默认继承按钮内容色；提供后替代 label。
   @BuilderParam contentBuilder?: () => void
+  // 菜单必须挂在按钮自身的节点上：自定义组件没有节点，外层包一层也收不到点击。
+  @Param menu: CustomBuilder | MenuElement[] | undefined = undefined
   @Event onTap: () => void = () => {
   }
 
@@ -359,5 +361,6 @@ export struct DsButton {
       }
     })
     .onClick(() => this.onTap())
+    .bindMenu(this.menu === undefined ? undefined : this.menu)
   }
 }

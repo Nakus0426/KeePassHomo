@@ -937,6 +937,10 @@
       "value": "更多"
     },
     {
+      "name": "more_actions",
+      "value": "更多操作"
+    },
+    {
       "name": "entry_menu_duplicate",
       "value": "复制为副本"
     },

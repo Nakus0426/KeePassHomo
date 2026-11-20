@@ -7,6 +7,8 @@ export struct FavoriteToggle {
   @Param favorite: boolean = false
   @Param visible: boolean = true
   @Param clickable: boolean = true
+  // 页头等位置的图标档位不同，按所在行覆盖，默认沿用条目行的 24。
+  @Param iconSizeOverride: Resource | undefined = undefined
   @Event onToggle: (next: boolean) => void = () => {
   }
   @Local private iconScale: number = 1
@@ -49,7 +51,7 @@ export struct FavoriteToggle {
           symbolColor: $r('app.color.ds_text_tertiary'),
           symbolColorChecked: $r('app.color.ds_primary'),
           boxSize: $r('app.float.ds_button_height'),
-          iconSizeOverride: $r('app.float.ds_entry_action_icon'),
+          iconSizeOverride: this.iconSizeOverride ?? $r('app.float.ds_entry_action_icon'),
           accessibilityLabel: this.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
           clickable: this.clickable,
           exclusive: true,

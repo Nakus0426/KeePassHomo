@@ -578,8 +578,8 @@ export class AppViewModel {
     this.recordActivity()
   }
 
+  // 收藏是行内轻操作，不占用全局 busy：否则编辑面板的保存按钮会被连带置为保存中。
   async toggleFavorite(entryUuid: string): Promise<void> {
-    this.busy = true
     try {
       const entry: VaultEntry = stageOneVaultStore.entry(entryUuid)
       await stageOneVaultStore.setFavorite(entry.uuid, !entry.favorite)
@@ -588,8 +588,6 @@ export class AppViewModel {
       this.recordActivity()
     } catch (error) {
       this.reportBoundaryError('更新收藏状态失败', error)
-    } finally {
-      this.busy = false
     }
   }
 
