@@ -7,7 +7,6 @@ import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { VaultAccess, VaultUnreadableReason } from '../../model/StageOneVaultStore'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
-import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsInfoTile } from '../../components/DsInfoTile'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
@@ -38,6 +37,10 @@ export struct FileSummaryPage {
 
   aboutToDisappear(): void {
     this.busyGate.dispose()
+  }
+
+  private isBusy(action: SummaryAction): boolean {
+    return this.busyGate.visible && this.busyAction === action
   }
 
   @Computed
@@ -284,20 +287,6 @@ export struct FileSummaryPage {
     })
   }
 
-  @LocalBuilder
-  private busyButtonContent(label: ResourceStr) {
-    Row({ space: $r('app.float.ds_space_sm') }) {
-      Text(label)
-        .fontSize($r('app.float.ds_font_title'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_text_tertiary'))
-      DsLoadingIndicator({
-        indicatorSize: DsLoadingIndicatorSize.Small,
-        tone: DsLoadingIndicatorTone.Surface,
-      })
-    }
-  }
-
   // 同排按钮各自撑满半行：占位容器负责等分，按钮本身不能再用 100% 宽度。
   @Builder
   private secondaryButton() {
@@ -312,14 +301,6 @@ export struct FileSummaryPage {
         label: $r('app.string.continue_action'),
         onTap: () => this.viewModel.openUnlock(),
       })
-    } else if (this.busyGate.visible && this.busyAction === SummaryAction.Reselect) {
-      DsButton({
-        variant: DsButtonVariant.Filled,
-        tone: DsButtonTone.Tonal,
-        buttonSize: DsControlSize.Large,
-        fullWidth: true,
-        contentBuilder: () => { this.busyButtonContent($r('app.string.reselect_file')) },
-      })
     } else {
       DsButton({
         variant: DsButtonVariant.Filled,
@@ -329,6 +310,7 @@ export struct FileSummaryPage {
         trailingIcon: $r('app.string.symbol_folder_open'),
         iconSizeOverride: $r('app.float.ds_icon_sm'),
         label: $r('app.string.reselect_file'),
+        loading: this.isBusy(SummaryAction.Reselect),
         disabled: this.busyAction !== SummaryAction.None,
         onTap: () => {
           this.reselectFile()
@@ -364,29 +346,20 @@ export struct FileSummaryPage {
 
   @Builder
   private saveAsButton() {
-    if (this.busyGate.visible && this.busyAction === SummaryAction.SaveAs) {
-      DsButton({
-        variant: DsButtonVariant.Filled,
-        tone: DsButtonTone.Tonal,
-        buttonSize: DsControlSize.Large,
-        fullWidth: true,
-        contentBuilder: () => { this.busyButtonContent($r('app.string.save_to_other_location')) },
-      })
-    } else {
-      DsButton({
-        variant: DsButtonVariant.Filled,
-        tone: DsButtonTone.Tonal,
-        buttonSize: DsControlSize.Large,
-        fullWidth: true,
-        trailingIcon: $r('app.string.symbol_save'),
-        iconSizeOverride: $r('app.float.ds_icon_sm'),
-        label: $r('app.string.save_to_other_location'),
-        disabled: this.busyAction !== SummaryAction.None,
-        onTap: () => {
-          this.saveAsOtherLocation()
-        },
-      })
-    }
+    DsButton({
+      variant: DsButtonVariant.Filled,
+      tone: DsButtonTone.Tonal,
+      buttonSize: DsControlSize.Large,
+      fullWidth: true,
+      trailingIcon: $r('app.string.symbol_save'),
+      iconSizeOverride: $r('app.float.ds_icon_sm'),
+      label: $r('app.string.save_to_other_location'),
+      loading: this.isBusy(SummaryAction.SaveAs),
+      disabled: this.busyAction !== SummaryAction.None,
+      onTap: () => {
+        this.saveAsOtherLocation()
+      },
+    })
   }
 
   @Builder

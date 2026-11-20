@@ -3,6 +3,7 @@ import { ResUtil } from '@pura/harmony-utils'
 import { AnimationTokens } from '@ohos/common'
 import { DsControlSize } from './DsControlSize'
 import { DsColorLadder } from './DsColorLadder'
+import { DsLoadingIndicator, DsLoadingIndicatorSize } from './DsLoadingIndicator'
 
 
 export enum DsButtonVariant {
@@ -25,6 +26,10 @@ const LABEL_LETTER_SPACING: number = 0.2
 // 设计稿虚线节奏 6 / 6.25，ArkUI 默认 Dashed 无法指定节奏。
 const DASH_WIDTH: LengthMetrics = LengthMetrics.vp(6)
 const DASH_GAP: LengthMetrics = LengthMetrics.vp(6.25)
+const LOADING_TRANSITION: TransitionEffect = TransitionEffect.OPACITY.animation({
+  duration: AnimationTokens.STATE_TRANSITION_DURATION,
+  curve: AnimationTokens.STATE_TRANSITION_CURVE,
+})
 
 interface DsButtonToneColors {
   base: ResourceColor
@@ -48,6 +53,8 @@ export struct DsButton {
   @Param trailingIcon: Resource | undefined = undefined
   @Param fullWidth: boolean = false
   @Param disabled: boolean = false
+  // 进行中：可见内容整块替换为加载指示器、宽度锁定并阻断点击；调用方按延时门控制显示时机。
+  @Param loading: boolean = false
   @Param iconOnly: boolean = false
   @Param iconSizeOverride: Resource | undefined = undefined
   @Param iconColorOverride: ResourceColor | undefined = undefined
@@ -69,6 +76,8 @@ export struct DsButton {
 
   @Local private hovered: boolean = false
   @Local private pressed: boolean = false
+  // 进入加载前实测的宽度；加载时按钮盒子保持不变。
+  @Local private idleWidth: number = 0
 
   private static readonly TONE_TABLE: Record<string, DsButtonToneColors> = {
     'primary': {
@@ -109,9 +118,9 @@ export struct DsButton {
     },
   }
 
-  @Monitor('disabled')
+  @Monitor('disabled', 'loading')
   onDisabledChanged(): void {
-    if (this.disabled) {
+    if (this.disabled || this.loading) {
       this.hovered = false
       this.pressed = false
     }
@@ -135,7 +144,7 @@ export struct DsButton {
   @Computed
   get fillColor(): ResourceColor {
     if (this.variant !== DsButtonVariant.Filled) {
-      if (this.disabled) {
+      if (this.disabled || this.loading) {
         return Color.Transparent
       }
       if (this.pressed) {
@@ -145,6 +154,9 @@ export struct DsButton {
         return DsColorLadder.RING_SUBTLE
       }
       return Color.Transparent
+    }
+    if (this.loading) {
+      return this.backgroundColorOverride ?? this.toneBaseColor
     }
     if (this.disabled) {
       return this.backgroundColorOverride ?? $r('app.color.ds_surface_inset')
@@ -177,7 +189,7 @@ export struct DsButton {
 
   @Computed
   get contentColor(): ResourceColor {
-    if (this.disabled) {
+    if (this.disabled && !this.loading) {
       return $r('app.color.ds_text_disabled')
     }
     if (this.contentColorOverride !== undefined) {
@@ -237,7 +249,7 @@ export struct DsButton {
 
   @Computed
   get iconColor(): ResourceColor {
-    if (this.disabled) {
+    if (this.disabled && !this.loading) {
       return $r('app.color.ds_text_disabled')
     }
     return this.iconColorOverride ?? this.contentColor
@@ -286,7 +298,28 @@ export struct DsButton {
     if (this.iconOnly) {
       return this.controlHeight
     }
-    return this.fullWidth ? '100%' : 'auto'
+    if (this.fullWidth) {
+      return '100%'
+    }
+    if (this.loading && this.idleWidth > 0) {
+      return this.idleWidth
+    }
+    return 'auto'
+  }
+
+  @Computed
+  get loadingIndicatorSize(): DsLoadingIndicatorSize {
+    if (this.iconOnly) {
+      return DsLoadingIndicatorSize.Small
+    }
+    switch (this.buttonSize) {
+      case DsControlSize.Large:
+        return DsLoadingIndicatorSize.Large
+      case DsControlSize.Small:
+        return DsLoadingIndicatorSize.Small
+      default:
+        return DsLoadingIndicatorSize.Medium
+    }
   }
 
   @Computed
@@ -298,31 +331,49 @@ export struct DsButton {
   }
 
   build() {
-    Row({ space: this.contentGap }) {
-      if (this.leadingIcon !== undefined) {
-        SymbolGlyph(this.leadingIcon)
-          .fontColor([this.iconColor])
-          .foregroundColor(this.iconColor)
-          .animation(AnimationTokens.FEEDBACK_ANIMATION)
-          .fontSize(this.iconSize)
+    Stack({ alignContent: Alignment.Center }) {
+      Row({ space: this.contentGap }) {
+        if (this.leadingIcon !== undefined) {
+          SymbolGlyph(this.leadingIcon)
+            .fontColor([this.iconColor])
+            .foregroundColor(this.iconColor)
+            .animation(AnimationTokens.FEEDBACK_ANIMATION)
+            .fontSize(this.iconSize)
+        }
+        if (this.contentBuilder !== undefined) {
+          this.contentBuilder()
+        } else if (!this.iconOnly) {
+          Text(this.label)
+            .fontColor(this.contentColor)
+            .animation(AnimationTokens.FEEDBACK_ANIMATION)
+            .fontSize(this.labelSize)
+            .fontWeight(this.labelWeightOverride ?? 600)
+            .letterSpacing(LABEL_LETTER_SPACING)
+            .maxLines(1)
+        }
+        if (this.trailingIcon !== undefined) {
+          SymbolGlyph(this.trailingIcon)
+            .fontColor([this.iconColor])
+            .foregroundColor(this.iconColor)
+            .animation(AnimationTokens.FEEDBACK_ANIMATION)
+            .fontSize(this.iconSize)
+        }
       }
-      if (this.contentBuilder !== undefined) {
-        this.contentBuilder()
-      } else if (!this.iconOnly) {
-        Text(this.label)
-          .fontColor(this.contentColor)
-          .animation(AnimationTokens.FEEDBACK_ANIMATION)
-          .fontSize(this.labelSize)
-          .fontWeight(this.labelWeightOverride ?? 600)
-          .letterSpacing(LABEL_LETTER_SPACING)
-          .maxLines(1)
-      }
-      if (this.trailingIcon !== undefined) {
-        SymbolGlyph(this.trailingIcon)
-          .fontColor([this.iconColor])
-          .foregroundColor(this.iconColor)
-          .animation(AnimationTokens.FEEDBACK_ANIMATION)
-          .fontSize(this.iconSize)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      // 加载时只隐藏可见内容，宽度仍由它撑住。
+      .opacity(this.loading ? 0 : 1)
+      .animation(AnimationTokens.FEEDBACK_ANIMATION)
+      .accessibilityLevel(this.loading ? 'no-hide-descendants' : 'auto')
+
+      if (this.loading) {
+        Row() {
+          DsLoadingIndicator({
+            indicatorSize: this.loadingIndicatorSize,
+            colorOverride: this.contentColor,
+          })
+        }
+        .transition(LOADING_TRANSITION)
       }
     }
     .backgroundColor(this.fillColor)
@@ -338,18 +389,22 @@ export struct DsButton {
     .width(this.buttonWidth)
     .height(this.controlHeight)
     .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
-    .justifyContent(FlexAlign.Center)
-    .alignItems(VerticalAlign.Center)
     .enabled(!this.disabled)
     .accessibilityText(this.effectiveAccessibilityLabel)
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
+      if (!this.loading && !this.fullWidth && !this.iconOnly
+        && typeof newValue.width === 'number' && newValue.width !== this.idleWidth) {
+        this.idleWidth = newValue.width
+      }
+    })
     .onHover((isHover: boolean) => {
-      if (this.disabled) {
+      if (this.disabled || this.loading) {
         return
       }
       this.hovered = isHover
     })
     .onTouch((event: TouchEvent) => {
-      if (this.disabled) {
+      if (this.disabled || this.loading) {
         return
       }
       if (event.type === TouchType.Down) {
@@ -360,7 +415,12 @@ export struct DsButton {
         this.pressed = false
       }
     })
-    .onClick(() => this.onTap())
+    .onClick(() => {
+      if (!this.disabled && !this.loading) {
+        this.onTap()
+      }
+    })
+    .hitTestBehavior(this.disabled || this.loading ? HitTestMode.None : HitTestMode.Default)
     .bindMenu(this.menu === undefined ? undefined : this.menu)
   }
 }

@@ -25,10 +25,6 @@
       "value": "测试连接"
     },
     {
-      "name": "webdav_testing",
-      "value": "正在连接…"
-    },
-    {
       "name": "webdav_status_success",
       "value": "连接成功"
     },

@@ -517,57 +517,16 @@ export struct WebDavConnectPage {
   }
 
   @LocalBuilder
-  private testButtonContent() {
-    if (this.testGate.visible) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        Text($r('app.string.webdav_testing'))
-          .fontSize($r('app.float.ds_font_title'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_text_primary'))
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Surface,
-        })
-      }
-    } else {
-      Text($r('app.string.webdav_test_connection'))
+  private nextSuccessContent() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Text($r('app.string.webdav_status_success'))
         .fontSize($r('app.float.ds_font_title'))
         .fontWeight(600)
-        .fontColor(this.viewModel.canTest
-          ? $r('app.color.ds_text_primary') : $r('app.color.ds_text_disabled'))
-    }
-  }
-
-  @LocalBuilder
-  private nextButtonContent() {
-    if (this.successFlash) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        Text($r('app.string.webdav_status_success'))
-          .fontSize($r('app.float.ds_font_title'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_success'))
-        SymbolGlyph($r('app.string.symbol_check'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_success')])
-          .foregroundColor($r('app.color.ds_success'))
-      }
-    } else if (this.nextGate.visible) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        Text($r('app.string.webdav_testing'))
-          .fontSize($r('app.float.ds_font_title'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_text_primary'))
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Surface,
-        })
-      }
-    } else {
-      Text($r('app.string.webdav_next'))
-        .fontSize($r('app.float.ds_font_title'))
-        .fontWeight(600)
-        .fontColor(this.viewModel.canGoNextFromServer
-          ? $r('app.color.ds_on_primary') : $r('app.color.ds_text_disabled'))
+        .fontColor($r('app.color.ds_success'))
+      SymbolGlyph($r('app.string.symbol_check'))
+        .fontSize($r('app.float.ds_icon_sm'))
+        .fontColor([$r('app.color.ds_success')])
+        .foregroundColor($r('app.color.ds_success'))
     }
   }
 
@@ -624,8 +583,10 @@ export struct WebDavConnectPage {
         tone: DsButtonTone.Default,
         buttonSize: DsControlSize.Medium,
         fullWidth: true,
+        label: $r('app.string.webdav_test_connection'),
+        loading: this.testGate.visible,
         disabled: !this.viewModel.canTest,
-        contentBuilder: this.testButtonContent,
+        accessibilityLabelResource: $r('app.string.webdav_test_connection'),
         onTap: () => {
           this.viewModel.testConnection()
         },
@@ -846,17 +807,28 @@ export struct WebDavConnectPage {
   @Builder
   private bottomActionContent() {
     if (this.viewModel.step === WebDavStep.Server) {
-      DsButton({
-        buttonSize: DsControlSize.Large,
-        fullWidth: true,
-        trailingIcon: this.nextGate.visible || this.successFlash
-          ? undefined : $r('app.string.symbol_arrow_forward'),
-        disabled: !this.viewModel.canGoNextFromServer || this.successFlash,
-        contentBuilder: this.nextButtonContent,
-        onTap: () => {
-          this.nextFromServer()
-        },
-      })
+      if (this.successFlash) {
+        DsButton({
+          buttonSize: DsControlSize.Large,
+          fullWidth: true,
+          disabled: true,
+          contentBuilder: this.nextSuccessContent,
+          accessibilityLabelResource: $r('app.string.webdav_next'),
+        })
+      } else {
+        DsButton({
+          buttonSize: DsControlSize.Large,
+          fullWidth: true,
+          trailingIcon: $r('app.string.symbol_arrow_forward'),
+          label: $r('app.string.webdav_next'),
+          loading: this.nextGate.visible,
+          disabled: !this.viewModel.canGoNextFromServer,
+          accessibilityLabelResource: $r('app.string.webdav_next'),
+          onTap: () => {
+            this.nextFromServer()
+          },
+        })
+      }
     } else if (this.viewModel.step === WebDavStep.File) {
       DsButton({
         buttonSize: DsControlSize.Large,

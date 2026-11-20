@@ -8,7 +8,6 @@ import { appRouter } from '../../navigation/AppRouter'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsInput } from '../../components/DsInput'
-import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } from '../../components/DsLoadingIndicator'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { DsControlSize } from '../../components/DsControlSize'
@@ -75,9 +74,6 @@ export struct UnlockPage {
   get buttonLabel(): Resource {
     if (this.unlockSucceeded) {
       return $r('app.string.unlock_opening')
-    }
-    if (this.viewModel.busy) {
-      return $r('app.string.unlocking')
     }
     // 缺凭据是本地校验，保留「解锁保险库」；只有鉴权失败才切「重试解锁」。
     if (this.noticeVisible && this.noticeTone === DsNoticeTone.Error) {
@@ -459,36 +455,15 @@ export struct UnlockPage {
     .width('100%')
   }
 
-  @LocalBuilder
-  private unlockButtonContent() {
-    if (this.busyGate.visible) {
-      Row({ space: $r('app.float.ds_space_10') }) {
-        Text($r('app.string.unlocking'))
-          .fontSize($r('app.float.ds_font_title'))
-          .fontWeight(600)
-          .fontColor($r('app.color.ds_on_primary'))
-        DsLoadingIndicator({
-          indicatorSize: DsLoadingIndicatorSize.Small,
-          tone: DsLoadingIndicatorTone.Inverse,
-        })
-      }
-    } else {
-      Text(this.buttonLabel)
-        .fontSize($r('app.float.ds_font_title'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_on_primary'))
-        .maxLines(1)
-    }
-  }
-
   @Builder
   private unlockButton() {
     DsButton({
+      label: this.buttonLabel,
       buttonSize: DsControlSize.Large,
       fullWidth: true,
-      trailingIcon: this.busyGate.visible ? undefined : this.buttonTrailingIcon,
+      trailingIcon: this.buttonTrailingIcon,
+      loading: this.busyGate.visible,
       accessibilityLabelResource: this.buttonLabel,
-      contentBuilder: this.unlockButtonContent,
       onTap: () => this.handleSubmit(),
     })
   }

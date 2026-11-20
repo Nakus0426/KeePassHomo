@@ -1,5 +1,5 @@
 import { LengthMetrics, promptAction } from '@kit.ArkUI'
-import { AnimationTokens, BounceAnimator, measureVp, VaultGroup } from '@ohos/common'
+import { AnimationTokens, BounceAnimator, DelayedVisibility, measureVp, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
@@ -76,6 +76,8 @@ export struct EntryEditorView {
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private bounce: BounceAnimator = new BounceAnimator()
+  // 保存加载态延时门：超过 400ms 才显示脉冲，快速保存不闪烁。
+  private readonly saveGate: DelayedVisibility = new DelayedVisibility()
 
   aboutToAppear(): void {
     this.passwordVisible = false
@@ -88,6 +90,7 @@ export struct EntryEditorView {
 
   // 草稿与敏感状态要等转场结束、节点销毁后再清：官方禁止在转场过程中更新消失节点的属性。
   aboutToDisappear(): void {
+    this.saveGate.dispose()
     this.releaseEditor()
   }
 
@@ -174,7 +177,9 @@ export struct EntryEditorView {
     }
     const invalidFieldKey: string | undefined = this.editor.validate()
     if (invalidFieldKey === undefined) {
+      this.saveGate.setActive(true)
       this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
+        this.saveGate.setActive(false)
         if (saved) {
           DsToastHost.show(this.getUIContext(), $r('app.string.saved'))
           this.onSaved()
@@ -1003,9 +1008,10 @@ export struct EntryEditorView {
 
       Column() {
         DsButton({
-          label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
+          label: $r('app.string.save'),
+          loading: this.saveGate.visible,
           fullWidth: true,
-          disabled: this.viewModel.busy || this.readOnly,
+          disabled: this.readOnly,
           onTap: () => this.saveEntry(),
         })
       }

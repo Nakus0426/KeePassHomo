@@ -85,10 +85,6 @@
       "value": "最近更新 %s"
     },
     {
-      "name": "unlocking",
-      "value": "正在解锁…"
-    },
-    {
       "name": "choose_another_vault",
       "value": "切换保险库"
     },

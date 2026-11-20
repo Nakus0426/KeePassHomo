@@ -605,10 +605,6 @@
       "value": "保存"
     },
     {
-      "name": "saving",
-      "value": "正在保存"
-    },
-    {
       "name": "saved",
       "value": "保存成功"
     },

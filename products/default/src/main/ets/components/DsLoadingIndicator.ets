@@ -9,16 +9,20 @@ export enum DsLoadingIndicatorSize {
 
 export enum DsLoadingIndicatorTone {
   Surface = 'surface',
-  Inverse = 'inverse',
   Scrim = 'scrim',
 }
 
 const PULSE_CELLS: number[] = [0, 1, 2]
+// 按钮内容色阶梯：当前格 100%，前一格 55%，其余 20%。
+const CONTENT_TRAIL_OPACITY: number = 0.55
+const CONTENT_IDLE_OPACITY: number = 0.2
 
 @ComponentV2
 export struct DsLoadingIndicator {
   @Param indicatorSize: DsLoadingIndicatorSize = DsLoadingIndicatorSize.Medium
   @Param tone: DsLoadingIndicatorTone = DsLoadingIndicatorTone.Surface
+  // 按钮内使用：三格取按钮内容色并按 100 / 55 / 20 透明度分阶，忽略 tone。
+  @Param colorOverride: ResourceColor | undefined = undefined
   @Param accessibilityLabel: string = ''
   @Param accessibilityLabelResource: Resource | undefined = undefined
 
@@ -81,8 +85,6 @@ export struct DsLoadingIndicator {
   @Computed
   get activeColor(): ResourceColor {
     switch (this.tone) {
-      case DsLoadingIndicatorTone.Inverse:
-        return $r('app.color.ds_loading_inverse_active')
       case DsLoadingIndicatorTone.Scrim:
         return $r('app.color.ds_loading_on_scrim')
       default:
@@ -93,8 +95,6 @@ export struct DsLoadingIndicator {
   @Computed
   get trailColor(): ResourceColor {
     switch (this.tone) {
-      case DsLoadingIndicatorTone.Inverse:
-        return $r('app.color.ds_loading_inverse_trail')
       case DsLoadingIndicatorTone.Scrim:
         return $r('app.color.ds_loading_on_scrim_trail')
       default:
@@ -105,8 +105,6 @@ export struct DsLoadingIndicator {
   @Computed
   get idleColor(): ResourceColor {
     switch (this.tone) {
-      case DsLoadingIndicatorTone.Inverse:
-        return $r('app.color.ds_loading_inverse_idle')
       case DsLoadingIndicatorTone.Scrim:
         return $r('app.color.ds_loading_on_scrim_idle')
       default:
@@ -122,12 +120,28 @@ export struct DsLoadingIndicator {
     return this.accessibilityLabel
   }
 
+  private previousCell(): number {
+    return (this.activeCell + PULSE_CELLS.length - 1) % PULSE_CELLS.length
+  }
+
   private cellColor(index: number): ResourceColor {
+    if (this.colorOverride !== undefined) {
+      return this.colorOverride
+    }
     if (index === this.activeCell) {
       return this.activeColor
     }
-    return index === (this.activeCell + PULSE_CELLS.length - 1) % PULSE_CELLS.length
-      ? this.trailColor : this.idleColor
+    return index === this.previousCell() ? this.trailColor : this.idleColor
+  }
+
+  private cellOpacity(index: number): number {
+    if (this.colorOverride === undefined) {
+      return 1
+    }
+    if (index === this.activeCell) {
+      return 1
+    }
+    return index === this.previousCell() ? CONTENT_TRAIL_OPACITY : CONTENT_IDLE_OPACITY
   }
 
   build() {
@@ -137,6 +151,7 @@ export struct DsLoadingIndicator {
           .width(this.pulseHeight)
           .height(this.pulseHeight)
           .backgroundColor(this.cellColor(index))
+          .opacity(this.cellOpacity(index))
           .accessibilityLevel('no')
       }, (index: number) => index.toString())
     }
