@@ -120,18 +120,22 @@ export struct DsHalfModalSheet {
   }
 
   build() {
-    HdsNavigation() {
-      Stack({ alignContent: Alignment.Bottom }) {
+    Stack({ alignContent: Alignment.Bottom }) {
+      // 底栏挂在导航内容区之外：HdsNavigation 会自行避让键盘并上移内容区，挂在里面会被带着浮到面板中间。
+      HdsNavigation() {
         this.bodyBuilder()
-        if (this.bottomBarBuilder !== undefined) {
-          this.bottomBarBuilder()
-        }
       }
       .width('100%')
       .height('100%')
+      .titleMode(HdsNavigationTitleMode.MODAL)
+      .titleBar(this.titleBarOptions)
+      .bindToScrollable(this.scrollableScroller === undefined ? [] : [this.scrollableScroller])
+
+      if (this.bottomBarBuilder !== undefined) {
+        this.bottomBarBuilder()
+      }
     }
-    .titleMode(HdsNavigationTitleMode.MODAL)
-    .titleBar(this.titleBarOptions)
-    .bindToScrollable(this.scrollableScroller === undefined ? [] : [this.scrollableScroller])
+    .width('100%')
+    .height('100%')
   }
 }

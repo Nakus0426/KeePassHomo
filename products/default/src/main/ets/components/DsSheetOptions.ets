@@ -17,6 +17,7 @@ export interface DsSheetOptionsParams {
   topBorder?: boolean
   // 多档位时系统控制条会与该页自绘拖拽条叠加，且样式不受设计系统控制；置 false 只显示自绘那根。
   dragBar?: boolean
+  keyboardAvoidMode?: SheetKeyboardAvoidMode
 }
 
 // 全项目半模态统一容器参数：直角面板 + 设计系统面底 + 无系统关闭按钮。
@@ -33,6 +34,7 @@ export function dsSheetOptions(params: DsSheetOptionsParams): SheetOptions {
     onHeightDidChange: params.onHeightDidChange,
     onWillDismiss: params.onWillDismiss,
     onDisappear: params.onDisappear,
+    keyboardAvoidMode: params.keyboardAvoidMode,
     onWillSpringBackWhenDismiss: CANCEL_SPRING_BACK,
   }
   if (params.topBorder === true) {

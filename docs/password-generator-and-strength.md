@@ -6,7 +6,6 @@
 |--------------------------------------------------------------------------|-------------------------|
 | `common/src/main/ets/security/PasswordGenerator.ets`                     | 随机密码、易记密码、PIN 三种生成与强度估算 |
 | `common/src/main/ets/security/PasswordStrengthCalculator.ets`            | 对用户输入的密码做启发式评分          |
-| `products/default/src/main/ets/components/PasswordStrengthIndicator.ets` | 展示评分等级                  |
 | `products/default/src/main/ets/viewmodel/GeneratorViewModel.ets`         | 生成器界面状态、参数校验和重新生成       |
 | `products/default/src/main/ets/pages/generator/GeneratorComponents.ets`  | 生成器界面与参数控件              |
 
@@ -141,16 +140,8 @@ ASCII 大小写，但要求整串等于该词，或以该词开头且其后恰�
 
 ## 6. 强度指示器
 
-`PasswordStrengthIndicator({ password })` 用于条目编辑页的密码字段，只负责展示，不参与生成：
-
-- 左侧固定文案「密码强度」。
-- 中间 5 个圆角矩形（高 14vp、圆角 7vp、等宽铺满剩余空间、间距 `sys.float.padding_level4`），点亮数量等于 `StrengthLevel` 数值：
-  `Invalid` 全灰，`VeryWeak` 点亮 1 个，`VeryStrong` 点亮 5 个。
-- 未点亮颜色 `sys.color.comp_background_secondary`；很弱和较弱使用 `sys.color.alert`，一般使用 `sys.color.warning`，较强和很强使用
-  `sys.color.confirm`。
-- 右侧显示等级文案；`Invalid` 时不显示描述，仅保留一个零透明度的「很弱」占位以稳定布局。
-
-生成器预览改用 `DsStrengthMeter`（5 段设计系统色块）加右侧等级文案，等级文案复用 `strengthLabel`。
+强度展示统一使用 `DsStrengthMeter`（5 段设计系统色块）加右侧等级文案，等级文案复用 `strengthLabel`。
+该组件用于生成器预览、创建保险库的主密码字段和条目编辑的密码字段，只负责展示，不参与生成。
 
 ## 7. 生成器界面行为
 

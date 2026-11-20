@@ -177,6 +177,10 @@
       "value": "#14111111"
     },
     {
+      "name": "ds_selection",
+      "value": "#33111111"
+    },
+    {
       "name": "ds_overlay_muted",
       "value": "#26111111"
     },

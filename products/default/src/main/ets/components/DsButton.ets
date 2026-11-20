@@ -41,7 +41,7 @@ export struct DsButton {
   // 不能命名为 size：与 CustomComponent.size() 冲突。
   @Param buttonSize: DsControlSize = DsControlSize.Medium
   // 仅 iconOnly 用；覆盖按钮边长，供图标框等非标准尺寸使用。
-  @Param controlHeightOverride: Resource | undefined = undefined
+  @Param controlHeightOverride: Length | undefined = undefined
   // Small 文本态默认 8vp；设计稿行内文本按钮要求与实心态一致的 12vp。
   @Param horizontalPaddingOverride: Resource | undefined = undefined
   @Param leadingIcon: Resource | undefined = undefined
@@ -189,7 +189,7 @@ export struct DsButton {
   }
 
   @Computed
-  get controlHeight(): Resource {
+  get controlHeight(): Length {
     if (this.controlHeightOverride !== undefined) {
       return this.controlHeightOverride
     }

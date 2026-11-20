@@ -1,4 +1,3 @@
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo } from '@kit.CoreFileKit'
@@ -6,7 +5,11 @@ import { image } from '@kit.ImageKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { FileUtil, LogUtil } from '@pura/harmony-utils'
 import { DsToastHost } from '../../components/DsToast'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 
+// 设计稿的紧凑方形头像：48×48，与标题输入井同高。
+const AVATAR_SIZE: number = 48
 const AVATAR_MAX_EDGE: number = 384
 const AVATAR_IMAGE_FORMAT: string = 'image/jpeg'
 const AVATAR_QUALITY: number = 85
@@ -132,82 +135,59 @@ export struct EntryAvatarPicker {
     DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed'))
   }
 
-  @Builder
+  // @BuilderParam 传内容必须委托给 @Builder 方法，箭头函数里直接构造组件会报 class constructor 错误。
+  @LocalBuilder
+  private avatarMenuItems() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_image'),
+      label: $r('app.string.avatar_pick'),
+      onAction: () => {
+        this.pickAvatar()
+      },
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_refresh'),
+      label: $r('app.string.avatar_reset'),
+      theme: DsMenuItemTheme.Warning,
+      onAction: () => this.onReset(),
+    })
+  }
+
+  @LocalBuilder
   private avatarMenu() {
-    Menu() {
-      MenuItem({
-        content: $r('app.string.avatar_pick'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_image')),
-      })
-        .enabled(!this.avatarBusy)
-        .onClick(() => {
-          this.pickAvatar()
-        })
-      MenuItem({
-        content: $r('app.string.avatar_reset'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_refresh'))
-          .fontColor([$r('sys.color.warning')]),
-      })
-        .contentFontColor($r('sys.color.warning'))
-        .enabled(!this.avatarBusy && this.avatarData !== undefined)
-        .onClick(() => {
-          this.onReset()
-        })
-    }
-    .menuItemDivider({
-      strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
-      color: $r('sys.color.grid_menu_divider_color'),
-      startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
-      endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
+    DsContextMenu({
+      content: this.avatarMenuItems,
     })
   }
 
   build() {
     Stack() {
-      Stack() {
-        if (this.avatarPixelMap !== undefined) {
-          Image(this.avatarPixelMap)
-            .draggable(false)
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-        } else {
-          Text(this.initials)
-            .fontSize($r('sys.float.Display_S'))
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
-        }
+      if (this.avatarPixelMap !== undefined) {
+        Image(this.avatarPixelMap)
+          .draggable(false)
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+      } else {
+        Text(this.initials)
+          .fontSize($r('app.float.ds_font_title_md'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_text_primary'))
       }
-      .width('100%')
-      .height('100%')
-      .borderRadius('50%')
-      .backgroundColor($r('sys.color.background_emphasize'))
-      .clip(true)
 
-      Button() {
-        if (this.avatarBusy) {
-          LoadingProgress()
-            .width($r('sys.float.Body_L'))
-            .height($r('sys.float.Body_L'))
-            .color($r('sys.color.icon_primary'))
-        } else {
-          SymbolGlyph($r('app.string.symbol_edit'))
-            .fontColor([$r('sys.color.icon_primary')])
-            .fontSize($r('sys.float.Body_L'))
-        }
+      if (this.avatarBusy) {
+        LoadingProgress()
+          .width($r('app.float.ds_icon_md'))
+          .height($r('app.float.ds_icon_md'))
+          .color($r('app.color.ds_text_secondary'))
       }
-      .padding($r('sys.float.padding_level2'))
-      .type(ButtonType.Circle)
-      .backgroundColor($r('sys.color.comp_background_primary'))
-      .position({ right: 0, bottom: 0 })
-      .shadow(ShadowStyle.OUTER_FLOATING_SM)
-      .enabled(!this.avatarBusy && !this.readOnly)
-      .zIndex(1)
-      .bindMenu(this.avatarMenu())
     }
-    .width($r('app.float.entry_avatar_size'))
-    .height($r('app.float.entry_avatar_size'))
-    .aspectRatio(1)
-    .borderRadius('50%')
+    .width(AVATAR_SIZE)
+    .height(AVATAR_SIZE)
+    .backgroundColor($r('app.color.ds_surface_high'))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .clip(true)
+    .enabled(!this.avatarBusy && !this.readOnly)
+    .bindMenu(this.avatarMenu())
   }
 }

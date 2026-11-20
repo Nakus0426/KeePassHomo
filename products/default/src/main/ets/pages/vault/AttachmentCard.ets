@@ -44,7 +44,8 @@ export struct AttachmentCard {
         MenuItem({
           content: $r('app.string.attachment_remove'),
           symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_delete')).fontSize($r('sys.float.Body_L'))
-            .fontColor([$r('sys.color.warning')]),
+            .fontColor([$r('sys.color.warning')])
+            .foregroundColor($r('sys.color.warning')),
         })
           .labelFont({ size: $r('sys.float.Body_M') })
           .contentFontColor($r('sys.color.warning'))

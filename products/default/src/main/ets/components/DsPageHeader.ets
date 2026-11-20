@@ -13,6 +13,10 @@ export interface DsPageHeaderAction {
   icon: Resource
   label: Resource
   enabled?: boolean
+  // 缺省用 text_primary；收藏等切换态需要单独指定选中色。
+  iconColor?: ResourceColor
+  // 传入后按钮改为弹出该菜单（页头溢出菜单等），此时 onTap 不触发。
+  menuBuilder?: () => void
   onTap: () => void
 }
 
@@ -49,6 +53,23 @@ export struct DsPageHeader {
       default:
         return $r('app.float.ds_page_header_padding_lg')
     }
+  }
+
+  // 页头动作统一 44 方形图标按钮；带菜单的动作直接挂 bindMenu。
+  @LocalBuilder
+  private headerAction(action: DsPageHeaderAction) {
+    DsButton({
+      variant: DsButtonVariant.Text,
+      buttonSize: DsControlSize.Medium,
+      iconOnly: true,
+      leadingIcon: action.icon,
+      iconSizeOverride: $r('app.float.ds_icon_md'),
+      iconColorOverride: action.iconColor ?? $r('app.color.ds_text_primary'),
+      accessibilityLabelResource: action.label,
+      disabled: action.enabled === false,
+      onTap: action.onTap,
+    })
+      .bindMenu(action.menuBuilder === undefined ? undefined : action.menuBuilder)
   }
 
   @Computed
@@ -124,17 +145,7 @@ export struct DsPageHeader {
         if (this.actions.length > 0) {
           Row({ space: $r('app.float.ds_space_sm') }) {
             ForEach(this.actions, (action: DsPageHeaderAction, index: number) => {
-              DsButton({
-                variant: DsButtonVariant.Text,
-                buttonSize: DsControlSize.Medium,
-                iconOnly: true,
-                leadingIcon: action.icon,
-                iconSizeOverride: $r('app.float.ds_icon_md'),
-                iconColorOverride: $r('app.color.ds_text_primary'),
-                accessibilityLabelResource: action.label,
-                disabled: action.enabled === false,
-                onTap: action.onTap,
-              })
+              this.headerAction(action)
             }, (_action: DsPageHeaderAction, index: number) => index.toString())
           }
         }

@@ -13,6 +13,7 @@ import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsListRowMotion } from '../../components/DsListRowMotion'
 import { DsDialog, DsDialogTone } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
@@ -351,11 +352,20 @@ export struct VaultHomePage {
     })
   }
 
-  // Repeat 与 @Builder 混用时必须整体传 RepeatItem：只传 item.item 时复用节点不会刷新。
+  // 子组件 BuilderParam 会延迟执行：传 RepeatItem 时节点复用到另一类列表项会读到 undefined，必须传稳定模型。
   @Builder
-  private groupHeader(item: RepeatItem<EntryListItem>) {
+  private groupHeader(header: EntryGroupHeaderModel) {
+    DsListRowMotion({
+      leaving: header.leaving,
+    }) {
+      this.groupHeaderRow(header)
+    }
+  }
+
+  @Builder
+  private groupHeaderRow(header: EntryGroupHeaderModel) {
     Row({ space: $r('app.float.ds_space_sm') }) {
-      Text(item.item.header!.groupName)
+      Text(header.groupName)
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontWeight(600)
         .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
@@ -363,7 +373,7 @@ export struct VaultHomePage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text(String(item.item.header!.count))
+      Text(String(header.count))
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontFamily(PASSWORD_FONT_FAMILY)
         .fontColor($r('app.color.ds_text_tertiary'))
@@ -379,20 +389,14 @@ export struct VaultHomePage {
           iconSizeOverride: $r('app.float.ds_icon_sm'),
           iconColorOverride: $r('app.color.ds_text_secondary'),
           accessibilityLabelResource: $r('app.string.new_entry'),
-          onTap: () => this.openTemplatePicker(item.item.header!.groupUuid),
+          onTap: () => this.openTemplatePicker(header.groupUuid),
         })
       }
     }
     .width('100%')
-    .height(item.item.header!.leaving ? 0 : $r('app.float.ds_tab_height_sm'))
-    .opacity(item.item.header!.leaving ? 0 : 1)
-    .clip(true)
+    .height($r('app.float.ds_tab_height_sm'))
     .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
     .alignItems(VerticalAlign.Center)
-    .animation({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.EASE_EXIT,
-    })
   }
 
   // swipeAction 内容随列表项缓存、延迟执行，行模型必须在此刻取值，复用后回读 RepeatItem 会拿到分组头。
@@ -595,34 +599,36 @@ export struct VaultHomePage {
 
   @Builder
   private rowMenu(row: EntryRowModel) {
-    Column() {
-      DsContextMenu({
-        header: () => {
-          this.menuHeader(row)
-        },
-        content: () => {
-          this.menuContent(row)
-        },
-      })
-    }
-    .margin({
-      left: -this.contextMenuSystemInset,
-      right: -this.contextMenuSystemInset,
-      top: -this.contextMenuSystemInset,
-      bottom: -this.contextMenuSystemInset,
+    DsContextMenu({
+      systemInset: this.contextMenuSystemInset,
+      header: () => {
+        this.menuHeader(row)
+      },
+      content: () => {
+        this.menuContent(row)
+      },
     })
   }
 
-  // 同 groupHeader：整体传 RepeatItem，节点复用时行内容才会跟着换。
+  // 同 groupHeader：传稳定行模型，避免 RepeatItem 跨 BuilderParam 复用后读到其他类型的列表项。
+  // 进场只淡入：滚动挂载的行若带位移会跟着播一遍入场，看起来像列表在抖。
   @Builder
-  private entryRow(item: RepeatItem<EntryListItem>) {
-    VaultEntryRow({
-      row: item.item.row!,
-      favoriteEnabled: !this.readOnly,
-      onRowClick: () => this.onRowTap(item.item.row!),
-      onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(item.item.row!.uuid),
-    })
-      .bindContextMenu(this.rowMenu(item.item.row!), ResponseType.LongPress, {
+  private entryRow(row: EntryRowModel) {
+    // 外层 Column 只承载长按菜单：组件带尾随 Builder 时无法在调用处继续链属性。
+    Column() {
+      DsListRowMotion({
+        leaving: row.leaving,
+      }) {
+        VaultEntryRow({
+          row: row,
+          favoriteEnabled: !this.readOnly,
+          onRowClick: () => this.onRowTap(row),
+          onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(row.uuid),
+        })
+      }
+    }
+    .width('100%')
+    .bindContextMenu(this.rowMenu(row), ResponseType.LongPress, {
         preview: MenuPreviewMode.IMAGE,
         previewBorderRadius: $r('app.float.ds_radius_none'),
         borderRadius: $r('app.float.ds_radius_none'),
@@ -647,9 +653,9 @@ export struct VaultHomePage {
         .width('100%')
         .height(0)
     } else if (item.item.kind === EntryListItemKind.Header) {
-      this.groupHeader(item)
+      this.groupHeader(item.item.header!)
     } else {
-      this.entryRow(item)
+      this.entryRow(item.item.row!)
     }
   }
 
@@ -674,7 +680,6 @@ export struct VaultHomePage {
             end: this.swipeEnd(item),
             edgeEffect: SwipeEdgeEffect.None,
           })
-          .transition(this.stateSwitchTransition)
         })
         .key((item: EntryListItem) => item.key)
         .virtualScroll({

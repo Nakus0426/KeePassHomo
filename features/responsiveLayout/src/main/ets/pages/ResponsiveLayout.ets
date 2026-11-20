@@ -31,6 +31,8 @@ export struct TabIndex {
       SymbolGlyph($r('app.string.symbol_account_circle_filled'))
         .fontColor(this.currentIndex === tabBar.id ?
           [$r('sys.color.ohos_id_color_text_primary_activated')] : [$r('sys.color.ohos_id_color_text_secondary')])
+        .foregroundColor(this.currentIndex === tabBar.id ?
+          $r('sys.color.ohos_id_color_text_primary_activated') : $r('sys.color.ohos_id_color_text_secondary'))
         .fontSize($r('app.float.tab_img_width'))
       Text(tabBar.name)
         .fontSize($r('app.float.tab_text_font_size'))

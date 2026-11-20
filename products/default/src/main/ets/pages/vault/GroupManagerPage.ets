@@ -489,6 +489,7 @@ export struct GroupManagerPage {
             SymbolGlyph($r('app.string.symbol_chevron_right'))
               .fontSize($r('sys.float.Body_S'))
               .fontColor([$r('app.color.ds_text_tertiary')])
+              .foregroundColor($r('app.color.ds_text_tertiary'))
             Button(group.name)
               .height($r('sys.float.Title_L'))
               .buttonStyle(ButtonStyleMode.TEXTUAL)

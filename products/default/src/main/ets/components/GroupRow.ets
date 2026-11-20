@@ -73,6 +73,7 @@ export struct GroupRow {
         SymbolGlyph($r('app.string.symbol_edit'))
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
+          .foregroundColor($r('sys.color.icon_on_primary'))
       }
       .width($r('app.float.ds_swipe_action_width'))
       .height('100%')
@@ -83,6 +84,7 @@ export struct GroupRow {
         SymbolGlyph($r('app.string.symbol_delete'))
           .fontSize($r('sys.float.titlebar_icon_width'))
           .fontColor([$r('sys.color.icon_on_primary')])
+          .foregroundColor($r('sys.color.icon_on_primary'))
       }
       .width($r('app.float.ds_swipe_action_width'))
       .height('100%')
@@ -99,6 +101,7 @@ export struct GroupRow {
           SymbolGlyph($r('app.string.symbol_folder'))
             .fontSize($r('sys.float.Title_L'))
             .fontColor([$r('sys.color.brand')])
+            .foregroundColor($r('sys.color.brand'))
         }
         .padding($r('sys.float.padding_level4'))
         .borderRadius('50%')
@@ -124,10 +127,12 @@ export struct GroupRow {
           SymbolGlyph($r('app.string.symbol_check'))
             .fontSize($r('sys.float.Title_S'))
             .fontColor([$r('sys.color.confirm')])
+            .foregroundColor($r('sys.color.confirm'))
         } else if (this.showChevron) {
           SymbolGlyph($r('app.string.symbol_chevron_right'))
             .fontSize($r('sys.float.Title_S'))
             .fontColor([$r('sys.color.font_secondary')])
+            .foregroundColor($r('sys.color.font_secondary'))
         }
       }
       .width('100%')

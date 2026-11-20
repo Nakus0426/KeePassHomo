@@ -1,15 +1,22 @@
+import { promptAction } from '@kit.ArkUI'
 import { AnimationTokens, BounceAnimator, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
-import { DsButton, DsButtonTone } from '../../components/DsButton'
-import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsDialog, DsDialogTone } from '../../components/DsDialog'
+import { DsField } from '../../components/DsField'
+import { DsInput, DsInputTone } from '../../components/DsInput'
+import { LIST_ROW_FADE_IN } from '../../components/ListRowEnterTransition'
+import { DsMenuGroup } from '../../components/DsMenuGroup'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
+import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../components/DsPageHeader'
+import { DsStrengthMeter } from '../../components/DsStrengthMeter'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
-import { FormItem, Status } from '../../components/FormItem'
-import { FormTextArea } from '../../components/FormTextArea'
-import { FormTextField, FormTextFieldStatus } from '../../components/FormTextField'
-import { PasswordStrengthIndicator } from '../../components/PasswordStrengthIndicator'
+import { Status } from '../../components/FormItem'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
@@ -29,6 +36,12 @@ import { EntrySshKeysField } from './EntrySshKeysField'
 import { EntryTagEditor } from './EntryTagEditor'
 import { DsToastHost } from '../../components/DsToast'
 
+// 头像与标题输入井同高，两者在标题行里顶部对齐。
+const TITLE_ROW_GAP: number = 12
+const ADVANCED_HEADER_HEIGHT: number = 44
+// 头像对齐的是输入井而不是字段标签：标签行（含行高与 4vp 间距）实测 24vp。
+const TITLE_LABEL_OFFSET: number = 24
+
 @ComponentV2
 export struct EntryEditorView {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
@@ -44,18 +57,25 @@ export struct EntryEditorView {
   @Local private generatorSheetVisible: boolean = false
   @Local private generatorBottomBarHeight: number = 0
   @Local private groupPickerVisible: boolean = false
+  @Local private advancedExpanded: boolean = false
+  // 底部固定操作栏实测高度（vp），内容按它避让。
+  @Local private bottomBarHeight: number = 0
+  @Local private deleteBusy: boolean = false
   // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
   @Local private invalidFieldId: number = -1
   private readonly viewModel: AppViewModel = appViewModel
   private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
+  private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private bounce: BounceAnimator = new BounceAnimator()
 
   aboutToAppear(): void {
     this.passwordVisible = false
     this.invalidFieldId = -1
     this.loadEditor()
+    // 已有自定义字段或标签时默认展开，避免用户找不到自己的内容。
+    this.advancedExpanded = this.editor.customFields().length > 0 || this.editor.tags.length > 0
     this.onWillDismissCheck(() => this.onExternalDismissRequest())
   }
 
@@ -78,8 +98,25 @@ export struct EntryEditorView {
   }
 
   @Computed
-  get hasOtherFields(): boolean {
-    return this.editor.customFields().length > 0
+  get credentialFields(): TemplateFieldDefinition[] {
+    return this.definition.fields.filter((field: TemplateFieldDefinition) => field.reservedField !== 'Notes')
+  }
+
+  @Computed
+  get notesField(): TemplateFieldDefinition | undefined {
+    return this.definition.fields.find((field: TemplateFieldDefinition) => field.reservedField === 'Notes')
+  }
+
+  @Computed
+  get advancedMeta(): string {
+    const count: number = this.editor.customFields().length + this.editor.tags.length
+    return count === 0 ? '' : ResUtil.getStringSync($r('app.string.advanced_item_count'))
+      .replace('%s', `${count}`)
+  }
+
+  @Computed
+  get isNewEntry(): boolean {
+    return this.editor.entryUuid.length === 0
   }
 
   private releaseEditor(): void {
@@ -143,6 +180,7 @@ export struct EntryEditorView {
     if (invalidFieldKey !== 'title') {
       this.invalidFieldId = Number(invalidFieldKey)
       DsToastHost.show(this.getUIContext(), $r('app.string.field_name_required'))
+      this.advancedExpanded = true
     }
     this.scrollToField(invalidFieldKey)
   }
@@ -194,87 +232,153 @@ export struct EntryEditorView {
     return this.viewModel.currentSource().readOnly
   }
 
-  @Computed
-  get textInputButtonSize(): number {
-    const buttonHeight: number = ResUtil.getNumber($r('app.float.control_height').id)
-    const padding: number = ResUtil.getNumber($r('app.float.ds_space_xs').id)
-    return this.getUIContext().px2vp(buttonHeight - padding * 2)
+  private toggleFavorite(): void {
+    this.editor.favorite = !this.editor.favorite
+    // 新建条目还没有可写入的收藏位，先记在草稿上，保存后随条目落盘。
+    if (this.isNewEntry) {
+      return
+    }
+    this.viewModel.toggleFavorite(this.editor.entryUuid).then(() => {
+      this.editor.favorite = this.viewModel.entry(this.editor.entryUuid).favorite
+    })
+  }
+
+  private duplicateEntry(): void {
+    if (this.isNewEntry || this.viewModel.busy) {
+      return
+    }
+    this.viewModel.duplicateEntry(this.editor.entryUuid).then((uuid: string) => {
+      if (uuid.length > 0) {
+        DsToastHost.show(this.getUIContext(), $r('app.string.entry_copied'))
+      }
+    })
+  }
+
+  private openDeleteDialog(): void {
+    this.deleteBusy = false
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, {
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        cornerRadius: 0,
+        width: $r('app.float.dialog_width'),
+        alignment: DialogAlignment.Center,
+        maskColor: $r('app.color.ds_scrim'),
+      })
+  }
+
+  private runDelete(): void {
+    if (this.isNewEntry) {
+      return
+    }
+    this.deleteBusy = true
+    this.viewModel.deleteEntry(this.editor.entryUuid).then((deleted: boolean) => {
+      this.deleteBusy = false
+      this.deleteDialogController.close()
+      if (deleted) {
+        DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+        this.sheet.close()
+      }
+    })
   }
 
   @LocalBuilder
-  titleBuilder() {
-    FormTextField({
-      placeholder: $r('app.string.text_input_placeholder'),
+  private deleteDialog() {
+    DsDialog({
+      title: $r('app.string.delete_entry_title'),
+      message: $r('app.string.delete_entry_message'),
+      icon: $r('app.string.symbol_delete'),
+      tone: DsDialogTone.Error,
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.delete_entry'),
+      busy: this.deleteBusy,
+      onCancel: () => this.deleteDialogController.close(),
+      onConfirm: () => this.runDelete(),
+    })
+  }
+
+  @Computed
+  get titleFeedback(): ResourceStr | undefined {
+    return this.editor.titleController.status === Status.Invalid
+      ? this.editor.titleController.message : undefined
+  }
+
+  @LocalBuilder
+  private titleInput() {
+    DsInput({
       text: this.editor.title,
-      status: this.editor.titleController.status === Status.Invalid
-        ? FormTextFieldStatus.Warning : undefined,
-      onSheet: true,
+      placeholder: $r('app.string.text_input_placeholder'),
+      tone: this.editor.titleController.status === Status.Invalid ? DsInputTone.Error : DsInputTone.Default,
+      readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setTitle(value),
     })
   }
 
   @LocalBuilder
-  usernameBuilder() {
-    FormTextField({
-      placeholder: $r('app.string.text_input_placeholder'),
+  private usernameInput() {
+    DsInput({
       text: this.editor.username,
-      onSheet: true,
+      placeholder: $r('app.string.text_input_placeholder'),
+      readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setUsername(value),
     })
   }
 
   @LocalBuilder
-  passwordBuilder() {
-    FormTextField({
-      placeholder: $r('app.string.text_input_placeholder'),
-      text: this.editor.password,
-      type: InputType.Password,
-      showPassword: this.passwordVisible,
-      onSheet: true,
-      onChange: (value: string) => this.editor.setPassword(value),
-    }) {
+  private passwordTrailing() {
+    Row({ space: $r('app.float.ds_space_xs') }) {
       IconToggleButton({
         symbol: $r('app.string.symbol_eye_off'),
         symbolChecked: $r('app.string.symbol_eye'),
         checked: this.passwordVisible,
+        symbolColor: $r('app.color.ds_text_secondary'),
         accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
+        clickable: !this.readOnly,
         onToggle: () => this.passwordVisible = !this.passwordVisible,
       })
 
-      Divider()
-        .vertical(true)
-        .margin({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_6') })
-        .color($r('app.color.ds_outline_variant'))
-
-      Button({ type: ButtonType.Circle, stateEffect: true }) {
-        SymbolGlyph($r('app.string.symbol_generate'))
-          .fontSize(22)
-          .fontColor([$r('app.color.ds_primary')])
-          .scale({ x: this.bounce.scale, y: this.bounce.scale })
-      }
-      .width(this.textInputButtonSize)
-      .height(this.textInputButtonSize)
-      .backgroundColor(Color.Transparent)
-      .onClick(() => this.bounce.play(this.getUIContext(), () => this.openGeneratorSheet()))
+      IconToggleButton({
+        symbol: $r('app.string.symbol_generate'),
+        symbolColor: $r('app.color.ds_primary'),
+        accessibilityLabel: $r('app.string.generate_password'),
+        clickable: !this.readOnly,
+        onToggle: () => this.bounce.play(this.getUIContext(), () => this.openGeneratorSheet()),
+      })
     }
   }
 
   @LocalBuilder
-  urlBuilder() {
-    FormTextField({
+  private passwordInput() {
+    DsInput({
+      text: this.editor.password,
       placeholder: $r('app.string.text_input_placeholder'),
+      type: InputType.Password,
+      showPassword: this.passwordVisible,
+      readOnly: this.readOnly,
+      trailingBuilder: this.passwordTrailing,
+      onChange: (value: string) => this.editor.setPassword(value),
+    })
+  }
+
+  @LocalBuilder
+  private urlInput() {
+    DsInput({
       text: this.editor.url,
-      onSheet: true,
+      placeholder: $r('app.string.text_input_placeholder'),
+      readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setUrl(value),
     })
   }
 
   @LocalBuilder
-  notesBuilder() {
-    FormTextArea({
-      placeholder: $r('app.string.text_input_placeholder'),
+  private notesInput() {
+    DsInput({
       text: this.editor.notes,
-      onSheet: true,
+      placeholder: $r('app.string.text_input_placeholder'),
+      multiline: true,
+      minLines: 4,
+      readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setNotes(value),
     })
   }
@@ -282,46 +386,50 @@ export struct EntryEditorView {
   @LocalBuilder
   private templateFieldInput(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
     if (definition.multiline) {
-      FormTextArea({
-        placeholder: $r('app.string.text_input_placeholder'),
+      DsInput({
         text: field.value,
-        onSheet: true,
+        placeholder: $r('app.string.text_input_placeholder'),
+        multiline: true,
+        minLines: 4,
+        readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     } else if (definition.options.length > 0) {
-      FormTextField({
-        placeholder: $r('app.string.text_input_placeholder'),
+      DsInput({
         text: field.value,
-        onSheet: true,
-        prefixIcon: this.matchedOptionIcon(field, definition),
-        prefixSymbol: $r('app.string.symbol_credit_card'),
+        placeholder: $r('app.string.text_input_placeholder'),
+        readOnly: this.readOnly,
+        trailingBuilder: () => {
+          this.optionMenuButton(field, definition)
+        },
         onChange: (value: string) => this.editor.setFieldValue(field, value),
-      }) {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph($r('app.string.symbol_chevron_down'))
-            .fontSize($r('sys.float.Title_S'))
-            .fontColor([$r('app.color.ds_on_surface_variant')])
-        }
-        .width(this.textInputButtonSize)
-        .height(this.textInputButtonSize)
-        .backgroundColor(Color.Transparent)
-        .bindMenu(definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)))
-      }
+      })
     } else {
-      FormTextField({
-        placeholder: $r('app.string.text_input_placeholder'),
+      DsInput({
         text: field.value,
-        onSheet: true,
+        placeholder: $r('app.string.text_input_placeholder'),
+        readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     }
   }
 
-  // 取值由菜单快捷填入，也可手打：只有命中枚举才显示图标，不做兜底。
-  private matchedOptionIcon(field: EntryFieldEditor, definition: TemplateFieldDefinition): Resource | undefined {
-    const matched: TemplateFieldOption | undefined =
-      definition.options.find((option: TemplateFieldOption) => option.value === field.value)
-    return matched === undefined ? undefined : matched.icon
+  // 卡类型等固定取值：图标只在命中枚举时显示，下拉只是快捷填入。
+  @LocalBuilder
+  private optionMenuButton(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
+    DsButton({
+      variant: DsButtonVariant.Text,
+      tone: DsButtonTone.Default,
+      iconOnly: true,
+      controlHeightOverride: $r('app.float.ds_input_height_md'),
+      leadingIcon: $r('app.string.symbol_chevron_down'),
+      iconSizeOverride: $r('app.float.ds_icon_md'),
+      iconColorOverride: $r('app.color.ds_on_surface_variant'),
+      accessibilityLabelResource: $r('app.string.select_type'),
+      onTap: () => {
+      },
+    })
+      .bindMenu(definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)))
   }
 
   private optionMenuItem(field: EntryFieldEditor, option: TemplateFieldOption): MenuElement {
@@ -332,20 +440,18 @@ export struct EntryEditorView {
     }
   }
 
-  // 模板字段的字段名与类型由模板定义，草稿行只承载取值。
-  @Builder
+  @LocalBuilder
   private templateFieldRow(definition: TemplateFieldDefinition) {
-    FormItem({
+    DsField({
       label: definition.label,
       contentBuilder: () => {
         this.templateFieldInput(this.editor.templateField(definition.key)!, definition)
       },
     })
       .id(`field_${definition.key}`)
-      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
-  // 组件必须在 @Builder 作用域内创建：直接写进 FormItem 的箭头参数里不会被编译成组件创建
+  // 组件必须在 @Builder 作用域内创建：直接写进 contentBuilder 的箭头参数里不会被编译成组件创建
   @LocalBuilder
   private attachmentField() {
     EntryAttachmentField({
@@ -366,24 +472,22 @@ export struct EntryEditorView {
     })
   }
 
-  @Builder
+  @LocalBuilder
   private attachmentRow(definition: TemplateFieldDefinition) {
-    FormItem({
+    DsField({
       label: definition.label,
       contentBuilder: this.attachmentField,
     })
       .id('field_attachments')
-      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
-  @Builder
+  @LocalBuilder
   private sshKeysRow(definition: TemplateFieldDefinition) {
-    FormItem({
+    DsField({
       label: definition.label,
       contentBuilder: this.sshKeysField,
     })
       .id(`field_${definition.key}`)
-      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
   }
 
   @LocalBuilder
@@ -409,18 +513,295 @@ export struct EntryEditorView {
     })
   }
 
+  // 页头复用 DsPageHeader：标题 + 收藏 + 更多，更多承载复制副本与删除条目。
   @LocalBuilder
-  private otherFieldLabel() {
-    Row() {
-      Text($r('app.string.field_other'))
-        .fontColor($r('app.color.ds_text_secondary'))
-        .fontSize($r('sys.float.Body_M'))
-    }
-    .width('100%')
-    .padding({ left: $r('app.float.ds_space_16') })
+  private sheetHeader() {
+    DsPageHeader({
+      title: this.isNewEntry ? $r('app.string.new_entry') : $r('app.string.edit_entry'),
+      headerSize: DsPageHeaderSize.Small,
+      showBack: false,
+      actions: this.headerActions,
+    })
   }
 
-  @Builder
+  @Computed
+  get headerActions(): DsPageHeaderAction[] {
+    const actions: DsPageHeaderAction[] = [{
+      icon: this.editor.favorite ? $r('app.string.symbol_star_filled') : $r('app.string.symbol_star'),
+      label: this.editor.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
+      iconColor: this.editor.favorite ? $r('app.color.ds_primary') : $r('app.color.ds_text_tertiary'),
+      onTap: () => this.toggleFavorite(),
+    }]
+    if (!this.isNewEntry) {
+      actions.push({
+        icon: $r('app.string.symbol_more'),
+        label: $r('app.string.more'),
+        menuBuilder: this.overflowMenu,
+        onTap: () => {
+        },
+      })
+    }
+    return actions
+  }
+
+  @LocalBuilder
+  private overflowMenuItems() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_copy'),
+      label: $r('app.string.entry_menu_duplicate'),
+      onAction: () => this.duplicateEntry(),
+    })
+    if (!this.readOnly) {
+      DsMenuItem({
+        icon: $r('app.string.symbol_delete'),
+        label: $r('app.string.delete_entry'),
+        theme: DsMenuItemTheme.Error,
+        onAction: () => this.openDeleteDialog(),
+      })
+    }
+  }
+
+  @LocalBuilder
+  private overflowMenu() {
+    DsContextMenu({
+      content: this.overflowMenuItems,
+    })
+  }
+
+  // 头像与标题输入井对齐：字段标签行占 19，头像下沉同样高度后与输入井同顶。
+  @LocalBuilder
+  private titleRow() {
+    Row({ space: TITLE_ROW_GAP }) {
+      Column() {
+        EntryAvatarPicker({
+          title: this.editor.title,
+          avatarData: this.editor.avatarData,
+          readOnly: this.readOnly,
+          onPicked: (data: ArrayBuffer) => {
+            if (this.sheet.mode === EntrySheetMode.Edit) {
+              this.editor.setAvatar(data)
+            }
+          },
+          onReset: () => this.editor.clearAvatar(),
+        })
+      }
+      .padding({ top: TITLE_LABEL_OFFSET })
+
+      Column() {
+        DsField({
+          label: $r('app.string.entry_title'),
+          required: true,
+          feedback: this.titleFeedback,
+          reserveFeedbackSpace: true,
+          contentBuilder: this.titleInput,
+        })
+          .id('field_title')
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Top)
+  }
+
+  @LocalBuilder
+  private groupRow() {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      Text($r('app.string.group'))
+        .fontSize($r('app.float.ds_font_label_md'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_primary'))
+
+      Row({ space: $r('app.float.ds_space_md') }) {
+        SymbolGlyph($r('app.string.symbol_folder_filled'))
+          .fontSize($r('app.float.ds_icon_md'))
+          .fontColor([$r('app.color.ds_text_primary')])
+          .foregroundColor($r('app.color.ds_text_primary'))
+
+        Column({ space: $r('app.float.ds_space_2') }) {
+          Text(this.editor.groupName)
+            .fontSize($r('app.float.ds_font_title'))
+            .fontWeight(600)
+            .fontColor($r('app.color.ds_text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.editor.groupPath)
+            .fontSize($r('app.float.ds_font_body_sm'))
+            .fontColor($r('app.color.ds_text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        if (!this.readOnly) {
+          SymbolGlyph($r('app.string.symbol_chevron_right'))
+            .fontSize($r('app.float.ds_icon_md'))
+            .fontColor([$r('app.color.ds_text_secondary')])
+            .foregroundColor($r('app.color.ds_text_secondary'))
+        }
+      }
+      .width('100%')
+      .height(64)
+      .padding($r('app.float.ds_space_md'))
+      .backgroundColor($r('app.color.ds_surface_low'))
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        if (!this.readOnly) {
+          this.groupPickerVisible = true
+        }
+      })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private basicBlock() {
+    Column({ space: $r('app.float.ds_space_md') }) {
+      this.titleRow()
+      this.groupRow()
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private credentialBlock() {
+    Column({ space: $r('app.float.ds_space_16') }) {
+      Text(this.definition.name)
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_tertiary'))
+
+      ForEach(this.credentialFields, (definition: TemplateFieldDefinition) => {
+        if (definition.reservedField === 'UserName') {
+          DsField({
+            label: definition.label,
+            contentBuilder: this.usernameInput,
+          })
+            .id('field_username')
+        } else if (definition.reservedField === 'Password') {
+          Column({ space: $r('app.float.ds_space_sm') }) {
+            DsField({
+              label: definition.label,
+              contentBuilder: this.passwordInput,
+            })
+              .id('field_password')
+
+            if (this.editor.password.length > 0) {
+              DsStrengthMeter({ password: this.editor.password })
+            }
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+        } else if (definition.reservedField === 'URL') {
+          DsField({
+            label: definition.label,
+            contentBuilder: this.urlInput,
+          })
+            .id('field_url')
+        } else if (definition.attachments) {
+          this.attachmentRow(definition)
+        } else if (definition.sshKeys) {
+          this.sshKeysRow(definition)
+        } else {
+          this.templateFieldRow(definition)
+        }
+      }, (definition: TemplateFieldDefinition) => definition.key)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private notesBlock() {
+    if (this.notesField !== undefined) {
+      DsField({
+        label: this.notesField.label,
+        contentBuilder: this.notesInput,
+      })
+        .id('field_notes')
+    }
+  }
+
+  @LocalBuilder
+  private advancedHeader() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Text($r('app.string.advanced'))
+        .fontSize($r('app.float.ds_font_label_md'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_primary'))
+
+      Text(this.advancedMeta)
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_tertiary'))
+        .layoutWeight(1)
+
+      SymbolGlyph(this.advancedExpanded ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'))
+        .fontSize($r('app.float.ds_icon_md'))
+        .fontColor([$r('app.color.ds_text_tertiary')])
+        .foregroundColor($r('app.color.ds_text_tertiary'))
+    }
+    .width('100%')
+    .height(ADVANCED_HEADER_HEIGHT)
+    .alignItems(VerticalAlign.Center)
+    .onClick(() => {
+      this.getUIContext().animateTo({
+        duration: AnimationTokens.STATE_TRANSITION_DURATION,
+        curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      }, () => {
+        this.advancedExpanded = !this.advancedExpanded
+      })
+    })
+  }
+
+  @LocalBuilder
+  private advancedContent() {
+    Column({ space: $r('app.float.ds_space_md') }) {
+      this.customFieldsBuilder()
+
+      if (!this.readOnly || this.editor.tags.length > 0) {
+        DsField({
+          label: $r('app.string.tags'),
+          contentBuilder: this.tagsBuilder,
+        })
+          .id('field_tags')
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    // 展开与折叠都走同一条过渡，折叠时不会只有淡出。
+    .transition(LIST_ROW_FADE_IN)
+  }
+
+  @LocalBuilder
+  private advancedBlock() {
+    Column({ space: $r('app.float.ds_space_md') }) {
+      this.advancedHeader()
+
+      if (this.advancedExpanded) {
+        this.advancedContent()
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private readOnlyNotice() {
+    if (this.readOnly) {
+      DsNotice({
+        tone: DsNoticeTone.Default,
+        title: $r('app.string.read_only'),
+        body: $r('app.string.read_only_notice_body'),
+      })
+    }
+  }
+
+  @LocalBuilder
   private generatorBottomActions() {
     Row({ space: $r('app.float.ds_space_sm') }) {
       Row() {
@@ -488,59 +869,11 @@ export struct EntryEditorView {
   private generatorSheet() {
     DsHalfModalSheet({
       title: $r('app.string.generate_password'),
-      actions: this.generatorActions(),
+      actions: [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeGeneratorSheet() }],
       bodyBuilder: this.generatorBody,
       bottomBarBuilder: this.generatorBottomBar,
       contentBehindTitleBar: true,
     })
-  }
-
-  private generatorActions(): DsPageHeaderAction[] {
-    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeGeneratorSheet() }]
-  }
-
-  @LocalBuilder
-  private groupBuilder() {
-    Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('app.float.ds_space_sm') }) {
-        Stack() {
-          SymbolGlyph($r('app.string.symbol_folder_filled'))
-            .fontSize($r('sys.float.Title_L'))
-            .fontColor([$r('app.color.ds_primary')])
-        }
-        .padding($r('app.float.ds_space_xs'))
-        .borderRadius('50%')
-        .backgroundColor($r('app.color.ds_surface_high'))
-
-        Column({ space: $r('app.float.ds_space_2') }) {
-          Text(this.editor.groupName)
-            .fontSize($r('sys.float.Subtitle_L'))
-            .fontColor($r('app.color.ds_text_primary'))
-            .fontWeight(FontWeight.Medium)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.editor.groupPath)
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('app.color.ds_text_secondary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        if (!this.readOnly) {
-          SymbolGlyph($r('app.string.symbol_chevron_right'))
-            .fontSize($r('sys.float.Title_S'))
-            .fontColor([$r('app.color.ds_text_secondary')])
-        }
-      }
-      .width('100%')
-    }
-    .padding($r('app.float.ds_space_sm'))
-    .backgroundColor($r('app.color.ds_surface_high'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .enabled(!this.readOnly)
-    .onClick(() => this.groupPickerVisible = true)
   }
 
   // 选择器自带标题栏与菜单，半模态壳只配容器参数；与编辑半模态同高，故不设挡位。
@@ -581,139 +914,84 @@ export struct EntryEditorView {
   @LocalBuilder
   private editorBody() {
     Scroll(this.scroller) {
-        Column() {
-          EntryAvatarPicker({
-            title: this.editor.title,
-            avatarData: this.editor.avatarData,
-            readOnly: this.readOnly,
-            onPicked: (data: ArrayBuffer) => {
-              if (this.sheet.mode === EntrySheetMode.Edit) {
-                this.editor.setAvatar(data)
-              }
-            },
-            onReset: () => this.editor.clearAvatar(),
-          })
-            .margin({ bottom: $r('app.float.ds_space_md') })
-
-          FormItem({ label: $r('app.string.group'), contentBuilder: this.groupBuilder })
-            .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-
-          FormItem({
-            label: $r('app.string.entry_title'),
-            contentBuilder: this.titleBuilder,
-            value: this.editor.title,
-            schema: this.editor.titleSchema,
-            controller: this.editor.titleController,
-            reserveFeedbackSpace: true,
-            required: true,
-          })
-            .id('field_title')
-            .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-
-
-          ForEach(this.definition.fields, (definition: TemplateFieldDefinition) => {
-            if (definition.reservedField === 'UserName') {
-              FormItem({
-                label: definition.label,
-                contentBuilder: this.usernameBuilder,
-                value: this.editor.username,
-              })
-                .id('field_username')
-                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-            } else if (definition.reservedField === 'Password') {
-              FormItem({
-                label: definition.label,
-                contentBuilder: this.passwordBuilder,
-                value: this.editor.password,
-              })
-                .id('field_password')
-                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-
-              Row() {
-                PasswordStrengthIndicator({ password: this.editor.password })
-              }
-              .width('100%')
-              .padding({ left: $r('app.float.ds_space_16'), right: $r('app.float.ds_space_16') })
-              .margin({ bottom: $r('app.float.ds_space_md') })
-            } else if (definition.reservedField === 'URL') {
-              FormItem({
-                label: definition.label,
-                contentBuilder: this.urlBuilder,
-                value: this.editor.url,
-              })
-                .id('field_url')
-                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-            } else if (definition.reservedField === 'Notes') {
-              FormItem({
-                label: definition.label,
-                contentBuilder: this.notesBuilder,
-                value: this.editor.notes,
-              })
-                .id('field_notes')
-                .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-            } else if (definition.attachments) {
-              this.attachmentRow(definition)
-            } else if (definition.sshKeys) {
-              this.sshKeysRow(definition)
-            } else {
-              this.templateFieldRow(definition)
-            }
-          }, (definition: TemplateFieldDefinition) => definition.key)
-
-          if (!this.readOnly || this.hasOtherFields) {
-            FormItem({
-              labelBuilder: this.otherFieldLabel,
-              contentBuilder: this.customFieldsBuilder,
-            })
-              .id('field_other')
-          }
-
-          if (!this.readOnly || this.editor.tags.length > 0) {
-            FormItem({
-              label: $r('app.string.tags'),
-              contentBuilder: this.tagsBuilder,
-            })
-              .id('field_tags')
-              .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-          }
-        }
-        .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({
-          top: $r('app.float.ds_space_lg'),
-          bottom: this.bottomOffset,
-        })
+      Column({ space: $r('app.float.ds_space_24') }) {
+        this.readOnlyNotice()
+        this.basicBlock()
+        this.credentialBlock()
+        this.notesBlock()
+        this.advancedBlock()
       }
       .width('100%')
-      .height('100%')
-      .id('entry_edit_scroll')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .onTouch(() => this.viewModel.recordActivity())
-      .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), dsSheetOptions({
-        onDisappear: () => this.closeGeneratorSheet(),
-      }))
-      .clip(false)
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .padding({
+        top: $r('app.float.ds_space_sm'),
+        // 底部固定操作栏浮在内容上，按实测高度避让，否则「高级」区永远滚不出来。
+        bottom: this.bottomBarHeight + this.bottomOffset,
+        left: $r('app.float.ds_gutter'),
+        right: $r('app.float.ds_gutter'),
+      })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .height('100%')
+    .id('entry_edit_scroll')
+    .scrollBar(BarState.Off)
+    // alwaysEnabled：内容不足一屏时也由滚动容器接管竖向手势，避免上下滑动拖动整个半模态。
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
+    .onTouch(() => this.viewModel.recordActivity())
+    .bindSheet($$this.generatorSheetVisible, this.generatorSheet(), dsSheetOptions({
+      onDisappear: () => this.closeGeneratorSheet(),
+    }))
+    .clip(false)
   }
 
-  private editorActions(): DsPageHeaderAction[] {
-    return [
-      {
-        icon: $r('app.string.symbol_check'),
-        label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
-        onTap: () => this.saveEntry(),
+  @LocalBuilder
+  private bottomActions() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Column() {
+        DsButton({
+          label: $r('app.string.cancel'),
+          tone: DsButtonTone.Default,
+          fullWidth: true,
+          disabled: this.viewModel.busy,
+          onTap: () => this.requestExit(),
+        })
+      }
+      .layoutWeight(1)
+
+      Column() {
+        DsButton({
+          label: this.viewModel.busy ? $r('app.string.saving') : $r('app.string.save'),
+          fullWidth: true,
+          disabled: this.viewModel.busy || this.readOnly,
+          onTap: () => this.saveEntry(),
+        })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  @LocalBuilder
+  private bottomBar() {
+    DsBottomActionBar({
+      onHeightChange: (height: number) => {
+        this.bottomBarHeight = height
       },
-      { icon: $r('app.string.symbol_close'), label: $r('app.string.cancel'), onTap: () => this.requestExit() },
-    ]
+      contentBuilder: () => {
+        this.bottomActions()
+      },
+    })
   }
 
   build() {
     Stack() {
       DsHalfModalSheet({
-        title: this.sheet.entryUuid.length === 0
-          ? $r('app.string.new_entry') : $r('app.string.edit'),
-        actions: this.editorActions(),
+        titleBarBuilder: this.sheetHeader,
+        // 不绑定滚动容器时标题栏材质常驻，内容还没上移就先出现一条模糊带。
+        scrollableScroller: this.scroller,
         bodyBuilder: this.editorBody,
+        bottomBarBuilder: this.readOnly ? undefined : this.bottomBar,
       })
     }
     .width('100%')

@@ -1,8 +1,9 @@
-import { ChipV2, ChipV2Label, ChipV2Options, LengthMetrics, matrix4 } from '@kit.ArkUI'
+import { LengthMetrics, matrix4 } from '@kit.ArkUI'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntryAvatar } from '../../components/EntryAvatar'
+import { DsTag, DsTagSize } from '../../components/DsTag'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import {
   AnimationTokens,
@@ -136,6 +137,7 @@ struct Cell {
               .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
               .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
               .fontColor([$r('app.color.ds_primary')])
+              .foregroundColor($r('app.color.ds_primary'))
           }
 
           Column({ space: $r('app.float.ds_space_xs') }) {
@@ -914,6 +916,7 @@ export struct EntryPreviewView {
               Row({ space: $r('app.float.ds_space_xs') }) {
                 SymbolGlyph($r('app.string.symbol_folder')).fontSize($r('sys.float.Body_M'))
                   .fontColor([$r('app.color.ds_text_secondary')])
+                  .foregroundColor($r('app.color.ds_text_secondary'))
                 Text(this.sheet.groupPath)
                   .fontSize($r('sys.float.Body_M'))
                   .fontColor($r('app.color.ds_text_secondary'))
@@ -1001,6 +1004,7 @@ export struct EntryPreviewView {
                   .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
                   .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
                   .fontColor([$r('app.color.ds_primary')])
+                  .foregroundColor($r('app.color.ds_primary'))
                 Flex({
                   wrap: FlexWrap.Wrap, space: {
                     main: LengthMetrics.resource($r('app.float.ds_space_sm')),
@@ -1008,11 +1012,9 @@ export struct EntryPreviewView {
                   },
                 }) {
                   ForEach(this.sheet.tags, (tag: string) => {
-                    ChipV2({
-                      chipV2Options: new ChipV2Options({
-                        label: new ChipV2Label({ text: tag }),
-                        allowClose: false,
-                      }),
+                    DsTag({
+                      tagSize: DsTagSize.Medium,
+                      text: tag,
                     })
                   }, (tag: string) => tag)
                 }

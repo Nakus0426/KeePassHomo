@@ -33,7 +33,7 @@
 | `titleBarBuilder` | `@BuilderParam` | 整条自定义标题栏（如分组选择带搜索栏）；传了则忽略 title/showBack/actions。 |
 | `titleBarBottomBuilder` | `@BuilderParam` | 可选，标题栏底部扩展区（如搜索行 + 面包屑），随标题栏材质一起悬浮。 |
 | `titleBarBottomHeight` | `Length` | 扩展区高度；HDS 用它计入标题栏占位与遮罩。 |
-| `scrollableScroller` | `Scroller` | 可选，绑定内容滚动容器；设置后标题栏启用 `GRADIENT_BLUR` 滚动效果。 |
+| `scrollableScroller` | `Scroller` | 内容区有滚动容器时必填；不绑定则标题栏材质常驻，内容还没滚到顶部就出现模糊带（模板选择器踩过）。 |
 | `bodyBuilder` | `@BuilderParam` | 必填，内容区；内容自带 `Scroll/List.clip(false)`。 |
 | `bottomBarBuilder` | `@BuilderParam` | 可选，底部操作区，通常放 `DsBottomActionBar`。 |
 | `contentBehindTitleBar` | `boolean` | 默认 `false`（内容避让标题栏）；`true` 时内容绘制到标题栏下方，用于沉浸式预览。 |

@@ -112,6 +112,7 @@ export struct SshKeyGeneratorSheet {
       SymbolGlyph($r('app.string.symbol_info'))
         .fontSize($r('sys.float.Subtitle_L'))
         .fontColor([$r('app.color.ds_primary')])
+        .foregroundColor($r('app.color.ds_primary'))
 
       if (type === SshKeyType.Ed25519) {
         Text($r('app.string.ssh_key_tip_ed25519'))

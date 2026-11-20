@@ -70,7 +70,7 @@ export const FIELD_TYPE_DEFINITIONS: FieldTypeDefinition[] = [
     type: VaultFieldType.Custom,
     label: $r('app.string.field_type_custom'),
     description: $r('app.string.field_type_custom_desc'),
-    defaultName: '',
+    defaultName: '自定义',
     icon: $r('app.media.field_type_custom'),
     wordBreak: WordBreak.BREAK_ALL,
   },

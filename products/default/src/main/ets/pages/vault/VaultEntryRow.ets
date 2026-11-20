@@ -135,17 +135,13 @@ export struct VaultEntryRow {
     }
     .width('100%')
     .clip(true)
-    .height(this.row.leaving ? 0 : $r('app.float.ds_entry_row_height'))
-    .opacity(this.row.leaving ? 0 : 1)
+    .height($r('app.float.ds_entry_row_height'))
     .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
     .backgroundColor(this.pressed
       ? $r('app.color.ds_surface_highest')
       : (this.hovered || this.selected ? $r('app.color.ds_surface_hover') : $r('app.color.ds_surface_canvas')))
-    // 离场由隐式动画驱动：V2 的行状态刷新时机早于首页的 animateTo 上下文，显式动画可能拿不到目标属性。
-    .animation({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-    })
+    // 离场收高与倒塌由 DsListRowMotion 承担，这里只保留底色切换的反馈动画。
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
     .onHover((isHover: boolean) => {
       this.hovered = isHover
     })

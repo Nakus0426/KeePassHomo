@@ -15,6 +15,7 @@ export struct PageTopBar {
           SymbolGlyph($r('app.string.symbol_chevron_left'))
             .fontSize(22)
             .fontColor([$r('sys.color.brand')])
+            .foregroundColor($r('sys.color.brand'))
         }
         .width($r('app.float.control_height'))
         .height($r('app.float.control_height'))
@@ -31,6 +32,7 @@ export struct PageTopBar {
           SymbolGlyph($r('app.string.symbol_lock_filled'))
             .fontSize(22)
             .fontColor([$r('sys.color.brand')])
+            .foregroundColor($r('sys.color.brand'))
         }
         .width($r('app.float.control_height'))
         .height($r('app.float.control_height'))

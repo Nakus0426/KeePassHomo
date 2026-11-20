@@ -394,6 +394,7 @@ export class AppViewModel {
     // 未标记类型的条目（其他客户端创建）按通用模板编辑，保存时不回写类型。
     editor.template = entry.template ?? ItemTemplate.Login
     editor.title = entry.title
+    editor.favorite = entry.favorite
     editor.setGroup(this.requireGroup(entry.groupUuid))
     editor.username = stageOneVaultStore.field(entry, 'UserName')
     editor.password = stageOneVaultStore.field(entry, 'Password')
@@ -458,6 +459,10 @@ export class AppViewModel {
         editor.attachmentChanges())
       // 采纳落盘后的条目标识：同一次编辑会话内再次保存走更新，不会重复创建条目。
       editor.entryUuid = saved.uuid
+      // 收藏不是 KDBX 字段，由引擎单独写入；新建条目只能在拿到 uuid 后补写。
+      if (saved.favorite !== editor.favorite) {
+        await stageOneVaultStore.setFavorite(saved.uuid, editor.favorite)
+      }
       // 附件名可能被引擎去重改名，按落盘结果重建草稿。
       editor.syncAttachments(saved.attachments)
       editor.markSaved()
@@ -586,6 +591,20 @@ export class AppViewModel {
     } finally {
       this.busy = false
     }
+  }
+
+  // 复制为副本：沿用同一份草稿另存一条新条目，标题加后缀避免与源条目混淆。
+  async duplicateEntry(entryUuid: string): Promise<string> {
+    const editor: EntryEditorViewModel = new EntryEditorViewModel()
+    this.loadEntryForEdit(editor, entryUuid)
+    editor.title = `${editor.title}${ResUtil.getStringSync($r('app.string.entry_copy_suffix'))}`
+    // 副本按新建处理：清空 uuid 与新建才消费的模板类型；头像要重新标记为写入，否则保持原值不会落盘。
+    editor.entryUuid = ''
+    if (editor.avatarData !== undefined) {
+      editor.setAvatar(editor.avatarData)
+    }
+    const saved: boolean = await this.saveEntry(editor)
+    return saved ? editor.entryUuid : ''
   }
 
   async deleteEntry(entryUuid: string): Promise<boolean> {

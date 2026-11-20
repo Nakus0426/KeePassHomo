@@ -61,14 +61,6 @@
       "value": "48vp"
     },
     {
-      "name": "text_area_min_height",
-      "value": "96vp"
-    },
-    {
-      "name": "text_area_max_height",
-      "value": "160vp"
-    },
-    {
       "name": "ds_space_2",
       "value": "2vp"
     },

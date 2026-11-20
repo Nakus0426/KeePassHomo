@@ -40,6 +40,7 @@ export struct GridComponent {
               this.getUIContext().getRouter().back();
             })
             .fontColor([$r('sys.color.titlebar_icon_color')])
+            .foregroundColor($r('sys.color.titlebar_icon_color'))
         }
         .width($r('app.float.arrow_width'))
         .borderRadius($r('app.float.arrow_left_borderRadius'))

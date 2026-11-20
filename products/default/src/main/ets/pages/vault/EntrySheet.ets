@@ -14,8 +14,8 @@ export struct EntrySheet {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Local private session: AppSessionState = appSessionState
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  // 由 onHeightDidChange 回传的面板高度（vp），未回调前为 0。
-  @Local private sheetHeightVp: number = 0
+  // 系统回传的面板高度（vp，含键盘避让），未回调前为 0。
+  @Local private panelHeightVp: number = 0
   // 草稿归编辑体所有，宿主只能在收起前问它；形态或条目变化时必须重置以免回调残留。
   private childHandler: (() => void) | undefined = undefined
   private readonly viewModel: AppViewModel = appViewModel
@@ -62,6 +62,13 @@ export struct EntrySheet {
     return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + gapPx)
   }
 
+  // 半模态内容层按整屏高度布局（HdsNavigation 内部的 100% 在无界 Scroll 内按窗口解析），
+  // 比面板高出面板顶部内缩量，拖拽标题栏时整页会跟着滑走；按面板高度定高后该层没有可滚动余量。
+  @Computed
+  private get contentHeight(): Length {
+    return this.panelHeightVp > 0 ? this.panelHeightVp : '100%'
+  }
+
   private confirmDiscard(): void {
     const options: AlertDialogParamWithButtons = {
       title: $r('app.string.unsaved_title'),
@@ -91,8 +98,6 @@ export struct EntrySheet {
 
   @Builder
   private sheetContent() {
-    // 半模态自身的内容层按整屏高度布局（HdsNavigation 内部的 100% 在无界 Scroll 内按窗口解析），
-    // 比面板高出面板顶部内缩量，拖拽标题栏时整页会跟着滑走；按面板高度定高后该层没有可滚动余量。
     Column() {
       if (this.sheet.mode === EntrySheetMode.Preview) {
         EntryPreviewView({
@@ -112,7 +117,7 @@ export struct EntrySheet {
       }
     }
     .width('100%')
-    .height(this.sheetHeightVp > 0 ? this.sheetHeightVp : '100%')
+    .height(this.contentHeight)
   }
 
   build() {
@@ -120,8 +125,11 @@ export struct EntrySheet {
       .width(0)
       .height(0)
       .bindSheet(this.sheet.visible, this.sheetContent(), dsSheetOptions({
+        // 面板不随键盘收缩、也不位移：键盘弹起时底部操作栏留在原位被键盘盖住，不做避让。
+        // 收缩（RESIZE_ONLY）会让 HdsNavigation 在已收缩的面板里再避让一次，内容被裁两次。
+        keyboardAvoidMode: SheetKeyboardAvoidMode.NONE,
         onHeightDidChange: (heightPx: number) => {
-          this.sheetHeightVp = this.getUIContext().px2vp(heightPx)
+          this.panelHeightVp = this.getUIContext().px2vp(heightPx)
         },
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
         onDisappear: () => this.sheet.onDismissed(),

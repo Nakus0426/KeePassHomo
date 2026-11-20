@@ -20,8 +20,9 @@ struct VaultHeaderBar {
   @Local private titleColumnWidth: number = 0
   @Local private versionTagWidth: number = 0
 
-  @Computed
-  get vaultName(): string {
+  // 不能写成 @Computed：@Computed 在组件构造期求值，未选保险库时 currentSource 会抛错，
+  // 而 hasRecentVault 只在 build 里挡住渲染，挡不住构造。
+  private vaultName(): string {
     return this.app.vaultDisplayName()
   }
 
@@ -49,7 +50,7 @@ struct VaultHeaderBar {
 
         if (this.app.hasRecentVault()) {
           Row({ space: $r('app.float.ds_space_6') }) {
-            Text(this.vaultName)
+            Text(this.vaultName())
               .fontSize($r('app.float.ds_font_label_sm'))
               .fontWeight(500)
               .fontColor($r('app.color.ds_text_secondary'))

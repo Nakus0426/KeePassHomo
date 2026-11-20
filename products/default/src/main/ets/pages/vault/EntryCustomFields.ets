@@ -1,12 +1,22 @@
-import { ListItemModifier } from '@kit.ArkUI'
-import { HdsListItem } from '@kit.UIDesignKit'
+import { LengthMetrics } from '@kit.ArkUI'
 import { AnimationTokens, VaultFieldType } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { FIELD_TYPE_DEFINITIONS, FieldTypeDefinition, fieldTypeDefinition } from '../../model/FieldTypeCatalog'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { EntryEditorViewModel, EntryFieldEditor } from '../../viewmodel/EntryEditorViewModel'
+import { appViewModel, AppViewModel } from '../../viewmodel/AppViewModel'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
-import { DsPageHeaderAction } from '../../components/DsPageHeader'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
+import { DsInput, DsInputVariant } from '../../components/DsInput'
+import { IconToggleButton } from '../../components/IconToggleButton'
+import { DsButton, DsButtonVariant, DsButtonTone } from '../../components/DsButton'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsListRowMotion } from '../../components/DsListRowMotion'
+import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
+
+import { DsMenuGroup } from '../../components/DsMenuGroup'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { DsToastHost } from '../../components/DsToast'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；与模板选择器同档，按组件宽度切档，宽度由列数均分。
 const FIELD_TYPE_CARD_COLUMNS: GridRowColumnOption = {
@@ -21,6 +31,9 @@ const FIELD_TYPE_CARD_BREAKPOINTS: string[] = ['320vp', '600vp', '840vp']
 
 // 掩码上限：避免撑成多行，也不暴露密码完整长度。
 const PASSWORD_MASK_MAX: number = 12
+// 名称与值的行高：预览与沉浸编辑共用同一值，进出编辑态卡片高度不变。
+const FIELD_NAME_LINE_HEIGHT: number = 18
+const FIELD_LINE_HEIGHT: number = 20
 
 @ComponentV2
 export struct EntryCustomFields {
@@ -34,39 +47,31 @@ export struct EntryCustomFields {
   @Event onActivity: () => void = () => {
   }
   @Local private typeSheetVisible: boolean = false
-  @Local private editingFieldId: number = -1
-  @Local private editingName: boolean = false
+  // 名称与值各自独立编辑：-1 表示该行不在编辑态。
+  @Local private editingNameFieldId: number = -1
+  @Local private editingValueFieldId: number = -1
+  @Local private draftName: string = ''
+  @Local private draftValue: string = ''
+  // 新建字段的名称需要全选，只在首次取焦的实例上生效。
+  @Local private selectAllName: boolean = false
+  // 预览态被点开的密码字段：-1 表示全部掩码。
+  @Local private visibleFieldId: number = -1
+  @Local private pressedFieldId: number = -1
+  @Local private hoveredFieldId: number = -1
+  // 正在离场的字段：卡片据此收高倒塌，动画结束后才删数据。
+  @Local private removingFieldId: number = -1
+  // 从菜单点删除时先记下，等菜单退场完再启动离场动画，否则整段动画被菜单遮住。
+  private pendingDeleteFieldId: number = -1
   private pendingDefinition: FieldTypeDefinition | undefined = undefined
-  // HdsListItem 不支持通用属性，间距与增删转场经 ListItemModifier 下发。
-  // animation 必须挂在组合链首个效果上，否则不会作用于后面的 scale。
-  private readonly fieldCardItemModifier: ListItemModifier = new ListItemModifier()
-    .margin({ bottom: $r('app.float.ds_space_sm') })
-    .transition(TransitionEffect.asymmetric(
-      TransitionEffect.OPACITY
-        .animation({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        })
-        .combine(TransitionEffect.scale({
-          x: AnimationTokens.CARD_ENTER_SCALE,
-          y: AnimationTokens.CARD_ENTER_SCALE,
-        })),
-      TransitionEffect.OPACITY
-        .animation({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        })
-        .combine(TransitionEffect.scale({
-          x: AnimationTokens.CARD_EXIT_SCALE,
-          y: AnimationTokens.CARD_EXIT_SCALE,
-        })),
-    ))
+  private readonly viewModel: AppViewModel = appViewModel
 
+  // 会话关闭即作废待删登记：换成另一条目后菜单才收起，会误删同 id 的字段。
   @Monitor('active')
   onActiveChanged(): void {
     if (!this.active) {
       this.typeSheetVisible = false
       this.pendingDefinition = undefined
+      this.pendingDeleteFieldId = -1
       this.closeCellEdit()
     }
   }
@@ -94,12 +99,11 @@ export struct EntryCustomFields {
       return
     }
     this.pendingDefinition = undefined
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-    }, () => {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => {
       this.editor.addField(definition.type, definition.defaultName)
-      this.openCellEdit(this.editor.fields[this.editor.fields.length - 1].id, true)
+      const field: EntryFieldEditor = this.editor.fields[this.editor.fields.length - 1]
+      this.openNameEdit(field)
+      this.selectAllName = true
     })
   }
 
@@ -109,41 +113,140 @@ export struct EntryCustomFields {
     this.closeTypeSheet()
   }
 
+  // 先在原位收高、后倾倒塌，动画结束后才删数据：卡片始终留在自己的位置，不会浮到其他卡片之上。
   private deleteField(field: EntryFieldEditor): void {
+    if (this.removingFieldId !== -1) {
+      return
+    }
+    if (field.id === this.editingNameFieldId || field.id === this.editingValueFieldId) {
+      this.closeCellEdit()
+    }
     this.getUIContext().animateTo({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      curve: AnimationTokens.EASE_EXIT,
+      onFinish: () => {
+        // 会话已关闭（切条目/收起面板）时不再写回，避免动画结束落在已释放的草稿上。
+        if (!this.active) {
+          return
+        }
+        this.editor.removeField(field)
+        if (field.id === this.invalidFieldId) {
+          this.onInvalidCleared()
+        }
+        this.removingFieldId = -1
+      },
     }, () => {
-      this.editor.removeField(field)
-      if (field.id === this.editingFieldId) {
-        this.closeCellEdit()
-      }
-      if (field.id === this.invalidFieldId) {
-        this.onInvalidCleared()
-      }
+      this.removingFieldId = field.id
     })
     this.onActivity()
   }
 
-  private openCellEdit(fieldId: number, name: boolean): void {
-    this.editingFieldId = fieldId
-    this.editingName = name
+  // 菜单项只登记待删字段：菜单退场动画与预览浮层会遮住卡片，等它消失再开始离场。
+  private requestDeleteFromMenu(field: EntryFieldEditor): void {
+    this.pendingDeleteFieldId = field.id
+  }
+
+  private onFieldMenuDisappear(): void {
+    const fieldId: number = this.pendingDeleteFieldId
+    if (fieldId === -1) {
+      return
+    }
+    this.pendingDeleteFieldId = -1
+    const field: EntryFieldEditor | undefined =
+      this.customFields.find((item: EntryFieldEditor) => item.id === fieldId)
+    if (field === undefined) {
+      return
+    }
+    this.deleteField(field)
+  }
+
+  private openNameEdit(field: EntryFieldEditor): void {
+    if (this.readOnly) {
+      return
+    }
+    this.onActivity()
+    this.draftName = field.name
+    this.selectAllName = false
+    this.editingNameFieldId = field.id
+  }
+
+  private openValueEdit(field: EntryFieldEditor): void {
+    if (this.readOnly) {
+      return
+    }
+    this.onActivity()
+    this.draftValue = field.value
+    this.editingValueFieldId = field.id
   }
 
   private closeCellEdit(): void {
-    this.editingFieldId = -1
+    this.editingNameFieldId = -1
+    this.editingValueFieldId = -1
+    this.draftName = ''
+    this.draftValue = ''
+    this.selectAllName = false
   }
 
-  private isEditingName(fieldId: number): boolean {
-    return this.editingFieldId === fieldId && this.editingName
+  // 输入即写回，所见即所得；失焦只负责退出编辑态。空名保留上次有效名称，由保存校验拦截新建空名。
+  private changeName(field: EntryFieldEditor, value: string): void {
+    this.draftName = value
+    const name: string = value.trim()
+    if (name.length === 0) {
+      return
+    }
+    this.editor.renameField(field, name)
+    if (field.id === this.invalidFieldId) {
+      this.onInvalidCleared()
+    }
   }
 
-  private isEditingValue(fieldId: number): boolean {
-    return this.editingFieldId === fieldId && !this.editingName
+  private exitNameEdit(field: EntryFieldEditor): void {
+    if (this.editingNameFieldId !== field.id) {
+      return
+    }
+    const empty: boolean = this.draftName.trim().length === 0
+    this.editingNameFieldId = -1
+    this.selectAllName = false
+    this.draftName = ''
+    if (empty) {
+      DsToastHost.show(this.getUIContext(), $r('app.string.field_name_required'))
+    }
+    this.onActivity()
   }
 
+  private changeValue(field: EntryFieldEditor, value: string): void {
+    this.draftValue = value
+    this.editor.setFieldValue(field, value)
+  }
+
+  private exitValueEdit(field: EntryFieldEditor): void {
+    if (this.editingValueFieldId !== field.id) {
+      return
+    }
+    this.editingValueFieldId = -1
+    this.draftValue = ''
+    this.onActivity()
+  }
+
+  private isEditingName(field: EntryFieldEditor): boolean {
+    return this.editingNameFieldId === field.id
+  }
+
+  private isEditingValue(field: EntryFieldEditor): boolean {
+    return this.editingValueFieldId === field.id
+  }
+
+  private nameFocusKey(field: EntryFieldEditor): string {
+    return `field_name_${field.id}`
+  }
+
+  private valueFocusKey(field: EntryFieldEditor): string {
+    return `field_value_${field.id}`
+  }
+
+  // 预览态点卡片切换掩码；掩码只影响展示，不改字段值。
   private displayValue(field: EntryFieldEditor): ResourceStr {
-    if (field.type !== VaultFieldType.Password || this.isEditingValue(field.id)) {
+    if (this.showPlainValue(field)) {
       return field.value
     }
     if (field.value.length === 0) {
@@ -153,169 +256,308 @@ export struct EntryCustomFields {
     return maskChar.repeat(Math.min(field.value.length, PASSWORD_MASK_MAX))
   }
 
-  private renameField(field: EntryFieldEditor, name: string): void {
-    this.editor.renameField(field, name)
-    if (field.id === this.invalidFieldId) {
-      this.onInvalidCleared()
+  private toggleValue(field: EntryFieldEditor): void {
+    if (this.readOnly || field.type !== VaultFieldType.Password) {
+      return
     }
+    this.visibleFieldId = this.visibleFieldId === field.id ? -1 : field.id
+    if (this.isEditingValue(field)) {
+      this.getUIContext().getFocusController().requestFocus(this.valueFocusKey(field))
+    }
+    this.onActivity()
   }
 
-  // 留白放在槽位而非卡片外边距：ListItem 保持通栏，左滑才能被屏幕边缘裁切。
-  @Builder
-  private fieldCardSlot(field: EntryFieldEditor) {
-    Row() {
-      this.fieldCard(field)
+  private copy(text: string): void {
+    if (text.length === 0) {
+      return
     }
-    .width('100%')
-    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-  }
-
-  @Builder
-  private fieldCard(field: EntryFieldEditor) {
-    Row({ space: $r('app.float.ds_space_sm') }) {
-      Image(fieldTypeDefinition(field.type).icon)
-        .draggable(false)
-        .width($r('app.float.field_row_icon_size'))
-        .height($r('app.float.field_row_icon_size'))
-        .objectFit(ImageFit.Contain)
-        .alignSelf(ItemAlign.Start)
-
-      Column({ space: $r('app.float.ds_space_2') }) {
-        if (this.isEditingName(field.id)) {
-          TextInput({ text: field.name })
-            .id(`custom_field_name_${field.id}`)
-            .width('100%')
-            .height($r('sys.float.ohos_id_textfield_content_height'))
-            .enterKeyType(EnterKeyType.Done)
-            .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.ds_text_primary'))
-            .padding(0)
-            .backgroundColor(Color.Transparent)
-            .clip(false)
-            .borderRadius(0)
-            .onAppear(() => this.getUIContext().getFocusController()
-              .requestFocus(`custom_field_name_${field.id}`))
-            .onChange((value: string) => this.renameField(field, value))
-            .onSubmit(() => this.closeCellEdit())
-            .onBlur(() => {
-              if (this.isEditingName(field.id)) {
-                this.closeCellEdit()
-              }
-            })
-        } else {
-          Row() {
-            Text(field.name)
-              .width('100%')
-              .fontSize($r('sys.float.Body_L'))
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.ds_text_primary'))
-              .textAlign(TextAlign.Start)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .width('100%')
-          .height($r('sys.float.ohos_id_textfield_content_height'))
-          .onClick(() => {
-            if (!this.readOnly) {
-              this.openCellEdit(field.id, true)
-            }
-          })
-        }
-
-        if (this.isEditingValue(field.id)) {
-          TextArea({ text: field.value })
-            .id(`custom_field_value_${field.id}`)
-            .width('100%')
-            .constraintSize({ minHeight: $r('sys.float.ohos_id_textfield_content_height') })
-            .enterKeyType(EnterKeyType.Done)
-            .fontSize($r('sys.float.Body_M'))
-            .fontColor($r('app.color.ds_text_primary'))
-            .wordBreak(fieldTypeDefinition(field.type).wordBreak)
-            .padding(0)
-            .backgroundColor(Color.Transparent)
-            .borderRadius(0)
-            .clip(false)
-            .onAppear(() => this.getUIContext().getFocusController()
-              .requestFocus(`custom_field_value_${field.id}`))
-            .onChange((value: string) => this.editor.setFieldValue(field, value))
-            .onSubmit(() => this.closeCellEdit())
-            .onBlur(() => {
-              if (this.isEditingValue(field.id)) {
-                this.closeCellEdit()
-              }
-            })
-        } else {
-          Row() {
-            Text(this.displayValue(field))
-              .width('100%')
-              .fontSize($r('sys.float.Body_M'))
-              .fontColor($r('app.color.ds_text_primary'))
-              .textAlign(TextAlign.Start)
-              .wordBreak(fieldTypeDefinition(field.type).wordBreak)
-          }
-          .width('100%')
-          .constraintSize({ minHeight: $r('sys.float.ohos_id_textfield_content_height') })
-          .onClick(() => {
-            if (!this.readOnly) {
-              this.openCellEdit(field.id, false)
-            }
-          })
-        }
+    this.viewModel.copyValue(text).then((copied: boolean) => {
+      if (copied) {
+        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      SymbolGlyph($r('app.string.symbol_chevron_right'))
-        .fontSize($r('sys.float.Title_S'))
-        .fontColor([$r('app.color.ds_text_secondary')])
-        .fontWeight(FontWeight.Medium)
-        .alignSelf(ItemAlign.Center)
-    }
-    .width('100%')
-    .id(`field_${field.id}`)
-    .alignItems(VerticalAlign.Top)
-    .padding($r('app.float.ds_space_sm'))
-    .backgroundColor($r('app.color.ds_surface_high'))
-    .borderRadius($r('sys.float.ohos_id_corner_radius_text_field'))
-    .border({
-      width: $r('sys.float.border_width'),
-      color: field.id === this.invalidFieldId
-        ? $r('app.color.ds_warning') : Color.Transparent,
     })
-    .animation({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+  }
+
+  // 菜单内容必须落在 @Builder 方法里：@BuilderParam 传箭头函数会报 class constructor 错误。
+  @LocalBuilder
+  private copyMenuItems(field: EntryFieldEditor) {
+    DsMenuItem({
+      icon: $r('app.string.symbol_copy'),
+      label: $r('app.string.copy_field_name'),
+      onAction: () => this.copy(field.name),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_copy'),
+      label: $r('app.string.copy_field_value'),
+      onAction: () => this.copy(field.value),
     })
   }
 
   @LocalBuilder
-  private addFieldBuilder() {
-    Row() {
-      Button() {
-        Row({ space: $r('app.float.ds_space_xs') }) {
-          SymbolGlyph($r('app.string.symbol_add'))
-            .fontSize($r('sys.float.chip_normal_icon_size'))
-            .fontColor([$r('app.color.ds_text_primary')])
+  private deleteMenuItem(field: EntryFieldEditor) {
+    DsMenuItem({
+      icon: $r('app.string.symbol_delete'),
+      label: $r('app.string.delete_field'),
+      theme: DsMenuItemTheme.Error,
+      onAction: () => this.requestDeleteFromMenu(field),
+    })
+  }
 
-          Text($r('app.string.add'))
-            .fontSize($r('sys.float.chip_normal_font_size'))
-            .fontColor($r('app.color.ds_text_primary'))
+  @LocalBuilder
+  private menuContent(field: EntryFieldEditor) {
+    DsMenuGroup({
+      dividerTop: false,
+      content: () => {
+        this.copyMenuItems(field)
+      },
+    })
+    if (!this.readOnly) {
+      DsMenuGroup({
+        dividerTop: true,
+        content: () => {
+          this.deleteMenuItem(field)
+        },
+      })
+    }
+  }
+
+  // 菜单挂在卡片上：长按由系统截图浮起并压暗页面，卡片自身不重绘。
+  @LocalBuilder
+  private fieldMenu(field: EntryFieldEditor) {
+    DsContextMenu({
+      content: () => {
+        this.menuContent(field)
+      },
+    })
+  }
+
+  @LocalBuilder
+  private typeIcon(field: EntryFieldEditor) {
+    Image(fieldTypeDefinition(field.type).icon)
+      .draggable(false)
+      // 进出编辑态会重建卡片子树，异步解码会让图标闪一帧空白。
+      .syncLoad(true)
+      .width($r('app.float.ds_icon_md'))
+      .height($r('app.float.ds_icon_md'))
+      .objectFit(ImageFit.Contain)
+  }
+
+  // 密码值用等宽字体，掩码与明文切换时字宽不跳。
+  @LocalBuilder
+  private valueText(field: EntryFieldEditor) {
+    Text(this.displayValue(field))
+      .fontSize($r('app.float.ds_font_body'))
+      .fontFamily(field.type === VaultFieldType.Password ? PASSWORD_FONT_FAMILY : undefined)
+      .lineHeight(FIELD_LINE_HEIGHT)
+      .fontColor($r('app.color.ds_text_secondary'))
+      .wordBreak(WordBreak.BREAK_ALL)
+      .layoutWeight(1)
+  }
+
+  // 密码值在预览与编辑中都按掩码显示，眼睛只切当前字段的展示。
+  private showPlainValue(field: EntryFieldEditor): boolean {
+    return field.type !== VaultFieldType.Password || field.id === this.visibleFieldId
+  }
+
+  @LocalBuilder
+  private eyeButton(field: EntryFieldEditor) {
+    IconToggleButton({
+      symbol: $r('app.string.symbol_eye_off'),
+      symbolChecked: $r('app.string.symbol_eye'),
+      checked: this.showPlainValue(field),
+      symbolColor: $r('app.color.ds_text_tertiary'),
+      boxSize: FIELD_LINE_HEIGHT,
+      iconSizeOverride: $r('app.float.ds_icon_sm'),
+      accessibilityLabel: this.showPlainValue(field) ? $r('app.string.hide') : $r('app.string.show'),
+      onToggle: () => this.toggleValue(field),
+    })
+      .margin({ left: $r('app.float.ds_space_xs') })
+  }
+
+  // 名称行：单行输入，溢出横向滚动；预览态即只读文本。
+  @LocalBuilder
+  private nameRow(field: EntryFieldEditor) {
+    if (this.isEditingName(field)) {
+      DsInput({
+        text: this.draftName,
+        placeholder: $r('app.string.field_name'),
+        variant: DsInputVariant.Inline,
+        fontSizeOverride: $r('app.float.ds_font_title'),
+        fontWeightOverride: 600,
+        lineHeightOverride: FIELD_NAME_LINE_HEIGHT,
+        focusKey: this.nameFocusKey(field),
+        autoFocus: true,
+        selectAll: this.selectAllName,
+        onChange: (value: string) => this.changeName(field, value),
+        onSubmit: () => this.exitNameEdit(field),
+        onFocusChange: (focused: boolean) => {
+          if (!focused) {
+            this.exitNameEdit(field)
+          }
+        },
+      })
+    } else {
+      Text(field.name)
+        .width('100%')
+        .fontSize($r('app.float.ds_font_title'))
+        .fontWeight(600)
+        .lineHeight(FIELD_NAME_LINE_HEIGHT)
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+        .constraintSize({ minHeight: FIELD_NAME_LINE_HEIGHT })
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .onClick(() => this.openNameEdit(field))
+    }
+  }
+
+  // 值行：预览与编辑都按内容行数展开，行高一致，切换不跳。
+  @LocalBuilder
+  private valueRow(field: EntryFieldEditor) {
+    Row() {
+      if (this.isEditingValue(field)) {
+        Column() {
+          // TextArea 不支持密码输入类型，密码值改用单行输入以保留掩码。
+          DsInput({
+            text: this.draftValue,
+            placeholder: $r('app.string.text_input_placeholder'),
+            variant: DsInputVariant.Inline,
+            multiline: field.type !== VaultFieldType.Password,
+            minLines: 1,
+            type: this.showPlainValue(field) ? InputType.Normal : InputType.Password,
+            showPassword: this.showPlainValue(field),
+            fontSizeOverride: $r('app.float.ds_font_body'),
+            fontFamilyOverride: field.type === VaultFieldType.Password ? PASSWORD_FONT_FAMILY : undefined,
+            lineHeightOverride: FIELD_LINE_HEIGHT,
+            focusKey: this.valueFocusKey(field),
+            autoFocus: true,
+            enterKeyType: EnterKeyType.Done,
+            onChange: (value: string) => this.changeValue(field, value),
+            onSubmit: () => this.exitValueEdit(field),
+            onFocusChange: (focused: boolean) => {
+              if (!focused) {
+                this.exitValueEdit(field)
+              }
+            },
+          })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+      } else {
+        this.valueText(field)
+      }
+
+      if (field.type === VaultFieldType.Password) {
+        this.eyeButton(field)
+      }
+    }
+    .width('100%')
+    .constraintSize({ minHeight: FIELD_LINE_HEIGHT })
+    .alignItems(VerticalAlign.Top)
+    .onClick(() => {
+      if (!this.isEditingValue(field)) {
+        this.openValueEdit(field)
+      }
+    })
+  }
+
+  // 常态 → 悬停 → 按下只换底色阶；编辑中抬一档，与设计稿的沉浸编辑卡片一致。
+  private cardFill(field: EntryFieldEditor): ResourceColor {
+    if (this.pressedFieldId === field.id) {
+      return $r('app.color.ds_surface_highest')
+    }
+    if (this.hoveredFieldId === field.id || this.isEditingName(field) || this.isEditingValue(field)) {
+      return $r('app.color.ds_surface_high')
+    }
+    return $r('app.color.ds_surface_low')
+  }
+
+  @LocalBuilder
+  private cardBody(field: EntryFieldEditor) {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      this.typeIcon(field)
+
+      Column({ space: $r('app.float.ds_space_6') }) {
+        this.nameRow(field)
+        this.valueRow(field)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Top)
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor(this.cardFill(field))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressedFieldId = field.id
+        return
+      }
+      if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressedFieldId = -1
+      }
+    })
+    .onHover((isHover: boolean) => {
+      this.hoveredFieldId = isHover ? field.id : -1
+    })
+  }
+
+  // 编辑中不挂菜单：长按留给文本选择，避免菜单与输入焦点互抢。删除前已退出编辑态，离场样式只挂在常态分支。
+  @LocalBuilder
+  private fieldCard(field: EntryFieldEditor) {
+    if (this.isEditingName(field) || this.isEditingValue(field)) {
+      Column() {
+        this.cardBody(field)
+      }
+      .width('100%')
+      .id(`field_${field.id}`)
+      .transition(LIST_ROW_PUSH_IN)
+    } else {
+      // 外层 Column 只承载 id 与长按菜单：组件带尾随 Builder 时无法在调用处继续链属性。
+      Column() {
+        DsListRowMotion({
+          leaving: field.id === this.removingFieldId,
+          enterTransition: LIST_ROW_PUSH_IN,
+        }) {
+          Column() {
+            this.cardBody(field)
+          }
+          .width('100%')
         }
       }
       .width('100%')
-      .height($r('sys.float.chip_normal_height'))
-      .buttonStyle(ButtonStyleMode.NORMAL)
-      .type(ButtonType.Capsule)
-      .padding({ left: $r('sys.float.chip_normal_text_padding'), right: $r('sys.float.chip_normal_text_padding') })
-      .onClick(() => this.openTypeSheet())
+      .id(`field_${field.id}`)
+      .bindContextMenu(this.fieldMenu(field), ResponseType.LongPress, {
+        preview: MenuPreviewMode.IMAGE,
+        previewBorderRadius: $r('app.float.ds_radius_none'),
+        borderRadius: $r('app.float.ds_radius_none'),
+        backgroundColor: $r('app.color.ds_surface_lowest'),
+        backgroundBlurStyle: BlurStyle.NONE,
+        targetSpace: LengthMetrics.vp(4),
+        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+        mask: {
+          color: $r('app.color.ds_scrim'),
+          backgroundBlurStyle: BlurStyle.NONE,
+        },
+        onDisappear: () => this.onFieldMenuDisappear(),
+      })
     }
-    .width('100%')
-    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-    .justifyContent(FlexAlign.Center)
   }
 
-  @Builder
+  @LocalBuilder
+  private addFieldBuilder() {
+    DsButton({
+      label: $r('app.string.add_field'),
+      variant: DsButtonVariant.Dashed,
+      tone: DsButtonTone.Default,
+      leadingIcon: $r('app.string.symbol_add'),
+      fullWidth: true,
+      onTap: () => this.openTypeSheet(),
+    })
+  }
+
+  @LocalBuilder
   private fieldTypeCard(definition: FieldTypeDefinition) {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Column({ space: $r('app.float.ds_space_xs') }) {
@@ -327,7 +569,7 @@ export struct EntryCustomFields {
 
         Text(definition.label)
           .width('100%')
-          .fontSize($r('sys.float.Body_L'))
+          .fontSize($r('app.float.ds_font_body'))
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.ds_text_primary'))
           .maxLines(1)
@@ -335,7 +577,7 @@ export struct EntryCustomFields {
 
         Text(definition.description)
           .width('100%')
-          .fontSize($r('sys.float.Body_S'))
+          .fontSize($r('app.float.ds_font_body_sm'))
           .fontColor($r('app.color.ds_text_secondary'))
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -389,45 +631,20 @@ export struct EntryCustomFields {
     .clip(false)
   }
 
-  @Builder
+  @LocalBuilder
   private typeSheet() {
     DsHalfModalSheet({
       title: $r('app.string.select_type'),
-      actions: this.typeSheetActions(),
+      actions: [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeTypeSheet() }],
       bodyBuilder: this.typeSheetBody,
     })
   }
 
-  private typeSheetActions(): DsPageHeaderAction[] {
-    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeTypeSheet() }]
-  }
-
   build() {
-    Column() {
-      if (this.customFields.length > 0) {
-        List() {
-          ForEach(this.customFields, (field: EntryFieldEditor) => {
-            HdsListItem({
-              customItemBuilder: () => {
-                this.fieldCardSlot(field)
-              },
-              listItemModifier: this.fieldCardItemModifier,
-              swipeActionOptions: this.readOnly ? undefined : {
-                deleteIconOptions: {
-                  onAction: () => this.deleteField(field),
-                },
-              },
-            })
-          }, (field: EntryFieldEditor) => `${field.id}`)
-        }
-        .width('100%')
-        .height('auto')
-        .padding(0)
-        .backgroundColor(Color.Transparent)
-        .scrollBar(BarState.Off)
-        // List 默认裁剪且高度随内容变化，不关掉裁剪会看不到卡片删除时的淡出动画。
-        .clip(false)
-      }
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      ForEach(this.customFields, (field: EntryFieldEditor) => {
+        this.fieldCard(field)
+      }, (field: EntryFieldEditor) => `${field.id}`)
 
       if (!this.readOnly) {
         this.addFieldBuilder()

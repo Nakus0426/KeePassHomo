@@ -327,6 +327,7 @@ export struct EntrySshKeysField {
             SymbolGlyph($r('app.string.symbol_add'))
               .fontSize($r('sys.float.chip_normal_icon_size'))
               .fontColor([$r('app.color.ds_text_primary')])
+              .foregroundColor($r('app.color.ds_text_primary'))
 
             Text($r('app.string.add'))
               .fontSize($r('sys.float.chip_normal_font_size'))

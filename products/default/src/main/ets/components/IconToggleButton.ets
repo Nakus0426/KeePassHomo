@@ -21,7 +21,7 @@ export struct IconToggleButton {
   @Param tone: DsButtonTone = DsButtonTone.Default
   @Param buttonSize: DsControlSize = DsControlSize.Small
   // 输入框图标框等非标准边长覆盖；不传时使用 buttonSize
-  @Param boxSize: Resource | undefined = undefined
+  @Param boxSize: Length | undefined = undefined
   @Param iconSizeOverride: Resource | undefined = undefined
   // 按钮被更大的可点区域包住时，独占交互避免两层同时响应点击
   @Param exclusive: boolean = false

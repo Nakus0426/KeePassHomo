@@ -77,6 +77,8 @@ export class EntryEditorViewModel {
   // 模板类型新建即固定，不可切换；未标记类型的既有条目按通用模板（登录信息）编辑。
   @Trace template: ItemTemplate = ItemTemplate.Login
   @Trace title: string = ''
+  // 收藏随条目即时生效，不进改动快照，也不参与保存。
+  @Trace favorite: boolean = false
   @Trace username: string = ''
   @Trace password: string = ''
   @Trace url: string = ''
@@ -141,6 +143,18 @@ export class EntryEditorViewModel {
 
   removeTag(value: string): void {
     this.tags = this.tags.filter((tag: string) => tag !== value)
+  }
+
+  // 原地替换：改名与新增共用同一套重复与分隔符校验。
+  renameTag(previous: string, value: string): TagAddResult {
+    if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
+      return TagAddResult.Separator
+    }
+    if (previous !== value && this.tags.includes(value)) {
+      return TagAddResult.Duplicate
+    }
+    this.tags = this.tags.map((tag: string) => tag === previous ? value : tag)
+    return TagAddResult.Added
   }
 
   // 密钥草稿的唯一真源是 SshKeys 字段值：每次增删改后立刻回写，沿用既有的字段保存链路。
@@ -356,6 +370,7 @@ export class EntryEditorViewModel {
     this.entryUuid = ''
     this.template = ItemTemplate.Login
     this.title = ''
+    this.favorite = false
     this.titleController.reset()
     this.username = ''
     this.password = ''

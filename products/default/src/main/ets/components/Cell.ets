@@ -48,6 +48,7 @@ export struct Cell {
             SymbolGlyph($r('app.string.symbol_chevron_right'))
               .fontSize($r('sys.float.Title_S'))
               .fontColor([$r('sys.color.font_secondary')])
+              .foregroundColor($r('sys.color.font_secondary'))
               .fontWeight(FontWeight.Medium)
           }
         }

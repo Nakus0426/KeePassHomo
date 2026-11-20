@@ -907,6 +907,50 @@
     {
       "name": "group_filter_all",
       "value": "全部分组"
+    },
+    {
+      "name": "advanced",
+      "value": "高级"
+    },
+    {
+      "name": "advanced_item_count",
+      "value": "%s 项"
+    },
+    {
+      "name": "copy_field_name",
+      "value": "复制名称"
+    },
+    {
+      "name": "copy_field_value",
+      "value": "复制值"
+    },
+    {
+      "name": "more",
+      "value": "更多"
+    },
+    {
+      "name": "entry_menu_duplicate",
+      "value": "复制为副本"
+    },
+    {
+      "name": "field_section_credential",
+      "value": "登录信息"
+    },
+    {
+      "name": "read_only_notice_body",
+      "value": "该库当前为只读模式，所有字段不可修改，也无法保存。"
+    },
+    {
+      "name": "edit_entry",
+      "value": "编辑条目"
+    },
+    {
+      "name": "entry_copy_suffix",
+      "value": "（副本）"
+    },
+    {
+      "name": "entry_copied",
+      "value": "已创建副本"
     }
   ]
 }

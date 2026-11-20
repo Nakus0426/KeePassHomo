@@ -115,6 +115,8 @@ export struct EntryTemplatePicker {
   @Event onClose: () => void = () => {
   }
   private readonly app: AppViewModel = appViewModel
+  // 绑定给标题栏渐变模糊：未绑定滚动容器时材质会常驻，内容还没上移就出现模糊带。
+  private readonly scroller: Scroller = new Scroller()
 
   aboutToAppear(): void {
     this.app.loadRecentTemplates()
@@ -139,7 +141,7 @@ export struct EntryTemplatePicker {
 
   @LocalBuilder
   private bodyContent() {
-    Scroll() {
+    Scroll(this.scroller) {
       Column({ space: $r('app.float.ds_space_lg') }) {
         GridRow({
           columns: TEMPLATE_CARD_COLUMNS,
@@ -182,7 +184,8 @@ export struct EntryTemplatePicker {
     .width('100%')
     .height('100%')
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    // alwaysEnabled：内容不足一屏时也由滚动容器接管竖向手势，避免上下滑动拖动整个半模态。
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
     .align(Alignment.Top)
     .clip(false)
   }
@@ -191,6 +194,7 @@ export struct EntryTemplatePicker {
     DsHalfModalSheet({
       title: $r('app.string.new_entry'),
       actions: this.templateActions(),
+      scrollableScroller: this.scroller,
       bodyBuilder: this.bodyContent,
     })
   }

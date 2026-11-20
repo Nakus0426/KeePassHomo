@@ -1,21 +1,17 @@
-import {
-  ChipV2,
-  ChipV2Label,
-  ChipV2Options,
-  ChipV2PrefixSymbolIcon,
-  LengthMetrics,
-  SymbolGlyphModifier,
-} from '@kit.ArkUI'
+import { LengthMetrics } from '@kit.ArkUI'
 import { AnimationTokens } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { EntryEditorViewModel, TagAddResult } from '../../viewmodel/EntryEditorViewModel'
+import { DsTag, DsTagSize } from '../../components/DsTag'
 import { DsToastHost } from '../../components/DsToast'
 
 const TAG_INPUT_ID: string = 'entry_tag_input'
-// 按 chip 字号的 10 个字符估算，与 VaultTabChrome 的 chip 文案宽度算法一致。
+// 输入井最小宽度按标签字号的 10 倍，与设计稿一致。
 const TAG_INPUT_CHARS: number = 10
+// 标签过长会顶掉尾部 ×，超出即截断。
+const TAG_LABEL_MAX_CHARS: number = 200
 
-// 输入态、草稿与拒绝提示都封在这里，宿主只在标签实际变化时刷新活跃时间。
+// 可编辑标签：点标签改名、点 × 删除、点 + 追加，同一时刻只有一个输入井。
 @ComponentV2
 export struct EntryTagEditor {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
@@ -24,9 +20,10 @@ export struct EntryTagEditor {
   @Param active: boolean = false
   @Event onActivity: () => void = () => {
   }
-  @Local private editing: boolean = false
+  // -1 表示未在编辑；否则为被替换的标签下标，等于标签数时表示新增。
+  @Local private editingIndex: number = -1
   @Local private draft: string = ''
-  @Local private warning: boolean = false
+  @Local private invalid: boolean = false
 
   @Monitor('active')
   onActiveChanged(): void {
@@ -37,40 +34,57 @@ export struct EntryTagEditor {
 
   @Computed
   get tagGap(): number {
-    return this.getUIContext().px2vp(ResUtil.getNumber($r('sys.float.padding_level8').id))
+    return this.getUIContext().px2vp(ResUtil.getNumber($r('app.float.ds_space_sm').id))
+  }
+
+  @Computed
+  get tagFontSize(): number {
+    return this.getUIContext().px2vp(ResUtil.getNumber($r('app.float.ds_font_label_md').id))
   }
 
   @Computed
   get inputWidth(): number {
-    const fontSize: number = ResUtil.getNumber($r('sys.float.chip_normal_font_size').id)
-    return this.getUIContext().px2vp(fontSize) * TAG_INPUT_CHARS
+    return this.tagFontSize * TAG_INPUT_CHARS
   }
 
-  private openInput(): void {
-    this.draft = ''
-    this.warning = false
-    this.editing = true
+  @Computed
+  get chipHeight(): number {
+    const padY: number = this.getUIContext().px2vp(ResUtil.getNumber($r('app.float.ds_space_3').id))
+    const lineHeight: number = this.getUIContext().px2vp(ResUtil.getNumber($r('app.float.ds_line_height_micro').id))
+    return padY * 2 + lineHeight
+  }
+
+  private openInput(index: number): void {
+    this.draft = index < this.editor.tags.length ? this.editor.tags[index] : ''
+    this.invalid = false
+    this.editingIndex = index
   }
 
   private closeInput(): void {
-    this.editing = false
+    this.editingIndex = -1
     this.draft = ''
-    this.warning = false
+    this.invalid = false
   }
 
   private commit(): void {
     const value: string = this.draft.trim()
+    const index: number = this.editingIndex
+    if (index < 0) {
+      return
+    }
     if (value.length === 0) {
       this.closeInput()
       return
     }
-    const result: TagAddResult = this.editor.addTag(value)
+    const result: TagAddResult = index < this.editor.tags.length
+      ? this.editor.renameTag(this.editor.tags[index], value)
+      : this.editor.addTag(value)
     if (result === TagAddResult.Added) {
       this.onActivity()
       this.closeInput()
       return
     }
-    this.warning = true
+    this.invalid = true
     DsToastHost.show(this.getUIContext(), result === TagAddResult.Duplicate
       ? $r('app.string.tag_duplicate') : $r('app.string.tag_separator_forbidden'))
   }
@@ -80,66 +94,113 @@ export struct EntryTagEditor {
     this.onActivity()
   }
 
+  @LocalBuilder
+  private tagContent(tag: string) {
+    Row({ space: $r('app.float.ds_space_xs') }) {
+      Text(tag.length > TAG_LABEL_MAX_CHARS ? `${tag.slice(0, TAG_LABEL_MAX_CHARS)}…` : tag)
+        .fontSize($r('app.float.ds_font_label_md'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+
+      Row() {
+        SymbolGlyph($r('app.string.symbol_close'))
+          .fontSize($r('app.float.ds_font_label_sm'))
+          .fontColor([$r('app.color.ds_text_secondary')])
+          .foregroundColor($r('app.color.ds_text_secondary'))
+      }
+      .width($r('app.float.ds_font_label_md'))
+      .height($r('app.float.ds_font_label_md'))
+      .justifyContent(FlexAlign.Center)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => this.remove(tag))
+    }
+  }
+
+  @LocalBuilder
+  private tagChip(tag: string, index: number) {
+    DsTag({
+      tagSize: DsTagSize.Medium,
+      contentBuilder: () => {
+        this.tagContent(tag)
+      },
+    })
+      .onClick(() => {
+        if (!this.readOnly) {
+          this.openInput(index)
+        }
+      })
+  }
+
+  @LocalBuilder
+  private addButton() {
+    Row() {
+      SymbolGlyph($r('app.string.symbol_add'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor([$r('app.color.ds_text_secondary')])
+        .foregroundColor($r('app.color.ds_text_secondary'))
+    }
+    .width(this.chipHeight)
+    .height(this.chipHeight)
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .borderRadius($r('app.float.ds_radius_none'))
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+    .onClick(() => this.openInput(this.editor.tags.length))
+  }
+
+  @LocalBuilder
+  private tagInput() {
+    Row() {
+      TextInput({ placeholder: $r('app.string.add_tag'), text: this.draft })
+        .id(TAG_INPUT_ID)
+        .enterKeyType(EnterKeyType.Done)
+        .fontSize($r('app.float.ds_font_label_md'))
+        .fontWeight(600)
+        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .fontColor($r('app.color.ds_text_primary'))
+        .caretColor($r('app.color.ds_primary'))
+        .padding(0)
+        .height('100%')
+        .layoutWeight(1)
+        .backgroundColor(Color.Transparent)
+        .onAppear(() => this.getUIContext().getFocusController().requestFocus(TAG_INPUT_ID))
+        .onChange((value: string) => {
+          this.draft = value
+          this.invalid = false
+        })
+        .onSubmit(() => this.commit())
+        .onBlur(() => this.commit())
+    }
+    .width(this.inputWidth)
+    .height(this.chipHeight)
+    .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
+    .backgroundColor($r('app.color.ds_surface_canvas'))
+    .border({
+      width: $r('app.float.ds_border_width'),
+      color: this.invalid ? $r('app.color.ds_error') : $r('app.color.ds_primary'),
+    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
+  }
+
   build() {
     Flex({
       wrap: FlexWrap.Wrap,
       space: { main: LengthMetrics.vp(this.tagGap), cross: LengthMetrics.vp(this.tagGap) },
     }) {
-      ForEach(this.editor.tags, (tag: string) => {
-        ChipV2({
-          chipV2Options: new ChipV2Options({
-            label: new ChipV2Label({ text: tag }),
-            allowClose: !this.readOnly,
-            onClose: () => this.remove(tag),
-          }),
-        })
-      }, (tag: string) => tag)
-
-      if (!this.readOnly && !this.editing) {
-        ChipV2({
-          chipV2Options: new ChipV2Options({
-            prefixIcon: new ChipV2PrefixSymbolIcon({ normal: new SymbolGlyphModifier($r('app.string.symbol_add')) }),
-            label: new ChipV2Label({ text: ResUtil.getStringSync($r('app.string.add_tag')) }),
-            allowClose: false,
-            onClicked: () => this.openInput(),
-          }),
-        })
-      }
-
-      if (this.editing) {
-        Row() {
-          TextInput({ placeholder: $r('app.string.text_input_placeholder'), text: this.draft })
-            .id(TAG_INPUT_ID)
-            .enterKeyType(EnterKeyType.Done)
-            .fontSize($r('sys.float.chip_normal_font_size'))
-            .padding(0)
-            .height('100%')
-            .layoutWeight(1)
-            .backgroundColor(Color.Transparent)
-            .onAppear(() => this.getUIContext().getFocusController().requestFocus(TAG_INPUT_ID))
-            .onChange((value: string) => {
-              this.draft = value
-              this.warning = false
-            })
-            .onSubmit(() => this.commit())
-            .onBlur(() => this.commit())
+      ForEach(this.editor.tags, (tag: string, index: number) => {
+        if (this.editingIndex === index) {
+          this.tagInput()
+        } else {
+          this.tagChip(tag, index)
         }
-        .width(this.inputWidth)
-        .height($r('sys.float.chip_normal_height'))
-        .padding({
-          left: $r('sys.float.chip_normal_text_padding'),
-          right: $r('sys.float.chip_normal_text_padding'),
-        })
-        .backgroundColor($r('sys.color.comp_background_tertiary'))
-        .borderRadius($r('sys.float.chip_border_radius_normal'))
-        .border({
-          width: $r('sys.float.border_width'),
-          color: this.warning ? $r('sys.color.warning') : Color.Transparent,
-        })
-        .animation({
-          duration: AnimationTokens.STATE_TRANSITION_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        })
+      }, (tag: string, index: number) => `${index}_${tag}`)
+
+      if (this.editingIndex === this.editor.tags.length) {
+        this.tagInput()
+      } else if (!this.readOnly) {
+        this.addButton()
       }
     }
     .width('100%')

@@ -187,6 +187,7 @@ export struct EntryAttachmentField {
             SymbolGlyph($r('app.string.symbol_add'))
               .fontSize($r('sys.float.chip_normal_icon_size'))
               .fontColor([$r('sys.color.font_emphasize')])
+              .foregroundColor($r('sys.color.font_emphasize'))
 
             Text($r('app.string.attachment_add'))
               .fontSize($r('sys.float.chip_normal_font_size'))

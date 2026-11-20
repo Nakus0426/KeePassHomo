@@ -10,6 +10,12 @@ export enum DsInputTone {
   Error = 'error',
 }
 
+export enum DsInputVariant {
+  Standard = 'standard',
+  // 沉浸行内编辑：无边框、无底色、无内距，单行高度与行高一致，用于卡片内就地编辑。
+  Inline = 'inline',
+}
+
 @ComponentV2
 export struct DsInput {
   @Param text: string = ''
@@ -22,6 +28,22 @@ export struct DsInput {
   @Param tone: DsInputTone = DsInputTone.Default
   @Param readOnly: boolean = false
   @Param disabled: boolean = false
+  // 行内紧凑档：字段卡等密集场景覆盖字号、字重、字族与行高，不新增尺寸档位。
+  @Param variant: DsInputVariant = DsInputVariant.Standard
+  // 多行模式：占位与文本左上对齐，高度按最小行数撑开。
+  @Param multiline: boolean = false
+  @Param minLines: number = 3
+  @Param fontSizeOverride: Resource | undefined = undefined
+  @Param fontWeightOverride: FontWeight | number = FontWeight.Normal
+  @Param fontFamilyOverride: string | undefined = undefined
+  // 不大于 0 表示不限制行高，与系统输入框一致；行内变体用它决定单行高度与多行最小高度。
+  @Param lineHeightOverride: number = 0
+  // 获焦后全选文本：初始全选会在获焦前用平台默认高亮遮住文字，与 ds_selection 不一致。
+  @Param selectAll: boolean = false
+  // 就地编辑需要在挂载后立刻取焦，id 由调用方给，保证同页多实例不冲突。
+  @Param focusKey: string = ''
+  @Param autoFocus: boolean = false
+  @Param enterKeyType: EnterKeyType | undefined = undefined
   @Param prefix: ResourceStr | undefined = undefined
   @Param suffix: ResourceStr | undefined = undefined
   @Event onChange: (value: string) => void = () => {
@@ -35,6 +57,7 @@ export struct DsInput {
   @BuilderParam trailingBuilder?: () => void
 
   @Local private focused: boolean = false
+  private readonly controller: TextInputController = new TextInputController()
 
   @Computed
   get toneColor(): ResourceColor {
@@ -54,7 +77,7 @@ export struct DsInput {
 
   @Computed
   get inputBorderColor(): ResourceColor {
-    if (this.disabled) {
+    if (this.disabled || this.variant === DsInputVariant.Inline) {
       return Color.Transparent
     }
     if (this.readOnly) {
@@ -68,14 +91,21 @@ export struct DsInput {
 
   @Computed
   get inputBorderWidth(): Length {
+    if (this.variant === DsInputVariant.Inline) {
+      return 0
+    }
     if (this.canEdit && this.focused) {
       return $r('app.float.ds_border_width_focus')
     }
     return $r('app.float.ds_border_width')
   }
 
+  // 行内变体全程不着色，聚焦只留光标；常规表单域始终是输入井底色。
   @Computed
   get fillColor(): ResourceColor {
+    if (this.variant === DsInputVariant.Inline) {
+      return Color.Transparent
+    }
     return $r('app.color.ds_surface_inset')
   }
 
@@ -106,7 +136,10 @@ export struct DsInput {
   }
 
   @Computed
-  get controlHeight(): Resource {
+  get controlHeight(): Length {
+    if (this.variant === DsInputVariant.Inline) {
+      return this.lineHeightOverride
+    }
     switch (this.inputSize) {
       case DsControlSize.Large:
         return $r('app.float.ds_input_height_lg')
@@ -118,7 +151,10 @@ export struct DsInput {
   }
 
   @Computed
-  get horizontalPadding(): Resource {
+  get horizontalPadding(): Length {
+    if (this.variant === DsInputVariant.Inline) {
+      return 0
+    }
     switch (this.inputSize) {
       case DsControlSize.Large:
         return $r('app.float.ds_input_pad_x_lg')
@@ -131,6 +167,9 @@ export struct DsInput {
 
   @Computed
   get inputFontSize(): Resource {
+    if (this.fontSizeOverride !== undefined) {
+      return this.fontSizeOverride
+    }
     switch (this.inputSize) {
       case DsControlSize.Large:
         return $r('app.float.ds_input_font_size_lg')
@@ -153,71 +192,168 @@ export struct DsInput {
     }
   }
 
-  build() {
-    Row({ space: this.contentGap }) {
-      if (this.prefix !== undefined || this.leadingBuilder !== undefined) {
-        Row({ space: $r('app.float.ds_space_xs') }) {
-          if (this.prefix !== undefined) {
-            Text(this.prefix)
-              .fontSize(this.inputFontSize)
-              .fontColor(this.accessoryColor)
-              .flexShrink(0)
-          }
-          if (this.leadingBuilder !== undefined) {
-            this.leadingBuilder()
-          }
-        }
-        .height('100%')
-        .flexShrink(0)
-      }
+  @Computed
+  get verticalPadding(): Length {
+    if (this.variant === DsInputVariant.Inline) {
+      return 0
+    }
+    return this.multiline ? $r('app.float.ds_space_sm') : 0
+  }
 
-      TextInput({ placeholder: this.placeholder, text: this.text })
+  // 行高按调用方覆盖值计算，否则调了行高最小高度会对不上。
+  @Computed
+  get textAreaMinHeight(): number {
+    return (this.lineHeightOverride > 0 ? this.lineHeightOverride : 20) * this.minLines
+  }
+
+  private focusOnAppear(): void {
+    if (this.autoFocus) {
+      this.getUIContext().getFocusController().requestFocus(this.focusKey)
+    }
+  }
+
+  private handleFocus(): void {
+    this.focused = true
+    if (this.selectAll && !this.multiline) {
+      this.controller.setTextSelection(0, this.text.length)
+    }
+    this.onFocusChange(true)
+  }
+
+  private handleBlur(): void {
+    this.focused = false
+    this.onFocusChange(false)
+  }
+
+  @Builder
+  private leadingSlot() {
+    if (this.prefix !== undefined || this.leadingBuilder !== undefined) {
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        if (this.prefix !== undefined) {
+          Text(this.prefix)
+            .fontSize(this.inputFontSize)
+            .fontColor(this.accessoryColor)
+            .flexShrink(0)
+        }
+        if (this.leadingBuilder !== undefined) {
+          this.leadingBuilder()
+        }
+      }
+      .height('100%')
+      .flexShrink(0)
+    }
+  }
+
+  @Builder
+  private trailingSlot() {
+    if (this.suffix !== undefined || this.trailingBuilder !== undefined) {
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        if (this.suffix !== undefined) {
+          Text(this.suffix)
+            .fontSize(this.inputFontSize)
+            .fontColor(this.accessoryColor)
+            .flexShrink(0)
+        }
+        if (this.trailingBuilder !== undefined) {
+          this.trailingBuilder()
+        }
+      }
+      .height('100%')
+      .flexShrink(0)
+    }
+  }
+
+  @Builder
+  private singleLineInput() {
+    Row({ space: this.contentGap }) {
+      this.leadingSlot()
+
+      TextInput({ placeholder: this.placeholder, text: this.text, controller: this.controller })
+        .id(this.focusKey)
         .type(this.type)
         .maxLength(this.maxLength)
         .showPasswordIcon(false)
         .showPassword(this.showPassword)
         .height('100%')
         .padding(0)
+        .borderRadius(0)
         .layoutWeight(1)
         .backgroundColor(Color.Transparent)
         .fontSize(this.inputFontSize)
+        .fontWeight(this.fontWeightOverride)
+        .fontFamily(this.fontFamilyOverride)
+        .lineHeight(this.lineHeightOverride)
         .fontColor(this.valueColor)
         .placeholderFont({ size: this.inputFontSize })
         .placeholderColor(this.placeholderColor)
         .caretColor($r('app.color.ds_primary'))
+        // 不指定时系统用默认蓝色，与设计系统的黑白主色不符。
+        .selectedBackgroundColor($r('app.color.ds_selection'))
+        .enterKeyType(this.enterKeyType ?? EnterKeyType.Done)
         .focusable(this.canEdit)
         .focusOnTouch(this.canEdit)
         .enabled(!this.disabled)
-        .onFocus(() => {
-          this.focused = true
-          this.onFocusChange(true)
-        })
-        .onBlur(() => {
-          this.focused = false
-          this.onFocusChange(false)
-        })
+        .onAppear(() => this.focusOnAppear())
+        .onFocus(() => this.handleFocus())
+        .onBlur(() => this.handleBlur())
         .onChange((value: string) => this.onChange(value))
         .onSubmit((enterKey: EnterKeyType, event: SubmitEvent) => this.onSubmit(event.text))
 
-      if (this.suffix !== undefined || this.trailingBuilder !== undefined) {
-        Row({ space: $r('app.float.ds_space_xs') }) {
-          if (this.suffix !== undefined) {
-            Text(this.suffix)
-              .fontSize(this.inputFontSize)
-              .fontColor(this.accessoryColor)
-              .flexShrink(0)
-          }
-          if (this.trailingBuilder !== undefined) {
-            this.trailingBuilder()
-          }
-        }
-        .height('100%')
-        .flexShrink(0)
+      this.trailingSlot()
+    }
+    .height(this.controlHeight)
+    .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
+  }
+
+  // 多行输入井：内距交给 TextArea 自己承担，外层不再加 padding，避免占位文字被容器裁切。
+  @Builder
+  private multilineInput() {
+    Column() {
+      TextArea({ placeholder: this.placeholder, text: this.text })
+        .id(this.focusKey)
+        .constraintSize({ minHeight: this.textAreaMinHeight })
+        .width('100%')
+        .padding({
+          top: this.verticalPadding,
+          bottom: this.verticalPadding,
+          left: this.horizontalPadding,
+          right: this.horizontalPadding,
+        })
+        .backgroundColor(Color.Transparent)
+        .borderRadius(0)
+        .fontSize(this.inputFontSize)
+        .fontWeight(this.fontWeightOverride)
+        .fontFamily(this.fontFamilyOverride)
+        .lineHeight(this.lineHeightOverride)
+        .fontColor(this.valueColor)
+        .placeholderFont({ size: this.inputFontSize })
+        .placeholderColor(this.placeholderColor)
+        .caretColor($r('app.color.ds_primary'))
+        .selectedBackgroundColor($r('app.color.ds_selection'))
+        .textAlign(TextAlign.Start)
+        .enterKeyType(this.enterKeyType ?? EnterKeyType.NEW_LINE)
+        .focusable(this.canEdit)
+        .focusOnTouch(this.canEdit)
+        .enabled(!this.disabled)
+        .onAppear(() => this.focusOnAppear())
+        .onFocus(() => this.handleFocus())
+        .onBlur(() => this.handleBlur())
+        .onChange((value: string) => this.onChange(value))
+        .onSubmit((enterKey: EnterKeyType, event: SubmitEvent) => this.onSubmit(event.text))
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  build() {
+    Column() {
+      if (this.multiline) {
+        this.multilineInput()
+      } else {
+        this.singleLineInput()
       }
     }
     .width('100%')
-    .height(this.controlHeight)
-    .padding({ left: this.horizontalPadding, right: this.horizontalPadding })
     .backgroundColor(this.fillColor)
     .border({
       width: this.inputBorderWidth,
