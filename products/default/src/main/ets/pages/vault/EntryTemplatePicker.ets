@@ -1,4 +1,4 @@
-import { AnimationTokens, ItemTemplate } from '@ohos/common'
+import { ItemTemplate } from '@ohos/common'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import {
   definitionFor,
@@ -8,6 +8,7 @@ import {
 import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsPickCard } from '../../components/DsPickCard'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；按组件宽度切档，宽度由列数均分。
@@ -29,77 +30,56 @@ struct TemplateCard {
   @Event onPick: (template: ItemTemplate) => void = () => {
   }
 
-  @Local private hovered: boolean = false
-  @Local private pressed: boolean = false
+  @LocalBuilder
+  private cardContent() {
+    Row() {
+      Image(this.definition.icon)
+        .draggable(false)
+        .width($r('app.float.ds_template_icon_size'))
+        .height($r('app.float.ds_template_icon_size'))
+        .objectFit(ImageFit.Contain)
 
-  private cardColor(): ResourceColor {
-    if (this.pressed) {
-      return $r('app.color.ds_surface_highest')
+      Blank()
+
+      if (this.recent) {
+        DsTag({
+          tone: DsTagTone.Default,
+          tagSize: DsTagSize.Medium,
+          text: $r('app.string.template_recent_badge'),
+        })
+      }
     }
-    return this.hovered ? $r('app.color.ds_surface_high') : $r('app.color.ds_surface_low')
+    .width('100%')
+    .alignItems(VerticalAlign.Top)
+
+    Text(this.definition.name)
+      .width('100%')
+      .fontSize($r('app.float.ds_font_title'))
+      .fontWeight(600)
+      .fontColor($r('app.color.ds_text_primary'))
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+    Text(this.definition.description)
+      .width('100%')
+      .fontSize($r('app.float.ds_font_body_sm'))
+      .fontColor($r('app.color.ds_text_secondary'))
+      .maxLines(2)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+    Text(this.definition.summary)
+      .width('100%')
+      .fontSize($r('app.float.ds_font_label_sm'))
+      .fontColor($r('app.color.ds_text_tertiary'))
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
   }
 
   build() {
-    Column({ space: $r('app.float.ds_space_sm') }) {
-      Row() {
-        Image(this.definition.icon)
-          .draggable(false)
-          .width($r('app.float.ds_template_icon_size'))
-          .height($r('app.float.ds_template_icon_size'))
-          .objectFit(ImageFit.Contain)
-
-        Blank()
-
-        if (this.recent) {
-          DsTag({
-            tone: DsTagTone.Default,
-            tagSize: DsTagSize.Medium,
-            text: $r('app.string.template_recent_badge'),
-          })
-        }
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Top)
-
-      Text(this.definition.name)
-        .width('100%')
-        .fontSize($r('app.float.ds_font_title'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_text_primary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.definition.description)
-        .width('100%')
-        .fontSize($r('app.float.ds_font_body_sm'))
-        .fontColor($r('app.color.ds_text_secondary'))
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-      Text(this.definition.summary)
-        .width('100%')
-        .fontSize($r('app.float.ds_font_label_sm'))
-        .fontColor($r('app.color.ds_text_tertiary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-    }
-    .width('100%')
-    .padding($r('app.float.ds_space_md'))
-    .alignItems(HorizontalAlign.Start)
-    .backgroundColor(this.cardColor())
-    .borderRadius($r('app.float.ds_radius_none'))
-    .animation(AnimationTokens.FEEDBACK_ANIMATION)
-    .onHover((isHover: boolean) => {
-      this.hovered = isHover
+    DsPickCard({
+      onPick: () => this.onPick(this.definition.template),
+      contentBuilder: this.cardContent,
     })
-    .onTouch((event: TouchEvent) => {
-      if (event.type === TouchType.Down) {
-        this.pressed = true
-      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-        this.pressed = false
-      }
-    })
-    .onClick(() => this.onPick(this.definition.template))
   }
 }
 

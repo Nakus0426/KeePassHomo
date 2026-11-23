@@ -11,6 +11,7 @@ import { DsInput, DsInputVariant } from '../../components/DsInput'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { DsButton, DsButtonVariant, DsButtonTone } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsPickCard } from '../../components/DsPickCard'
 import { DsListRowMotion } from '../../components/DsListRowMotion'
 import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 
@@ -34,6 +35,49 @@ const PASSWORD_MASK_MAX: number = 12
 // 名称与值的行高：预览与沉浸编辑共用同一值，进出编辑态卡片高度不变。
 const FIELD_NAME_LINE_HEIGHT: number = 18
 const FIELD_LINE_HEIGHT: number = 20
+
+// 类型卡与模板卡同构：图标独占首行，标题 / 说明在图标下方占满卡片宽度。
+@ComponentV2
+struct FieldTypeCard {
+  @Require @Param definition: FieldTypeDefinition
+  @Event onPick: () => void = () => {
+  }
+
+  @LocalBuilder
+  private cardContent() {
+    Image(this.definition.icon)
+      .draggable(false)
+      .width($r('app.float.ds_field_type_icon_size'))
+      .height($r('app.float.ds_field_type_icon_size'))
+      .objectFit(ImageFit.Contain)
+
+    Column({ space: $r('app.float.ds_space_2') }) {
+      Text(this.definition.label)
+        .width('100%')
+        .fontSize($r('app.float.ds_font_title'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      Text(this.definition.description)
+        .width('100%')
+        .fontSize($r('app.float.ds_font_body_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  build() {
+    DsPickCard({
+      onPick: this.onPick,
+      contentBuilder: this.cardContent,
+    })
+  }
+}
 
 @ComponentV2
 export struct EntryCustomFields {
@@ -64,6 +108,8 @@ export struct EntryCustomFields {
   private pendingDeleteFieldId: number = -1
   private pendingDefinition: FieldTypeDefinition | undefined = undefined
   private readonly viewModel: AppViewModel = appViewModel
+  // 绑定给标题栏渐变模糊：未绑定滚动容器时材质会常驻，内容还没上移就出现模糊带。
+  private readonly scroller: Scroller = new Scroller()
 
   // 会话关闭即作废待删登记：换成另一条目后菜单才收起，会误删同 id 的字段。
   @Monitor('active')
@@ -321,10 +367,59 @@ export struct EntryCustomFields {
     }
   }
 
+  // 头部单行：类型图标与字段名给出对象身份，右侧标签说明字段类型。
+  @LocalBuilder
+  private menuHeader(field: EntryFieldEditor) {
+    Row() {
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        Image(fieldTypeDefinition(field.type).icon)
+          .draggable(false)
+          .syncLoad(true)
+          .width($r('app.float.ds_icon_md'))
+          .height($r('app.float.ds_icon_md'))
+          .objectFit(ImageFit.Contain)
+
+        Text(field.name)
+          .fontSize($r('app.float.ds_font_body'))
+          .fontWeight(600)
+          .fontColor($r('app.color.ds_text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+      }
+      .layoutWeight(1)
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Text(fieldTypeDefinition(field.type).label)
+          .fontSize($r('app.float.ds_font_label_md'))
+          .fontWeight(600)
+          .letterSpacing($r('app.float.ds_tracking_wide_md'))
+          .fontColor($r('app.color.ds_text_primary'))
+          .maxLines(1)
+      }
+      .height($r('app.float.ds_context_menu_tag_height'))
+      .padding({ left: $r('app.float.ds_space_xs'), right: $r('app.float.ds_space_sm') })
+      .backgroundColor($r('app.color.ds_surface_high'))
+      .alignItems(VerticalAlign.Center)
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+  }
+
   // 菜单挂在卡片上：长按由系统截图浮起并压暗页面，卡片自身不重绘。
   @LocalBuilder
   private fieldMenu(field: EntryFieldEditor) {
     DsContextMenu({
+      header: () => {
+        this.menuHeader(field)
+      },
       content: () => {
         this.menuContent(field)
       },
@@ -558,44 +653,8 @@ export struct EntryCustomFields {
   }
 
   @LocalBuilder
-  private fieldTypeCard(definition: FieldTypeDefinition) {
-    Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Column({ space: $r('app.float.ds_space_xs') }) {
-        Image(definition.icon)
-          .draggable(false)
-          .width($r('app.float.field_type_icon_size'))
-          .height($r('app.float.field_type_icon_size'))
-          .objectFit(ImageFit.Contain)
-
-        Text(definition.label)
-          .width('100%')
-          .fontSize($r('app.float.ds_font_body'))
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.ds_text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-        Text(definition.description)
-          .width('100%')
-          .fontSize($r('app.float.ds_font_body_sm'))
-          .fontColor($r('app.color.ds_text_secondary'))
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-    }
-    .width('100%')
-    .height($r('app.float.field_type_card_height'))
-    .padding($r('app.float.ds_space_sm'))
-    .backgroundColor($r('app.color.ds_surface_high'))
-    .borderRadius($r('app.float.ds_radius_none'))
-    .onClick(() => this.pickType(definition))
-  }
-
-  @LocalBuilder
   private typeSheetBody() {
-    Scroll() {
+    Scroll(this.scroller) {
       Column() {
         GridRow({
           columns: FIELD_TYPE_CARD_COLUMNS,
@@ -607,7 +666,10 @@ export struct EntryCustomFields {
         }) {
           ForEach(FIELD_TYPE_DEFINITIONS, (definition: FieldTypeDefinition) => {
             GridCol({ span: 1 }) {
-              this.fieldTypeCard(definition)
+              FieldTypeCard({
+                definition: definition,
+                onPick: () => this.pickType(definition),
+              })
             }
           }, (definition: FieldTypeDefinition) => definition.type)
         }
@@ -616,17 +678,18 @@ export struct EntryCustomFields {
       .width('100%')
       .constraintSize({ maxWidth: $r('app.float.content_max_width') })
       .padding({
-        top: $r('app.float.ds_space_lg'),
-        bottom: this.bottomOffset,
-        left: $r('app.float.ds_space_sm'),
-        right: $r('app.float.ds_space_sm'),
+        top: $r('app.float.ds_space_16'),
+        bottom: this.bottomOffset > 0 ? this.bottomOffset : $r('app.float.ds_space_16'),
+        left: $r('app.float.ds_space_16'),
+        right: $r('app.float.ds_space_16'),
       })
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
     .height('100%')
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    // alwaysEnabled：内容不足一屏时也由滚动容器接管竖向手势，避免上下滑动拖动整个半模态。
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
     .align(Alignment.Top)
     .clip(false)
   }
@@ -636,6 +699,7 @@ export struct EntryCustomFields {
     DsHalfModalSheet({
       title: $r('app.string.select_type'),
       actions: [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeTypeSheet() }],
+      scrollableScroller: this.scroller,
       bodyBuilder: this.typeSheetBody,
     })
   }
@@ -656,6 +720,8 @@ export struct EntryCustomFields {
       detents: [SheetSize.MEDIUM, SheetSize.LARGE],
       // 默认 FOLLOW_DETENT 只在跟手结束后重排内容，多挡位拖动时会看到内容截断与松手跳变。
       scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      // 系统控制条样式与设计不符，保留 DsHalfModalSheet 自绘拖拽条。
+      dragBar: false,
       onDisappear: () => this.onTypeSheetDisappear(),
     }))
   }

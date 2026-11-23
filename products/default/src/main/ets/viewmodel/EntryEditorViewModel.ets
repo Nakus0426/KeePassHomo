@@ -145,8 +145,12 @@ export class EntryEditorViewModel {
     return TagAddResult.Added
   }
 
+  // 就地删除：整体替换数组会让 ForEach 重建全部标签，其余标签跟着重挂、重播动画。
   removeTag(value: string): void {
-    this.tags = this.tags.filter((tag: string) => tag !== value)
+    const index: number = this.tags.indexOf(value)
+    if (index >= 0) {
+      this.tags.splice(index, 1)
+    }
   }
 
   // 原地替换：改名与新增共用同一套重复与分隔符校验。
@@ -157,7 +161,11 @@ export class EntryEditorViewModel {
     if (previous !== value && this.tags.includes(value)) {
       return TagAddResult.Duplicate
     }
-    this.tags = this.tags.map((tag: string) => tag === previous ? value : tag)
+    // 就地按下标改写：map 会换掉整个数组，连带重建未改名的标签。
+    const index: number = this.tags.indexOf(previous)
+    if (index >= 0) {
+      this.tags[index] = value
+    }
     return TagAddResult.Added
   }
 

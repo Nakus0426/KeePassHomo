@@ -17,11 +17,43 @@ interface TagPalette {
   content: ResourceColor
 }
 
-interface TagMetrics {
+export interface TagMetrics {
   fontSize: Resource
   padVertical: Resource
   padHorizontal: Resource
   gap: Resource
+  // 设计 $leading-tight 1.2 取整（12/15/18 → 14/18/22）；lineHeight 数值单位是 fp，不能由字号经 px2vp 推导。
+  lineHeight: number
+}
+
+// 标签几何的唯一来源：可编辑标签的输入井与 × 需要与 DsTag 严格同高，不能各写一份规格。
+export function dsTagMetrics(size: DsTagSize): TagMetrics {
+  switch (size) {
+    case DsTagSize.Large:
+      return {
+        fontSize: $r('app.float.ds_font_headline_md'),
+        padVertical: $r('app.float.ds_space_6'),
+        padHorizontal: $r('app.float.ds_space_md'),
+        gap: $r('app.float.ds_space_sm'),
+        lineHeight: 22,
+      }
+    case DsTagSize.Small:
+      return {
+        fontSize: $r('app.float.ds_font_label_md'),
+        padVertical: $r('app.float.ds_space_3'),
+        padHorizontal: $r('app.float.ds_space_sm'),
+        gap: $r('app.float.ds_space_xs'),
+        lineHeight: 14,
+      }
+    default:
+      return {
+        fontSize: $r('app.float.ds_font_title'),
+        padVertical: $r('app.float.ds_space_xs'),
+        padHorizontal: $r('app.float.ds_space_10'),
+        gap: $r('app.float.ds_space_6'),
+        lineHeight: 18,
+      }
+  }
 }
 
 @ComponentV2
@@ -57,29 +89,7 @@ export struct DsTag {
 
   @Computed
   get metrics(): TagMetrics {
-    switch (this.tagSize) {
-      case DsTagSize.Large:
-        return {
-          fontSize: $r('app.float.ds_font_body'),
-          padVertical: $r('app.float.ds_space_xs'),
-          padHorizontal: $r('app.float.ds_space_10'),
-          gap: $r('app.float.ds_space_6'),
-        }
-      case DsTagSize.Small:
-        return {
-          fontSize: $r('app.float.ds_font_label_sm'),
-          padVertical: $r('app.float.ds_space_2'),
-          padHorizontal: $r('app.float.ds_space_6'),
-          gap: $r('app.float.ds_space_xs'),
-        }
-      default:
-        return {
-          fontSize: $r('app.float.ds_font_label_md'),
-          padVertical: $r('app.float.ds_space_3'),
-          padHorizontal: $r('app.float.ds_space_sm'),
-          gap: $r('app.float.ds_space_xs'),
-        }
-    }
+    return dsTagMetrics(this.tagSize)
   }
 
   build() {
@@ -91,6 +101,7 @@ export struct DsTag {
           .fontSize(this.metrics.fontSize)
           .fontWeight(600)
           .letterSpacing($r('app.float.ds_tracking_wide_md'))
+          .lineHeight(this.metrics.lineHeight)
           .fontColor(this.palette.content)
           .maxLines(1)
       }
