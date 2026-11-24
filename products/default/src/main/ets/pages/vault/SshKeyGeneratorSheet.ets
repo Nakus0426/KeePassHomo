@@ -1,8 +1,13 @@
 import { ContentSlideTransition, SlideFrame, SshKeyAlgorithm } from '@ohos/common'
 import { FormItem, LabelPlacement } from '../../components/FormItem'
+import { DsBottomActionBar } from '../../components/DsBottomActionBar'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsControlSize } from '../../components/DsControlSize'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsPageHeaderAction } from '../../components/DsPageHeader'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
+import { DsSlider } from '../../components/DsSlider'
 
 const RSA_BITS_MIN: number = 2048
 const RSA_BITS_MAX: number = 4096
@@ -65,11 +70,6 @@ export struct SshKeyGeneratorSheet {
 
   private sheetActions(): DsPageHeaderAction[] {
     return [
-      {
-        icon: $r('app.string.symbol_check'),
-        label: $r('app.string.confirm'),
-        onTap: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
-      },
       { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
     ]
   }
@@ -85,62 +85,58 @@ export struct SshKeyGeneratorSheet {
       })
   }
 
+  // 推荐标题随类型切换；RSA 侧提醒兼容性优先。
+  private tipTitle(): Resource {
+    return this.segmentIndex === SshKeyType.Ed25519
+      ? $r('app.string.ssh_key_recommend_ed25519')
+      : $r('app.string.ssh_key_recommend_rsa')
+  }
+
+  @LocalBuilder
+  private tipBody() {
+    if (this.segmentIndex === SshKeyType.Ed25519) {
+      Text($r('app.string.ssh_key_tip_ed25519'))
+        .layoutWeight(1)
+        .fontSize($r('app.float.ds_font_body_sm'))
+        .fontColor($r('app.color.ds_on_surface_variant'))
+    } else if (this.bits === RSA_BITS_MIN) {
+      Text() {
+        Span($r('app.string.ssh_key_tip_rsa2048_prefix'))
+        Span(RSA_RECOMMENDED_BITS)
+          .fontWeight(FontWeight.Bold)
+        Span($r('app.string.ssh_key_tip_rsa2048_suffix'))
+      }
+      .layoutWeight(1)
+      .fontSize($r('app.float.ds_font_body_sm'))
+      .fontColor($r('app.color.ds_on_surface_variant'))
+    } else {
+      Text($r('app.string.ssh_key_tip_rsa_compat'))
+        .layoutWeight(1)
+        .fontSize($r('app.float.ds_font_body_sm'))
+        .fontColor($r('app.color.ds_on_surface_variant'))
+    }
+  }
+
   @LocalBuilder
   private bitsContent() {
     Row({ space: $r('app.float.ds_space_sm') }) {
-      Slider({
-        value: this.bits,
-        min: RSA_BITS_MIN,
-        max: RSA_BITS_MAX,
-        step: RSA_BITS_STEP,
-        style: SliderStyle.InSet,
-      })
-        .layoutWeight(1)
-        .showSteps(true)
-        .onChange((value: number) => this.bits = value)
+      Column() {
+        DsSlider({
+          value: this.bits,
+          min: RSA_BITS_MIN,
+          max: RSA_BITS_MAX,
+          step: RSA_BITS_STEP,
+          sliderSize: DsControlSize.Medium,
+          onChange: (value: number) => this.bits = value,
+        })
+      }
+      .layoutWeight(1)
 
       Text(`${this.bits}`)
-        .fontSize($r('sys.float.Body_M'))
+        .fontSize($r('app.float.ds_font_body'))
         .fontColor($r('app.color.ds_text_secondary'))
     }
     .width('100%')
-  }
-
-  @Builder
-  private securityTip(type: number) {
-    Row({ space: $r('app.float.ds_space_xs') }) {
-      SymbolGlyph($r('app.string.symbol_info'))
-        .fontSize($r('sys.float.Subtitle_L'))
-        .fontColor([$r('app.color.ds_primary')])
-        .foregroundColor($r('app.color.ds_primary'))
-
-      if (type === SshKeyType.Ed25519) {
-        Text($r('app.string.ssh_key_tip_ed25519'))
-          .layoutWeight(1)
-          .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('app.color.ds_text_secondary'))
-      } else if (this.bits === RSA_BITS_MIN) {
-        Text() {
-          Span($r('app.string.ssh_key_tip_rsa2048_prefix'))
-          Span(RSA_RECOMMENDED_BITS)
-            .fontWeight(FontWeight.Bold)
-          Span($r('app.string.ssh_key_tip_rsa2048_suffix'))
-        }
-        .layoutWeight(1)
-        .fontSize($r('sys.float.Body_M'))
-        .fontColor($r('app.color.ds_text_secondary'))
-      } else {
-        Text($r('app.string.ssh_key_tip_rsa_compat'))
-          .layoutWeight(1)
-          .fontSize($r('sys.float.Body_M'))
-          .fontColor($r('app.color.ds_text_secondary'))
-      }
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Top)
-    .padding($r('app.float.ds_space_sm'))
-    .backgroundColor($r('app.color.ds_surface_high'))
-    .borderRadius($r('app.float.ds_radius_none'))
   }
 
   @LocalBuilder
@@ -156,7 +152,11 @@ export struct SshKeyGeneratorSheet {
           })
         }
 
-        this.securityTip(type)
+        DsNotice({
+          tone: DsNoticeTone.Default,
+          title: this.tipTitle(),
+          bodyBuilder: this.tipBody,
+        })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
@@ -236,11 +236,48 @@ export struct SshKeyGeneratorSheet {
     .clip(false)
   }
 
+  @LocalBuilder
+  private bottomBarContent() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Column() {
+        DsButton({
+          label: $r('app.string.cancel'),
+          variant: DsButtonVariant.Filled,
+          tone: DsButtonTone.Default,
+          fullWidth: true,
+          onTap: () => this.onClose(),
+        })
+      }
+      .layoutWeight(1)
+
+      Column() {
+        DsButton({
+          label: $r('app.string.ssh_key_generate'),
+          variant: DsButtonVariant.Filled,
+          tone: DsButtonTone.Primary,
+          fullWidth: true,
+          onTap: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
+        })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+  }
+
+  @LocalBuilder
+  private bottomBar() {
+    DsBottomActionBar({
+      includeSafeArea: false,
+      contentBuilder: this.bottomBarContent,
+    })
+  }
+
   build() {
     DsHalfModalSheet({
-      title: $r('app.string.ssh_key_generate'),
+      title: $r('app.string.ssh_key_generate_title'),
       actions: this.sheetActions(),
       bodyBuilder: this.bodyContent,
+      bottomBarBuilder: this.bottomBar,
     })
   }
 }

@@ -1,6 +1,10 @@
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { FileUtil, ResUtil } from '@pura/harmony-utils'
 import { fileTypeIcon } from '../../model/FileTypeCatalog'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { DsTag } from '../../components/DsTag'
+
+const ICON_TILE_SIZE: number = 32
 
 // 附件卡片：编辑态与预览态共用外观、按压反馈与长按菜单，动作由调用方注入。
 @ComponentV2
@@ -11,11 +15,13 @@ export struct AttachmentCard {
   // 预览态的附件必然已入库，不显示保存状态标签。
   @Param showBadge: boolean = true
   @Param persisted: boolean = true
-  // 移除只属于编辑态。
+  // 移除与重命名只属于编辑态。
   @Param editable: boolean = false
   @Event onPreview: () => void = () => {
   }
   @Event onExport: () => void = () => {
+  }
+  @Event onRename: () => void = () => {
   }
   @Event onRemove: () => void = () => {
   }
@@ -29,60 +35,93 @@ export struct AttachmentCard {
     return `${format} · ${FileUtil.getFormatFileSize(this.fileSize)}`
   }
 
+  @LocalBuilder
+  private menuHeader() {
+    Column({ space: $r('app.float.ds_space_2') }) {
+      Text($r('app.string.attachment_actions'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+      Text($r('app.string.attachment_actions_hint'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private menuContent() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_eye'),
+      label: $r('app.string.attachment_preview'),
+      onAction: () => this.onPreview(),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_download'),
+      label: $r('app.string.attachment_export'),
+      onAction: () => this.onExport(),
+    })
+    if (this.editable) {
+      DsMenuItem({
+        icon: $r('app.string.symbol_edit'),
+        label: $r('app.string.attachment_rename'),
+        onAction: () => this.onRename(),
+      })
+      DsMenuItem({
+        icon: $r('app.string.symbol_delete'),
+        label: $r('app.string.attachment_delete'),
+        theme: DsMenuItemTheme.Error,
+        onAction: () => this.onRemove(),
+      })
+    }
+  }
+
   @Builder
   private cardMenu() {
-    Menu() {
-      MenuItem({
-        content: $r('app.string.attachment_export'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_download')).fontSize(
-          $r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.onExport())
-
-      if (this.editable) {
-        MenuItem({
-          content: $r('app.string.attachment_remove'),
-          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_delete')).fontSize($r('sys.float.Body_L'))
-            .fontColor([$r('sys.color.warning')])
-            .foregroundColor($r('sys.color.warning')),
-        })
-          .labelFont({ size: $r('sys.float.Body_M') })
-          .contentFontColor($r('sys.color.warning'))
-          .onClick(() => this.onRemove())
-      }
-    }
-    .menuItemDivider({
-      strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
-      color: $r('sys.color.grid_menu_divider_color'),
-      startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
-      endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
+    DsContextMenu({
+      header: this.menuHeader,
+      content: this.menuContent,
     })
   }
 
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('sys.float.padding_level8') }) {
-        Image(fileTypeIcon(this.name))
-          .width($r('app.float.file_icon_size'))
-          .height($r('app.float.file_icon_size'))
-          .objectFit(ImageFit.Contain)
-          // Image 默认开启长按拖拽，会抢掉卡片的长按菜单。
-          .draggable(false)
+      Row({ space: $r('app.float.ds_space_md') }) {
+        Row() {
+          Image(fileTypeIcon(this.name))
+            .width($r('app.float.ds_icon_md'))
+            .height($r('app.float.ds_icon_md'))
+            .objectFit(ImageFit.Contain)
+            // Image 默认开启长按拖拽，会抢掉卡片的长按菜单。
+            .draggable(false)
+        }
+        .width(ICON_TILE_SIZE)
+        .height(ICON_TILE_SIZE)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
+        .backgroundColor($r('app.color.ds_surface_high'))
 
-        Column({ space: $r('sys.float.padding_level2') }) {
+        Column({ space: $r('app.float.ds_space_2') }) {
           Text(this.name)
             .width('100%')
-            .fontSize($r('sys.float.Body_L'))
+            .fontSize($r('app.float.ds_font_body'))
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
           Text(this.summary())
             .width('100%')
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
+            .fontSize($r('app.float.ds_font_body_sm'))
+            .fontColor($r('app.color.ds_text_secondary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -91,26 +130,18 @@ export struct AttachmentCard {
 
         // 标签作为行内兄弟节点占位：文件名只在剩余宽度里省略，不会压到标签上。
         if (this.showBadge) {
-          Text(this.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'))
-            .fontSize($r('sys.float.Caption_M'))
-            .fontColor($r('sys.color.brand'))
-            .alignSelf(ItemAlign.Start)
-            .padding({
-              left: $r('sys.float.padding_level4'),
-              right: $r('sys.float.padding_level4'),
-              top: $r('sys.float.padding_level2'),
-              bottom: $r('sys.float.padding_level2'),
-            })
-            .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-            .borderRadius($r('sys.float.corner_radius_level16'))
+          DsTag({
+            text: this.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'),
+          })
         }
       }
       .width('100%')
+      .alignItems(VerticalAlign.Top)
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .onClick(() => this.onPreview())
     .bindContextMenu(this.cardMenu(), ResponseType.LongPress, {
       preview: MenuPreviewMode.IMAGE,

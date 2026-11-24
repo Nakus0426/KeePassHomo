@@ -1,5 +1,11 @@
-import { LengthMetrics, SymbolGlyphModifier } from '@kit.ArkUI'
 import { SshKeyDraft, sshKeySummary } from '../../model/SshKeyPayload'
+import { sshPublicKeyFingerprint } from '../../model/SshFingerprint'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { DsTag } from '../../components/DsTag'
+
+const ICON_TILE_SIZE: number = 32
 
 // 密钥卡片：编辑态与预览态共用外观、按压反馈与长按菜单，动作由调用方注入。
 @ComponentV2
@@ -20,111 +26,132 @@ export struct SshKeyCard {
   @Event onRemove: () => void = () => {
   }
 
+  // 指纹只由公钥行派生，不写回受保护字段。
+  @Computed
+  get fingerprint(): string {
+    return sshPublicKeyFingerprint(this.sshKey.publicKey)
+  }
+
+  @LocalBuilder
+  private menuHeader() {
+    Column({ space: $r('app.float.ds_space_2') }) {
+      Text($r('app.string.ssh_key_actions'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+      Text($r('app.string.ssh_key_actions_hint'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private menuContent() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_docs'),
+      label: $r('app.string.ssh_key_copy_private'),
+      onAction: () => this.onCopyPrivate(),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_key'),
+      label: $r('app.string.ssh_key_copy_public'),
+      onAction: () => this.onCopyPublic(),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_download'),
+      label: $r('app.string.ssh_key_export'),
+      onAction: () => this.onExport(),
+    })
+    if (this.editable) {
+      DsMenuItem({
+        icon: $r('app.string.symbol_edit'),
+        label: $r('app.string.ssh_key_rename'),
+        onAction: () => this.onRename(),
+      })
+      DsMenuItem({
+        icon: $r('app.string.symbol_delete'),
+        label: $r('app.string.ssh_key_remove'),
+        theme: DsMenuItemTheme.Error,
+        onAction: () => this.onRemove(),
+      })
+    }
+  }
+
   @Builder
   private keyMenu() {
-    Menu() {
-      MenuItem({
-        content: $r('app.string.ssh_key_copy_private'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_docs')).fontSize(
-          $r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.onCopyPrivate())
-
-      MenuItem({
-        content: $r('app.string.ssh_key_copy_public'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_key')).fontSize($r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.onCopyPublic())
-
-      MenuItem({
-        content: $r('app.string.ssh_key_export'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_download')).fontSize(
-          $r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.onExport())
-
-      if (this.editable) {
-        MenuItem({
-          content: $r('app.string.ssh_key_rename'),
-          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_edit')).fontSize(
-            $r('sys.float.Body_L')),
-        })
-          .labelFont({ size: $r('sys.float.Body_M') })
-          .onClick(() => this.onRename())
-
-        MenuItem({
-          content: $r('app.string.ssh_key_remove'),
-          symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_delete')).fontSize($r('sys.float.Body_L'))
-            .fontColor([$r('sys.color.warning')])
-            .foregroundColor($r('sys.color.warning')),
-        })
-          .labelFont({ size: $r('sys.float.Body_M') })
-          .contentFontColor($r('sys.color.warning'))
-          .onClick(() => this.onRemove())
-      }
-    }
-    .menuItemDivider({
-      strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
-      color: $r('sys.color.grid_menu_divider_color'),
-      startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
-      endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
+    DsContextMenu({
+      header: this.menuHeader,
+      content: this.menuContent,
     })
   }
 
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
-      Row({ space: $r('sys.float.padding_level8') }) {
-        Image($r('app.media.ssh_key_file'))
-          .width($r('app.float.file_icon_size'))
-          .height($r('app.float.file_icon_size'))
-          .objectFit(ImageFit.Contain)
-          // Image 默认开启长按拖拽，会抢掉卡片的长按菜单。
-          .draggable(false)
+      Row({ space: $r('app.float.ds_space_md') }) {
+        Row() {
+          SymbolGlyph($r('app.string.symbol_key'))
+            .fontSize($r('app.float.ds_icon_md'))
+            .fontColor([$r('app.color.ds_text_primary')])
+            .foregroundColor($r('app.color.ds_text_primary'))
+        }
+        .width(ICON_TILE_SIZE)
+        .height(ICON_TILE_SIZE)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
+        .backgroundColor($r('app.color.ds_surface_high'))
 
-        Column({ space: $r('sys.float.padding_level2') }) {
+        Column({ space: $r('app.float.ds_space_2') }) {
           Text(this.sshKey.name)
             .width('100%')
-            .fontSize($r('sys.float.Body_L'))
+            .fontSize($r('app.float.ds_font_body'))
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('sys.color.font_primary'))
+            .fontColor($r('app.color.ds_text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
           Text(sshKeySummary(this.sshKey))
             .width('100%')
-            .fontSize($r('sys.float.Body_S'))
-            .fontColor($r('sys.color.font_secondary'))
+            .fontSize($r('app.float.ds_font_body_sm'))
+            .fontColor($r('app.color.ds_text_secondary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          if (this.fingerprint.length > 0) {
+            Text($r('app.string.ssh_key_fingerprint', this.fingerprint))
+              .width('100%')
+              .fontSize($r('app.float.ds_font_micro'))
+              .fontFamily(PASSWORD_FONT_FAMILY)
+              .fontColor($r('app.color.ds_text_tertiary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
         // 标签作为行内兄弟节点占位：名称只在剩余宽度里省略，不会压到标签上。
         if (this.showBadge) {
-          Text(this.sshKey.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'))
-            .fontSize($r('sys.float.Caption_M'))
-            .fontColor($r('sys.color.brand'))
-            .alignSelf(ItemAlign.Start)
-            .padding({
-              left: $r('sys.float.padding_level4'),
-              right: $r('sys.float.padding_level4'),
-              top: $r('sys.float.padding_level2'),
-              bottom: $r('sys.float.padding_level2'),
-            })
-            .backgroundColor($r('sys.color.comp_emphasize_secondary'))
-            .borderRadius($r('sys.float.corner_radius_level16'))
+          DsTag({
+            text: this.sshKey.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'),
+          })
         }
       }
       .width('100%')
+      .alignItems(VerticalAlign.Top)
     }
     .width('100%')
-    .padding($r('sys.float.padding_level8'))
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level10'))
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .borderRadius($r('app.float.ds_radius_none'))
     .onClick(() => this.onCopyPrivate())
     .bindContextMenu(this.keyMenu(), ResponseType.LongPress, {
       preview: MenuPreviewMode.IMAGE,

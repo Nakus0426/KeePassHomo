@@ -6,7 +6,9 @@ import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsColorLadder } from '../../components/DsColorLadder'
+import { DsControlSize } from '../../components/DsControlSize'
 import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsDatePickerMode, DsDatePickerSheet } from '../../components/DsDatePickerSheet'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { DsDialog, DsDialogTone } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
@@ -45,6 +47,8 @@ const ADVANCED_HEADER_HEIGHT: number = 44
 const TITLE_LABEL_OFFSET: number = 24
 // 菜单与按钮的间距，设计稿的 8。
 const MENU_TARGET_SPACE: number = 8
+// 银行卡有效期：模板字段键，走 MM/YY 文本 + 年月选择器。
+const EXPIRY_FIELD_KEY: string = 'Expiry'
 
 @ComponentV2
 export struct EntryEditorView {
@@ -404,6 +408,12 @@ export struct EntryEditorView {
         readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
+    } else if (definition.key === EXPIRY_FIELD_KEY) {
+      TemplateExpiryField({
+        text: field.value,
+        readOnly: this.readOnly,
+        onChange: (value: string) => this.editor.setFieldValue(field, value),
+      })
     } else if (definition.options.length > 0) {
       DsInput({
         text: field.value,
@@ -424,30 +434,13 @@ export struct EntryEditorView {
     }
   }
 
-  // 卡类型等固定取值：图标只在命中枚举时显示，下拉只是快捷填入。
+  // 卡类型等固定取值：下拉只做快捷填入，选项文案仍可手动编辑。
   @LocalBuilder
   private optionMenuButton(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
-    DsButton({
-      variant: DsButtonVariant.Text,
-      tone: DsButtonTone.Default,
-      iconOnly: true,
-      controlHeightOverride: $r('app.float.ds_input_height_md'),
-      leadingIcon: $r('app.string.symbol_chevron_down'),
-      iconSizeOverride: $r('app.float.ds_icon_md'),
-      iconColorOverride: $r('app.color.ds_on_surface_variant'),
-      accessibilityLabelResource: $r('app.string.select_type'),
-      menu: definition.options.map((option: TemplateFieldOption) => this.optionMenuItem(field, option)),
-      onTap: () => {
-      },
+    TemplateOptionMenuButton({
+      definition: definition,
+      onSelect: (value: string) => this.editor.setFieldValue(field, value),
     })
-  }
-
-  private optionMenuItem(field: EntryFieldEditor, option: TemplateFieldOption): MenuElement {
-    return {
-      value: option.value,
-      icon: option.icon,
-      action: () => this.editor.setFieldValue(field, option.value),
-    }
   }
 
   @LocalBuilder
@@ -1109,5 +1102,177 @@ struct HeaderFavoriteAction {
       iconSizeOverride: $r('app.float.ds_icon_md'),
       onToggle: () => this.onToggle(),
     })
+  }
+}
+
+// 固定取值字段的下拉：自绘菜单与卡片长按菜单共用皮肤，选项带品牌标识。
+@ComponentV2
+struct TemplateOptionMenuButton {
+  @Require @Param definition: TemplateFieldDefinition
+  @Event onSelect: (value: string) => void = () => {
+  }
+
+  @Computed
+  private get menuOptions(): MenuOptions {
+    return {
+      placement: Placement.BottomRight,
+      targetSpace: LengthMetrics.vp(MENU_TARGET_SPACE),
+      borderRadius: $r('app.float.ds_radius_none'),
+      backgroundColor: $r('app.color.ds_surface_lowest'),
+      backgroundBlurStyle: BlurStyle.NONE,
+      mask: {
+        color: $r('app.color.ds_scrim'),
+        backgroundBlurStyle: BlurStyle.NONE,
+      },
+    }
+  }
+
+  @LocalBuilder
+  private menuHeader() {
+    Column({ space: $r('app.float.ds_space_2') }) {
+      Text($r('app.string.card_type_menu_title'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+      Text($r('app.string.card_type_menu_hint'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private menuContent() {
+    ForEach(this.definition.options, (option: TemplateFieldOption) => {
+      DsMenuItem({
+        iconImage: option.icon,
+        label: option.value,
+        onAction: () => this.onSelect(option.value),
+      })
+    }, (option: TemplateFieldOption) => option.value)
+  }
+
+  @LocalBuilder
+  private menu() {
+    DsContextMenu({
+      header: this.menuHeader,
+      content: this.menuContent,
+    })
+  }
+
+  build() {
+    DsButton({
+      variant: DsButtonVariant.Text,
+      tone: DsButtonTone.Default,
+      iconOnly: true,
+      // 与密码行的显隐、生成按钮同尺寸，四周留出输入井内距。
+      buttonSize: DsControlSize.Small,
+      leadingIcon: $r('app.string.symbol_chevron_down'),
+      iconSizeOverride: $r('app.float.ds_icon_sm'),
+      iconColorOverride: $r('app.color.ds_on_surface_variant'),
+      accessibilityLabelResource: $r('app.string.select_type'),
+      menuBuilder: this.menu,
+      menuOptions: this.menuOptions,
+      onTap: () => {
+      },
+    })
+  }
+}
+
+// 有效期：保留 MM/YY 手输，尾部提供清除与年月选择入口。
+@ComponentV2
+struct TemplateExpiryField {
+  @Param text: string = ''
+  @Param readOnly: boolean = false
+  @Event onChange: (value: string) => void = () => {
+  }
+  @Local private sheetVisible: boolean = false
+  @Local private pickerValue: string = ''
+
+  private expiryToPickerValue(): string {
+    const match: RegExpMatchArray | null = this.text.trim().match(/^(\d{1,2})\s*\/\s*(\d{2})$/)
+    if (match === null) {
+      return ''
+    }
+    return `20${match[2]}-${match[1].padStart(2, '0')}`
+  }
+
+  private pickerValueToExpiry(value: string): string {
+    const parts: string[] = value.split('-')
+    return parts.length < 2 ? value : `${parts[1]}/${parts[0].slice(2)}`
+  }
+
+  private openPicker(): void {
+    this.pickerValue = this.expiryToPickerValue()
+    this.sheetVisible = true
+  }
+
+  @LocalBuilder
+  private trailing() {
+    if (!this.readOnly) {
+      Row({ space: $r('app.float.ds_space_xs') }) {
+        if (this.text.length > 0) {
+          DsButton({
+            variant: DsButtonVariant.Text,
+            tone: DsButtonTone.Default,
+            buttonSize: DsControlSize.Small,
+            iconOnly: true,
+            leadingIcon: $r('app.string.symbol_close'),
+            iconSizeOverride: $r('app.float.ds_icon_xs'),
+            iconColorOverride: $r('app.color.ds_text_secondary'),
+            accessibilityLabelResource: $r('app.string.card_expiry_clear'),
+            onTap: () => this.onChange(''),
+          })
+        }
+
+        DsButton({
+          variant: DsButtonVariant.Text,
+          tone: DsButtonTone.Default,
+          buttonSize: DsControlSize.Small,
+          iconOnly: true,
+          leadingIcon: $r('app.string.symbol_calendar'),
+          iconSizeOverride: $r('app.float.ds_icon_sm'),
+          iconColorOverride: $r('app.color.ds_on_surface_variant'),
+          accessibilityLabelResource: $r('app.string.card_expiry_picker_title'),
+          onTap: () => this.openPicker(),
+        })
+      }
+    }
+  }
+
+  @LocalBuilder
+  private pickerSheet() {
+    DsDatePickerSheet({
+      mode: DsDatePickerMode.YearMonth,
+      value: this.pickerValue,
+      pickerTitle: $r('app.string.card_expiry_picker_title'),
+      onConfirm: (value: string) => {
+        this.sheetVisible = false
+        this.onChange(this.pickerValueToExpiry(value))
+      },
+      onClose: () => this.sheetVisible = false,
+    })
+  }
+
+  build() {
+    DsInput({
+      text: this.text,
+      placeholder: $r('app.string.text_input_placeholder'),
+      readOnly: this.readOnly,
+      trailingBuilder: this.trailing,
+      onChange: (value: string) => this.onChange(value),
+    })
+      .bindSheet($$this.sheetVisible, this.pickerSheet(), dsSheetOptions({
+        detents: [SheetSize.MEDIUM],
+        onDisappear: () => this.sheetVisible = false,
+      }))
   }
 }

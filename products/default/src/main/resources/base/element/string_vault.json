@@ -97,6 +97,22 @@
       "value": "卡类型"
     },
     {
+      "name": "card_type_menu_title",
+      "value": "选择卡类型"
+    },
+    {
+      "name": "card_expiry_picker_title",
+      "value": "选择有效期"
+    },
+    {
+      "name": "card_expiry_clear",
+      "value": "清除有效期"
+    },
+    {
+      "name": "card_type_menu_hint",
+      "value": "仅填入卡组织名称，仍可手动编辑"
+    },
+    {
       "name": "card_holder",
       "value": "持卡人"
     },
@@ -157,6 +173,10 @@
       "value": "生成密钥"
     },
     {
+      "name": "ssh_key_generate_title",
+      "value": "生成 SSH 密钥"
+    },
+    {
       "name": "ssh_key_copy_private",
       "value": "复制私钥"
     },
@@ -175,6 +195,10 @@
     {
       "name": "ssh_key_rename",
       "value": "重命名"
+    },
+    {
+      "name": "ssh_key_rename_message",
+      "value": "仅修改本条目内的显示名称，不改写密钥文件。"
     },
     {
       "name": "ssh_key_remove",
@@ -273,6 +297,38 @@
       "value": "单条密钥不能超过 %s"
     },
     {
+      "name": "ssh_key_fingerprint",
+      "value": "SHA256:%s"
+    },
+    {
+      "name": "ssh_key_empty_title",
+      "value": "暂无密钥"
+    },
+    {
+      "name": "ssh_key_empty_body",
+      "value": "上传私钥文件、从剪贴板粘贴，或直接生成一对新密钥。"
+    },
+    {
+      "name": "ssh_key_actions",
+      "value": "密钥操作"
+    },
+    {
+      "name": "ssh_key_actions_hint",
+      "value": "复制或导出会带出私钥明文"
+    },
+    {
+      "name": "ssh_add_menu_title",
+      "value": "添加 SSH 密钥"
+    },
+    {
+      "name": "ssh_key_recommend_ed25519",
+      "value": "推荐 Ed25519"
+    },
+    {
+      "name": "ssh_key_recommend_rsa",
+      "value": "兼容性优先"
+    },
+    {
       "name": "attachment_template",
       "value": "附件"
     },
@@ -290,7 +346,7 @@
     },
     {
       "name": "attachment_add",
-      "value": "添加文件"
+      "value": "添加附件"
     },
     {
       "name": "attachment_remove",
@@ -335,6 +391,58 @@
     {
       "name": "attachment_size_notice",
       "value": "保存后保险库体积将增加约 %s"
+    },
+    {
+      "name": "attachment_preview",
+      "value": "预览"
+    },
+    {
+      "name": "attachment_rename",
+      "value": "重命名"
+    },
+    {
+      "name": "attachment_rename_message",
+      "value": "仅修改本条目内的附件名，不改写文件内容。"
+    },
+    {
+      "name": "attachment_delete",
+      "value": "删除附件"
+    },
+    {
+      "name": "attachment_name_placeholder",
+      "value": "附件名称"
+    },
+    {
+      "name": "attachment_name_required",
+      "value": "请输入附件名称"
+    },
+    {
+      "name": "attachment_name_duplicate",
+      "value": "已存在同名附件"
+    },
+    {
+      "name": "attachment_summary",
+      "value": "%d 个附件 · %s"
+    },
+    {
+      "name": "attachment_summary_pending",
+      "value": "%d 个附件 · %s（含待保存 %s）"
+    },
+    {
+      "name": "attachment_empty_title",
+      "value": "暂无附件"
+    },
+    {
+      "name": "attachment_empty_body",
+      "value": "选择文件后自动加入保险库；单个文件不超过 10 MB。"
+    },
+    {
+      "name": "attachment_actions",
+      "value": "附件操作"
+    },
+    {
+      "name": "attachment_actions_hint",
+      "value": "预览与导出前需再次认证"
     },
     {
       "name": "reauthenticate_title",

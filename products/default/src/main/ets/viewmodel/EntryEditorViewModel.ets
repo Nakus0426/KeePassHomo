@@ -25,7 +25,7 @@ export enum AttachmentEditAction {
 @ObservedV2
 export class EntryAttachmentEditor {
   readonly id: number = nextAttachmentId++
-  readonly name: string
+  @Trace name: string
   readonly data: ArrayBuffer | undefined
   @Trace size: number
   @Trace action: AttachmentEditAction
@@ -282,6 +282,23 @@ export class EntryEditorViewModel {
 
   addAttachment(name: string, data: ArrayBuffer): void {
     this.attachments.push(new EntryAttachmentEditor(name, data.byteLength, data, AttachmentEditAction.Add))
+  }
+
+  // 附件名是条目内的 KDBX 键：重命名等价于删除旧键并按新键写入同一份字节。
+  renameAttachment(item: EntryAttachmentEditor, name: string, data: ArrayBuffer | undefined): void {
+    if (item.action === AttachmentEditAction.Add) {
+      item.name = name
+      return
+    }
+    if (data === undefined) {
+      return
+    }
+    item.action = AttachmentEditAction.Remove
+    this.attachments.push(new EntryAttachmentEditor(name, data.byteLength, data, AttachmentEditAction.Add))
+  }
+
+  attachmentNameTaken(name: string, except: EntryAttachmentEditor): boolean {
+    return this.visibleAttachments().some((item: EntryAttachmentEditor) => item.id !== except.id && item.name === name)
   }
 
   // 尚未保存过的附件直接丢弃，已入库的标记为移除并在保存时删除。

@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { LengthMetrics, promptAction, SymbolGlyphModifier } from '@kit.ArkUI'
+import { LengthMetrics, promptAction } from '@kit.ArkUI'
 import { BusinessError, pasteboard } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import { inspectSshPrivateKey, SshKeyAlgorithm, SshKeyInspection } from '@ohos/common'
@@ -11,12 +11,20 @@ import { exportSshPrivateKey } from '../../model/SshKeyExport'
 import { SshKeyCard } from './SshKeyCard'
 import { isPasteboardReadGranted, requestPasteboardRead } from '../../model/PasteboardAccess'
 import { SshKeyGeneratorSheet } from './SshKeyGeneratorSheet'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsDialog } from '../../components/DsDialog'
+import { DsField } from '../../components/DsField'
+import { DsInput, DsInputTone } from '../../components/DsInput'
+import { DsMenuItem } from '../../components/DsMenuItem'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsToastHost } from '../../components/DsToast'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
 // 单条密钥文本上限：PEM 最大档 RSA8192 也远小于此值，用于拦住误粘贴的大文件。
 const SSH_KEY_MAX_BYTES: number = 64 * 1024
+const MENU_TARGET_SPACE: number = 8
 
 function sshKeyFileName(sourceName: string, inspection: SshKeyInspection): string {
   if (sourceName.length > 0) {
@@ -39,13 +47,30 @@ export struct EntrySshKeysField {
   @Local private pasteMode: boolean = false
   @Local private generateSheetVisible: boolean = false
   @Local private renameName: string = ''
+  @Local private renameError: ResourceStr | undefined = undefined
   private renameTarget: SshKeyDraft | undefined = undefined
   private readonly app: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
+  private readonly renameDialogController: promptAction.DialogController = new promptAction.DialogController()
 
   @Computed
   private get keys(): SshKeyDraft[] {
     return this.editor.sshKeys
+  }
+
+  @Computed
+  private get menuOptions(): MenuOptions {
+    return {
+      placement: Placement.BottomLeft,
+      targetSpace: LengthMetrics.vp(MENU_TARGET_SPACE),
+      borderRadius: $r('app.float.ds_radius_none'),
+      backgroundColor: $r('app.color.ds_surface_lowest'),
+      backgroundBlurStyle: BlurStyle.NONE,
+      mask: {
+        color: $r('app.color.ds_scrim'),
+        backgroundBlurStyle: BlurStyle.NONE,
+      },
+    }
   }
 
   private copy(value: string): void {
@@ -171,31 +196,52 @@ export struct EntrySshKeysField {
   private openRenameDialog(key: SshKeyDraft): void {
     this.renameTarget = key
     this.renameName = key.name
+    this.renameError = undefined
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.renameDialog(), this.dialogController, {
-        backgroundColor: $r('app.color.ds_surface_low'),
+      .presentCustomDialog(() => this.renameDialog(), this.renameDialogController, {
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        cornerRadius: 0,
+        width: $r('app.float.dialog_width'),
+        alignment: DialogAlignment.Center,
+        maskColor: $r('app.color.ds_scrim'),
       })
       .catch((error: BusinessError) => {
         LogUtil.error(`打开重命名弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
       })
   }
 
+  private validateKeyName(name: string): ResourceStr | undefined {
+    if (name.length === 0) {
+      return $r('app.string.ssh_key_name_required')
+    }
+    const target: SshKeyDraft | undefined = this.renameTarget
+    if (target !== undefined && name !== target.name && this.editor.sshKeyNameTaken(name, target)) {
+      return $r('app.string.ssh_key_name_duplicate')
+    }
+    return undefined
+  }
+
+  private applyRenameName(value: string): void {
+    this.renameName = value
+    if (this.renameError !== undefined) {
+      this.renameError = this.validateKeyName(value.trim())
+    }
+  }
+
   private submitRename(): void {
     const target: SshKeyDraft | undefined = this.renameTarget
-    const name: string = this.renameName.trim()
     if (target === undefined) {
       return
     }
-    if (name.length === 0) {
-      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_name_required'))
+    const name: string = this.renameName.trim()
+    const error: ResourceStr | undefined = this.validateKeyName(name)
+    this.renameError = error
+    if (error !== undefined) {
       return
     }
-    this.dialogController.close()
-    if (name !== target.name && this.editor.sshKeyNameTaken(name, target)) {
-      DsToastHost.show(this.getUIContext(), $r('app.string.ssh_key_name_duplicate'))
-      return
-    }
+    this.renameDialogController.close()
     this.editor.renameSshKey(target, name)
     this.renameTarget = undefined
     this.onActivity()
@@ -211,7 +257,7 @@ export struct EntrySshKeysField {
         },
       },
       secondaryButton: {
-        value: $r('app.string.delete_entry'),
+        value: $r('app.string.ssh_key_remove'),
         fontColor: $r('app.color.ds_warning'),
         action: () => {
           this.editor.removeSshKey(key)
@@ -222,128 +268,83 @@ export struct EntrySshKeysField {
     this.getUIContext().showAlertDialog(options)
   }
 
-  @Builder
-  private addMenu() {
-    Menu() {
-      MenuItem({
-        content: $r('app.string.ssh_key_pick_file'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_upload_file')).fontSize($r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.pickKeyFile())
-
-      MenuItem({
-        content: $r('app.string.ssh_key_paste'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_copy')).fontSize(
-          $r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.startPaste())
-
-      MenuItem({
-        content: $r('app.string.ssh_key_generate'),
-        symbolStartIcon: new SymbolGlyphModifier($r('app.string.symbol_generate')).fontSize($r('sys.float.Body_L')),
-      })
-        .labelFont({ size: $r('sys.float.Body_M') })
-        .onClick(() => this.generateSheetVisible = true)
+  @LocalBuilder
+  private addMenuHeader() {
+    Column() {
+      Text($r('app.string.ssh_add_menu_title'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
     }
-    .menuItemDivider({
-      strokeWidth: LengthMetrics.resource($r('sys.float.alert_divider_width')),
-      color: $r('app.color.ds_outline_variant'),
-      startMargin: LengthMetrics.resource($r('sys.float.menu_divider_start_margin')),
-      endMargin: LengthMetrics.resource($r('sys.float.menu_divider_end_margin')),
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @LocalBuilder
+  private addMenuItems() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_upload_file'),
+      label: $r('app.string.ssh_key_pick_file'),
+      onAction: () => this.pickKeyFile(),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_copy'),
+      label: $r('app.string.ssh_key_paste'),
+      onAction: () => this.startPaste(),
+    })
+    DsMenuItem({
+      icon: $r('app.string.symbol_generate'),
+      label: $r('app.string.ssh_key_generate'),
+      onAction: () => this.generateSheetVisible = true,
+    })
+  }
+
+  @LocalBuilder
+  private addMenu() {
+    DsContextMenu({
+      header: this.addMenuHeader,
+      content: this.addMenuItems,
+    })
+  }
+
+  @LocalBuilder
+  private renameInputField() {
+    DsInput({
+      text: this.renameName,
+      placeholder: $r('app.string.ssh_key_name_placeholder'),
+      tone: this.renameError === undefined ? DsInputTone.Default : DsInputTone.Error,
+      onChange: (value: string) => this.applyRenameName(value),
+      onSubmit: () => this.submitRename(),
+    })
+  }
+
+  @LocalBuilder
+  private renameInput() {
+    DsField({
+      feedback: this.renameError,
+      reserveFeedbackSpace: true,
+      contentBuilder: this.renameInputField,
     })
   }
 
   @Builder
   private renameDialog() {
-    Column() {
-      Text($r('app.string.ssh_key_rename'))
-        .fontSize($r('sys.float.ohos_id_text_size_dialog_tittle'))
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.ds_text_primary'))
-        .width('100%')
-        .textAlign(TextAlign.Center)
-        .padding({ left: $r('app.float.ds_space_md'), right: $r('app.float.ds_space_md') })
-
-      TextInput({ placeholder: $r('app.string.ssh_key_name_placeholder'), text: this.renameName })
-        .fontSize($r('sys.float.Body_L'))
-        .height($r('app.float.control_height'))
-        .backgroundColor(Color.Transparent)
-        .showUnderline(true)
-        .underlineColor({ normal: $r('app.color.ds_outline_variant'), typing: $r('app.color.ds_primary') })
-        .margin({
-          top: $r('app.float.ds_space_6'),
-          left: $r('app.float.ds_space_md'),
-          right: $r('app.float.ds_space_md'),
-        })
-        .onChange((value: string) => this.renameName = value)
-
-      Row({ space: $r('app.float.ds_space_2') }) {
-        Button($r('app.string.cancel'))
-          .buttonStyle(ButtonStyleMode.TEXTUAL)
-          .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('app.color.ds_primary'))
-          .layoutWeight(1)
-          .onClick(() => this.dialogController.close())
-
-        Divider()
-          .vertical(true)
-          .strokeWidth(1)
-          .color($r('app.color.ds_outline_variant'))
-          .height($r('sys.float.ohos_id_dialog_divider_height'))
-
-        Button($r('app.string.confirm'))
-          .buttonStyle(ButtonStyleMode.TEXTUAL)
-          .fontSize($r('sys.float.Body_L'))
-          .fontColor($r('app.color.ds_primary'))
-          .layoutWeight(1)
-          .onClick(() => this.submitRename())
-      }
-      .width('100%')
-      .margin({ top: $r('app.float.ds_space_2') })
-      .padding({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-    }
-    .width('100%')
-    .padding({ top: $r('app.float.ds_space_6'), bottom: $r('app.float.ds_space_sm') })
-  }
-
-  // 与「其他」区的新增按钮同款，复用系统点按反馈；生成期间换成加载态并禁用。
-  @Builder
-  private addRow() {
-    Row() {
-      Button() {
-        Row({ space: $r('app.float.ds_space_xs') }) {
-          if (this.busy) {
-            LoadingProgress()
-              .width($r('sys.float.chip_normal_icon_size'))
-              .height($r('sys.float.chip_normal_icon_size'))
-              .color($r('app.color.ds_text_primary'))
-
-            Text($r('app.string.ssh_key_generating'))
-              .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('app.color.ds_text_primary'))
-          } else {
-            SymbolGlyph($r('app.string.symbol_add'))
-              .fontSize($r('sys.float.chip_normal_icon_size'))
-              .fontColor([$r('app.color.ds_text_primary')])
-              .foregroundColor($r('app.color.ds_text_primary'))
-
-            Text($r('app.string.add'))
-              .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('app.color.ds_text_primary'))
-          }
-        }
-      }
-      .width('100%')
-      .height($r('sys.float.chip_normal_height'))
-      .buttonStyle(ButtonStyleMode.NORMAL)
-      .type(ButtonType.Capsule)
-      .enabled(!this.busy)
-      .bindMenu(this.addMenu)
-    }
-    .width('100%')
-    .justifyContent(FlexAlign.Center)
+    DsDialog({
+      title: $r('app.string.ssh_key_rename'),
+      message: $r('app.string.ssh_key_rename_message'),
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.save'),
+      contentBuilder: this.renameInput,
+      onCancel: () => this.renameDialogController.close(),
+      onConfirm: () => this.submitRename(),
+    })
   }
 
   // 粘贴控件必须由用户直接点击才能拿到剪贴板临时授权，故独立成一块而不是菜单项。
@@ -353,13 +354,13 @@ export struct EntrySshKeysField {
       Column({ space: $r('app.float.ds_space_2') }) {
         Text($r('app.string.ssh_key_paste_action'))
           .width('100%')
-          .fontSize($r('sys.float.Body_L'))
+          .fontSize($r('app.float.ds_font_body'))
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.ds_text_primary'))
 
         Text($r('app.string.ssh_key_paste_reason'))
           .width('100%')
-          .fontSize($r('sys.float.Body_S'))
+          .fontSize($r('app.float.ds_font_body_sm'))
           .fontColor($r('app.color.ds_text_secondary'))
           .maxLines(2)
       }
@@ -367,18 +368,19 @@ export struct EntrySshKeysField {
       .alignItems(HorizontalAlign.Start)
 
       Row() {
-        PasteButton({ text: PasteDescription.PASTE, buttonType: ButtonType.Capsule })
-          .fontSize($r('sys.float.chip_normal_font_size'))
+        PasteButton({ text: PasteDescription.PASTE, buttonType: ButtonType.Normal })
+          .fontSize($r('app.float.ds_font_body_sm'))
           .backgroundColor($r('app.color.ds_surface_high'))
           .fontColor($r('app.color.ds_text_primary'))
+          .borderRadius($r('app.float.ds_radius_none'))
           .onClick((_event: ClickEvent, result: PasteButtonOnClickResult) => this.pasteFromClipboard(result))
       }
       .width('100%')
       .justifyContent(FlexAlign.End)
     }
     .width('100%')
-    .padding($r('app.float.ds_space_sm'))
-    .backgroundColor($r('app.color.ds_surface_high'))
+    .padding($r('app.float.ds_space_md'))
+    .backgroundColor($r('app.color.ds_surface_low'))
     .borderRadius($r('app.float.ds_radius_none'))
   }
 
@@ -393,6 +395,14 @@ export struct EntrySshKeysField {
 
   build() {
     Column({ space: $r('app.float.ds_space_sm') }) {
+      if (this.keys.length === 0) {
+        DsNotice({
+          tone: DsNoticeTone.Default,
+          title: $r('app.string.ssh_key_empty_title'),
+          body: $r('app.string.ssh_key_empty_body'),
+        })
+      }
+
       ForEach(this.keys, (key: SshKeyDraft) => {
         SshKeyCard({
           sshKey: key,
@@ -409,7 +419,18 @@ export struct EntrySshKeysField {
         if (this.pasteMode) {
           this.pasteRow()
         }
-        this.addRow()
+        DsButton({
+          label: $r('app.string.ssh_key_add'),
+          variant: DsButtonVariant.Dashed,
+          tone: DsButtonTone.Default,
+          leadingIcon: $r('app.string.symbol_add'),
+          loading: this.busy,
+          fullWidth: true,
+          menuBuilder: this.addMenu,
+          menuOptions: this.menuOptions,
+          onTap: () => {
+          },
+        })
       }
     }
     .width('100%')

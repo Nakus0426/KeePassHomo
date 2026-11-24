@@ -173,6 +173,30 @@
       "value": "14vp"
     },
     {
+      "name": "ds_slider_thumb_sm",
+      "value": "12vp"
+    },
+    {
+      "name": "ds_slider_thumb_md",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_slider_thumb_lg",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_slider_track_h_sm",
+      "value": "3vp"
+    },
+    {
+      "name": "ds_slider_track_h_md",
+      "value": "4vp"
+    },
+    {
+      "name": "ds_slider_track_h_lg",
+      "value": "6vp"
+    },
+    {
       "name": "ds_input_height_sm",
       "value": "40vp"
     },

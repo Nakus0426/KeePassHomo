@@ -8,6 +8,11 @@ import { AttachmentEditAction, EntryAttachmentEditor, EntryEditorViewModel } fro
 import { exportAttachment, previewAttachment } from '../../model/AttachmentFiles'
 import { AttachmentCard } from './AttachmentCard'
 import { AttachmentReauthDialog } from './AttachmentReauthDialog'
+import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
+import { DsDialog } from '../../components/DsDialog'
+import { DsField } from '../../components/DsField'
+import { DsInput, DsInputTone } from '../../components/DsInput'
+import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsToastHost } from '../../components/DsToast'
 import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
@@ -26,13 +31,26 @@ export struct EntryAttachmentField {
   @Local private busy: boolean = false
   @Local private reauthMessage: ResourceStr = ''
   @Local private reauthConfirm: ResourceStr = ''
+  @Local private renameName: string = ''
+  @Local private renameError: ResourceStr | undefined = undefined
   private pendingAction: (() => void) | undefined = undefined
+  private renameTarget: EntryAttachmentEditor | undefined = undefined
   private readonly app: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
+  private readonly renameDialogController: promptAction.DialogController = new promptAction.DialogController()
 
   @Computed
   private get attachments(): EntryAttachmentEditor[] {
     return this.editor.visibleAttachments()
+  }
+
+  @Computed
+  private get totalSize(): number {
+    let total: number = 0
+    for (const item of this.attachments) {
+      total += item.size
+    }
+    return total
   }
 
   // 待保存的新增附件体积：让用户在落盘前看到保险库会变大多少。
@@ -45,6 +63,15 @@ export struct EntryAttachmentField {
       }
     }
     return total
+  }
+
+  private summaryText(): ResourceStr {
+    if (this.pendingSize > 0) {
+      return $r('app.string.attachment_summary_pending', this.attachments.length,
+        FileUtil.getFormatFileSize(this.totalSize), FileUtil.getFormatFileSize(this.pendingSize))
+    }
+    return $r('app.string.attachment_summary', this.attachments.length,
+      FileUtil.getFormatFileSize(this.totalSize))
   }
 
   private async addFiles(): Promise<void> {
@@ -101,8 +128,8 @@ export struct EntryAttachmentField {
         },
       },
       secondaryButton: {
-        value: $r('app.string.delete_entry'),
-        fontColor: $r('sys.color.warning'),
+        value: $r('app.string.attachment_delete'),
+        fontColor: $r('app.color.ds_error'),
         action: () => {
           this.editor.removeAttachment(item)
           this.onActivity()
@@ -128,6 +155,61 @@ export struct EntryAttachmentField {
     this.presentReauth($r('app.string.preview_reauth_message'), $r('app.string.preview_reauth_confirm'), () => {
       previewAttachment(this.getUIContext(), item.name, () => this.readAttachment(item))
     })
+  }
+
+  private openRename(item: EntryAttachmentEditor): void {
+    this.renameTarget = item
+    this.renameName = item.name
+    this.renameError = undefined
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.renameDialog(), this.renameDialogController, {
+        backgroundColor: Color.Transparent,
+        backgroundBlurStyle: BlurStyle.NONE,
+        cornerRadius: 0,
+        width: $r('app.float.dialog_width'),
+        alignment: DialogAlignment.Center,
+        maskColor: $r('app.color.ds_scrim'),
+      })
+      .catch((error: BusinessError) => {
+        LogUtil.error(`打开附件重命名弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
+      })
+  }
+
+  private validateAttachmentName(name: string): ResourceStr | undefined {
+    if (name.length === 0) {
+      return $r('app.string.attachment_name_required')
+    }
+    const target: EntryAttachmentEditor | undefined = this.renameTarget
+    if (target !== undefined && this.editor.attachmentNameTaken(name, target)) {
+      return $r('app.string.attachment_name_duplicate')
+    }
+    return undefined
+  }
+
+  private applyRenameName(value: string): void {
+    this.renameName = value
+    if (this.renameError !== undefined) {
+      this.renameError = this.validateAttachmentName(value.trim())
+    }
+  }
+
+  // 已入库附件按「删除旧键 + 写入新键」提交，字节直接沿用当前内容。
+  private submitRename(): void {
+    const target: EntryAttachmentEditor | undefined = this.renameTarget
+    if (target === undefined) {
+      return
+    }
+    const name: string = this.renameName.trim()
+    const error: ResourceStr | undefined = this.validateAttachmentName(name)
+    this.renameError = error
+    if (error !== undefined) {
+      return
+    }
+    this.renameDialogController.close()
+    this.editor.renameAttachment(target, name, this.readAttachment(target))
+    this.renameTarget = undefined
+    this.onActivity()
   }
 
   private presentReauth(message: ResourceStr, confirmLabel: ResourceStr, action: () => void): void {
@@ -162,6 +244,39 @@ export struct EntryAttachmentField {
     })
   }
 
+  @LocalBuilder
+  private renameInputField() {
+    DsInput({
+      text: this.renameName,
+      placeholder: $r('app.string.attachment_name_placeholder'),
+      tone: this.renameError === undefined ? DsInputTone.Default : DsInputTone.Error,
+      onChange: (value: string) => this.applyRenameName(value),
+      onSubmit: () => this.submitRename(),
+    })
+  }
+
+  @LocalBuilder
+  private renameInput() {
+    DsField({
+      feedback: this.renameError,
+      reserveFeedbackSpace: true,
+      contentBuilder: this.renameInputField,
+    })
+  }
+
+  @Builder
+  private renameDialog() {
+    DsDialog({
+      title: $r('app.string.attachment_rename'),
+      message: $r('app.string.attachment_rename_message'),
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.save'),
+      contentBuilder: this.renameInput,
+      onCancel: () => this.renameDialogController.close(),
+      onConfirm: () => this.submitRename(),
+    })
+  }
+
   @Builder
   private attachmentRow(item: EntryAttachmentEditor) {
     AttachmentCard({
@@ -171,43 +286,44 @@ export struct EntryAttachmentField {
       editable: !this.readOnly,
       onPreview: () => this.startPreview(item),
       onExport: () => this.startExport(item),
+      onRename: () => this.openRename(item),
       onRemove: () => this.confirmRemove(item),
     })
   }
 
   build() {
-    Column({ space: $r('sys.float.padding_level8') }) {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      if (this.attachments.length === 0) {
+        DsNotice({
+          tone: DsNoticeTone.Default,
+          title: $r('app.string.attachment_empty_title'),
+          body: $r('app.string.attachment_empty_body'),
+        })
+      }
+
       ForEach(this.attachments, (item: EntryAttachmentEditor) => {
         this.attachmentRow(item)
       }, (item: EntryAttachmentEditor) => `${item.id}`)
 
-      if (!this.readOnly) {
-        Button() {
-          Row({ space: $r('sys.float.padding_level4') }) {
-            SymbolGlyph($r('app.string.symbol_add'))
-              .fontSize($r('sys.float.chip_normal_icon_size'))
-              .fontColor([$r('sys.color.font_emphasize')])
-              .foregroundColor($r('sys.color.font_emphasize'))
-
-            Text($r('app.string.attachment_add'))
-              .fontSize($r('sys.float.chip_normal_font_size'))
-              .fontColor($r('sys.color.font_emphasize'))
-          }
-        }
-        .width('100%')
-        .height($r('sys.float.chip_normal_height'))
-        .buttonStyle(ButtonStyleMode.NORMAL)
-        .type(ButtonType.Capsule)
-        .enabled(!this.busy)
-        .onClick(() => this.addFiles())
+      if (this.attachments.length > 0) {
+        Text(this.summaryText())
+          .width('100%')
+          .fontSize($r('app.float.ds_font_body_sm'))
+          .fontColor($r('app.color.ds_text_tertiary'))
       }
 
-      if (this.pendingSize > 0) {
-        Text(ResUtil.getStringSync($r('app.string.attachment_size_notice'))
-          .replace('%s', FileUtil.getFormatFileSize(this.pendingSize)))
-          .width('100%')
-          .fontSize($r('sys.float.Caption_S'))
-          .fontColor($r('sys.color.font_tertiary'))
+      if (!this.readOnly) {
+        DsButton({
+          label: $r('app.string.attachment_add'),
+          variant: DsButtonVariant.Dashed,
+          tone: DsButtonTone.Default,
+          leadingIcon: $r('app.string.symbol_add'),
+          loading: this.busy,
+          fullWidth: true,
+          onTap: () => {
+            this.addFiles()
+          },
+        })
       }
     }
     .width('100%')

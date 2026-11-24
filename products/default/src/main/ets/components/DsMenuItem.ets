@@ -10,6 +10,8 @@ export enum DsMenuItemTheme {
 @ComponentV2
 export struct DsMenuItem {
   @Param icon: Resource | undefined = undefined
+  // 品牌图等非字体图标：传入时替代字体图标。
+  @Param iconImage: Resource | undefined = undefined
   @Param label: ResourceStr = ''
   @Param theme: DsMenuItemTheme = DsMenuItemTheme.Default
   @Event onAction: () => void = () => {}
@@ -62,7 +64,12 @@ export struct DsMenuItem {
       .onClick(() => this.onAction())
     } else {
       Row({ space: $r('app.float.ds_space_md') }) {
-        if (this.icon !== undefined) {
+        if (this.iconImage !== undefined) {
+          Image(this.iconImage)
+            .width($r('app.float.ds_icon_md'))
+            .height($r('app.float.ds_icon_md'))
+            .objectFit(ImageFit.Contain)
+        } else if (this.icon !== undefined) {
           SymbolGlyph(this.icon)
             .fontSize($r('app.float.ds_icon_md'))
             .fontColor([this.iconColor()])

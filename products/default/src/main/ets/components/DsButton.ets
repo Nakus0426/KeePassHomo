@@ -71,6 +71,10 @@ export struct DsButton {
   @BuilderParam contentBuilder?: () => void
   // 菜单必须挂在按钮自身的节点上：自定义组件没有节点，外层包一层也收不到点击。
   @Param menu: CustomBuilder | MenuElement[] | undefined = undefined
+  // 跨组件传入的菜单 builder 走 @BuilderParam：@Param 会丢失声明处的 this，菜单打不开。
+  @BuilderParam menuBuilder?: () => void
+  // 自绘菜单（DsContextMenu）必须同时传菜单选项，否则系统默认圆角与面底会露出来。
+  @Param menuOptions: MenuOptions | undefined = undefined
   @Event onTap: () => void = () => {
   }
 
@@ -421,6 +425,6 @@ export struct DsButton {
       }
     })
     .hitTestBehavior(this.disabled || this.loading ? HitTestMode.None : HitTestMode.Default)
-    .bindMenu(this.menu === undefined ? undefined : this.menu)
+    .bindMenu(this.menuBuilder !== undefined ? this.menuBuilder : this.menu, this.menuOptions)
   }
 }
