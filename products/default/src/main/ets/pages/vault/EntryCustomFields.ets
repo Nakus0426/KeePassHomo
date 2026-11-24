@@ -698,7 +698,7 @@ export struct EntryCustomFields {
   private typeSheet() {
     DsHalfModalSheet({
       title: $r('app.string.select_type'),
-      actions: [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeTypeSheet() }],
+      onClose: () => this.closeTypeSheet(),
       scrollableScroller: this.scroller,
       bodyBuilder: this.typeSheetBody,
     })

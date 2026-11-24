@@ -24,11 +24,16 @@ export struct DsPageHeader {
   @Param subtitle: ResourceStr | undefined = undefined
   @Param headerSize: DsPageHeaderSize = DsPageHeaderSize.Large
   @Param showBack: boolean = true
+  // 半模态页头：关闭按钮固定在动作区最右，是弹窗唯一的可见关闭入口。
+  @Param showClose: boolean = false
+  @Param closeEnabled: boolean = true
   @Param actions: DsPageHeaderAction[] = []
   @BuilderParam titleBuilder?: () => void
   // 动作区前置的自定义控件：动作带切换动效（收藏等）时图标按钮表达不了，渲染在 actions 之前。
   @BuilderParam actionsBuilder?: () => void
   @Event onBack: () => void = () => {
+  }
+  @Event onClose: () => void = () => {
   }
 
   @Computed
@@ -141,7 +146,7 @@ export struct DsPageHeader {
           .alignItems(HorizontalAlign.Start)
         }
 
-        if (this.actionsBuilder !== undefined || this.actions.length > 0) {
+        if (this.actionsBuilder !== undefined || this.actions.length > 0 || this.showClose) {
           Row({ space: $r('app.float.ds_space_sm') }) {
             if (this.actionsBuilder !== undefined) {
               this.actionsBuilder()
@@ -149,6 +154,15 @@ export struct DsPageHeader {
             ForEach(this.actions, (action: DsPageHeaderAction, index: number) => {
               this.headerAction(action)
             }, (_action: DsPageHeaderAction, index: number) => index.toString())
+
+            if (this.showClose) {
+              this.headerAction({
+                icon: $r('app.string.symbol_close'),
+                label: $r('app.string.close'),
+                enabled: this.closeEnabled,
+                onTap: () => this.onClose(),
+              })
+            }
           }
         }
       }

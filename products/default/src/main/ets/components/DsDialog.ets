@@ -1,5 +1,18 @@
+import { promptAction } from '@kit.ArkUI'
 import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { DsControlSize } from './DsControlSize'
+
+// 全项目弹窗统一承载参数：透明壳 + 设计系统遮罩，卡片本身由 DsDialog 绘制。
+export function dsDialogOptions(): promptAction.CustomDialogOptions {
+  return {
+    backgroundColor: Color.Transparent,
+    backgroundBlurStyle: BlurStyle.NONE,
+    cornerRadius: 0,
+    width: $r('app.float.dialog_width'),
+    alignment: DialogAlignment.Center,
+    maskColor: $r('app.color.ds_scrim'),
+  }
+}
 
 export enum DsDialogTone {
   Default,

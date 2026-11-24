@@ -9,7 +9,7 @@ import { exportAttachment, previewAttachment } from '../../model/AttachmentFiles
 import { AttachmentCard } from './AttachmentCard'
 import { AttachmentReauthDialog } from './AttachmentReauthDialog'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
-import { DsDialog } from '../../components/DsDialog'
+import { DsDialog, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
@@ -163,14 +163,7 @@ export struct EntryAttachmentField {
     this.renameError = undefined
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.renameDialog(), this.renameDialogController, {
-        backgroundColor: Color.Transparent,
-        backgroundBlurStyle: BlurStyle.NONE,
-        cornerRadius: 0,
-        width: $r('app.float.dialog_width'),
-        alignment: DialogAlignment.Center,
-        maskColor: $r('app.color.ds_scrim'),
-      })
+      .presentCustomDialog(() => this.renameDialog(), this.renameDialogController, dsDialogOptions())
       .catch((error: BusinessError) => {
         LogUtil.error(`打开附件重命名弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
       })

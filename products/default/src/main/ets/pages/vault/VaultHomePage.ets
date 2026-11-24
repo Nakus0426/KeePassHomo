@@ -14,7 +14,7 @@ import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
 import { DsListRowMotion } from '../../components/DsListRowMotion'
-import { DsDialog, DsDialogTone } from '../../components/DsDialog'
+import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
@@ -222,14 +222,7 @@ export struct VaultHomePage {
     this.deleteBusy = false
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, {
-        backgroundColor: Color.Transparent,
-        backgroundBlurStyle: BlurStyle.NONE,
-        cornerRadius: 0,
-        width: $r('app.float.dialog_width'),
-        alignment: DialogAlignment.Center,
-        maskColor: $r('app.color.ds_scrim'),
-      })
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
       .catch((error: BusinessError) => {
         LogUtil.error(`打开删除确认弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
       })

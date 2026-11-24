@@ -6,11 +6,11 @@ import { DsBottomActionBar } from './DsBottomActionBar'
 import { DsBreadcrumb, DsBreadcrumbItemData, DsBreadcrumbSize } from './DsBreadcrumb'
 import { DsButton, DsButtonVariant } from './DsButton'
 import { DsControlSize } from './DsControlSize'
-import { DsDialog } from './DsDialog'
+import { DsDialog, dsDialogOptions } from './DsDialog'
 import { DsField } from './DsField'
 import { DsHalfModalSheet } from './DsHalfModalSheet'
 import { DsInput, DsInputTone } from './DsInput'
-import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from './DsPageHeader'
+import { DsPageHeaderAction } from './DsPageHeader'
 import { findGroupChain, LEVEL_TRANSITION_OFFSET_RATIO } from './GroupPickerShared'
 
 // 新建分组名的长度上限：防异常输入，KDBX 组名本身无硬性限制。
@@ -397,22 +397,7 @@ export struct DsGroupPicker {
         enabled: !this.busy,
         onTap: () => this.openNewGroupDialog(),
       },
-      {
-        icon: $r('app.string.symbol_close'),
-        label: $r('app.string.close'),
-        onTap: () => this.onClose(),
-      },
     ]
-  }
-
-  @LocalBuilder
-  private headerBar() {
-    DsPageHeader({
-      title: $r('app.string.select_group'),
-      headerSize: DsPageHeaderSize.Small,
-      showBack: false,
-      actions: this.headerActions(),
-    })
   }
 
   // 标题栏底部区：搜索行 + 面包屑，两者随标题栏材质一起悬浮并被内容穿透。
@@ -591,14 +576,7 @@ export struct DsGroupPicker {
   private presentNewGroupDialog(): void {
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.newGroupDialog(), this.dialogController, {
-        backgroundColor: Color.Transparent,
-        backgroundBlurStyle: BlurStyle.NONE,
-        cornerRadius: 0,
-        width: $r('app.float.dialog_width'),
-        alignment: DialogAlignment.Center,
-        maskColor: $r('app.color.ds_scrim'),
-      })
+      .presentCustomDialog(() => this.newGroupDialog(), this.dialogController, dsDialogOptions())
       .catch((error: BusinessError) => {
         LogUtil.error(`打开新建分组弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
       })
@@ -677,7 +655,10 @@ export struct DsGroupPicker {
 
   build() {
     DsHalfModalSheet({
-      titleBarBuilder: this.headerBar,
+      title: $r('app.string.select_group'),
+      closeEnabled: !this.busy,
+      actions: this.headerActions(),
+      onClose: () => this.onClose(),
       titleBarBottomBuilder: this.searchAndBreadcrumb,
       titleBarBottomHeight: this.titleBarBottomHeight,
       scrollableScroller: this.scroller,

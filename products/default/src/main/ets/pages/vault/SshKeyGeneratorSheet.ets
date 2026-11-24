@@ -5,7 +5,6 @@ import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButt
 import { DsControlSize } from '../../components/DsControlSize'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
-import { DsPageHeaderAction } from '../../components/DsPageHeader'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsSlider } from '../../components/DsSlider'
 
@@ -66,12 +65,6 @@ export struct SshKeyGeneratorSheet {
 
   aboutToDisappear(): void {
     clearTimeout(this.startFrameTimer)
-  }
-
-  private sheetActions(): DsPageHeaderAction[] {
-    return [
-      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
-    ]
   }
 
   private tabFrame(): SlideFrame {
@@ -238,30 +231,13 @@ export struct SshKeyGeneratorSheet {
 
   @LocalBuilder
   private bottomBarContent() {
-    Row({ space: $r('app.float.ds_space_sm') }) {
-      Column() {
-        DsButton({
-          label: $r('app.string.cancel'),
-          variant: DsButtonVariant.Filled,
-          tone: DsButtonTone.Default,
-          fullWidth: true,
-          onTap: () => this.onClose(),
-        })
-      }
-      .layoutWeight(1)
-
-      Column() {
-        DsButton({
-          label: $r('app.string.ssh_key_generate'),
-          variant: DsButtonVariant.Filled,
-          tone: DsButtonTone.Primary,
-          fullWidth: true,
-          onTap: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
-        })
-      }
-      .layoutWeight(1)
-    }
-    .width('100%')
+    DsButton({
+      label: $r('app.string.ssh_key_generate'),
+      variant: DsButtonVariant.Filled,
+      tone: DsButtonTone.Primary,
+      fullWidth: true,
+      onTap: () => this.onConfirm(algorithmFor(this.segmentIndex, this.bits)),
+    })
   }
 
   @LocalBuilder
@@ -275,7 +251,7 @@ export struct SshKeyGeneratorSheet {
   build() {
     DsHalfModalSheet({
       title: $r('app.string.ssh_key_generate_title'),
-      actions: this.sheetActions(),
+      onClose: () => this.onClose(),
       bodyBuilder: this.bodyContent,
       bottomBarBuilder: this.bottomBar,
     })

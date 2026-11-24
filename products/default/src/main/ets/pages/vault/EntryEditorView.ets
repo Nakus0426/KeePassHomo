@@ -1,4 +1,4 @@
-import { LengthMetrics, promptAction } from '@kit.ArkUI'
+import { LengthMetrics, promptAction, UIContext } from '@kit.ArkUI'
 import { AnimationTokens, BounceAnimator, DelayedVisibility, measureVp, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
@@ -10,7 +10,7 @@ import { DsControlSize } from '../../components/DsControlSize'
 import { DsContextMenu } from '../../components/DsContextMenu'
 import { DsDatePickerMode, DsDatePickerSheet } from '../../components/DsDatePickerSheet'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
-import { DsDialog, DsDialogTone } from '../../components/DsDialog'
+import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
 import { LIST_ROW_FADE_IN } from '../../components/ListRowEnterTransition'
@@ -79,6 +79,7 @@ export struct EntryEditorView {
   private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
   private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
+  private readonly discardDialogController: promptAction.DialogController = new promptAction.DialogController()
   private bounce: BounceAnimator = new BounceAnimator()
   // 保存加载态延时门：超过 400ms 才显示脉冲，快速保存不闪烁。
   private readonly saveGate: DelayedVisibility = new DelayedVisibility()
@@ -89,7 +90,7 @@ export struct EntryEditorView {
     this.loadEditor()
     // 已有自定义字段或标签时默认展开，避免用户找不到自己的内容。
     this.advancedExpanded = this.editor.customFields().length > 0 || this.editor.tags.length > 0
-    this.onWillDismissCheck(() => this.onExternalDismissRequest())
+    this.onWillDismissCheck(() => this.requestExit())
   }
 
   // 草稿与敏感状态要等转场结束、节点销毁后再清：官方禁止在转场过程中更新消失节点的属性。
@@ -139,6 +140,7 @@ export struct EntryEditorView {
     this.editor.reset()
   }
 
+  // 页头关闭与下滑/遮罩/返回走同一条退出路径；保存中转场一律不生效。
   private requestExit(): void {
     if (this.viewModel.busy) {
       return
@@ -150,29 +152,26 @@ export struct EntryEditorView {
     this.confirmDiscard()
   }
 
-  private onExternalDismissRequest(): void {
-    if (!this.editor.changed()) {
-      return
-    }
-    this.confirmDiscard()
+  // 关闭确认与删除确认走同一个设计系统弹窗：左「放弃」次按钮、右「继续编辑」主按钮。
+  private confirmDiscard(): void {
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.discardDialog(), this.discardDialogController, dsDialogOptions())
   }
 
-  private confirmDiscard(): void {
-    const options: AlertDialogParamWithButtons = {
+  @LocalBuilder
+  private discardDialog() {
+    DsDialog({
       title: $r('app.string.unsaved_title'),
       message: $r('app.string.unsaved_message'),
-      primaryButton: {
-        value: $r('app.string.continue_editing'),
-        action: () => {
-        },
+      cancelLabel: $r('app.string.discard'),
+      confirmLabel: $r('app.string.continue_editing'),
+      onCancel: () => {
+        this.discardDialogController.close()
+        this.onCancel()
       },
-      secondaryButton: {
-        value: $r('app.string.discard'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => this.onCancel(),
-      },
-    }
-    this.getUIContext().showAlertDialog(options)
+      onConfirm: () => this.discardDialogController.close(),
+    })
   }
 
   private saveEntry(): void {
@@ -272,14 +271,7 @@ export struct EntryEditorView {
     this.deleteBusy = false
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, {
-        backgroundColor: Color.Transparent,
-        backgroundBlurStyle: BlurStyle.NONE,
-        cornerRadius: 0,
-        width: $r('app.float.dialog_width'),
-        alignment: DialogAlignment.Center,
-        maskColor: $r('app.color.ds_scrim'),
-      })
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
   }
 
   private runDelete(): void {
@@ -523,6 +515,10 @@ export struct EntryEditorView {
       title: this.isNewEntry ? $r('app.string.new_entry') : $r('app.string.edit_entry'),
       headerSize: DsPageHeaderSize.Small,
       showBack: false,
+      // 关闭即退出编辑：有草稿先确认，保存中锁住。
+      showClose: true,
+      closeEnabled: !this.viewModel.busy,
+      onClose: () => this.requestExit(),
       actions: this.headerActions,
       // 收藏带切换动效，图标按钮表达不了，走动作区前置插槽。
       actionsBuilder: this.favoriteAction,
@@ -546,13 +542,19 @@ export struct EntryEditorView {
     return actions
   }
 
-  // 透明点击层与页头「更多」按钮重合并随标题栏居中：拖拽条 + 标题栏内垂直居中。
+  // 透明点击层与页头「更多」按钮重合并随标题栏居中，同时给右侧的关闭按钮让位。
   @Computed
-  get overflowButtonTop(): number {
-    const handle: number = measureVp(this.getUIContext(), $r('app.float.ds_space_16'))
-    const header: number = measureVp(this.getUIContext(), $r('app.float.ds_page_header_height_sm'))
-    const button: number = measureVp(this.getUIContext(), $r('app.float.ds_button_height'))
-    return handle + (header - button) / 2
+  get overflowButtonMargin(): Margin {
+    const uiContext: UIContext = this.getUIContext()
+    // 只取一次上下文，三处资源测量共用。
+    const handle: number = measureVp(uiContext, $r('app.float.ds_space_16'))
+    const header: number = measureVp(uiContext, $r('app.float.ds_page_header_height_sm'))
+    const button: number = measureVp(uiContext, $r('app.float.ds_button_height'))
+    return {
+      top: handle + (header - button) / 2,
+      right: measureVp(uiContext, $r('app.float.ds_gutter')) + button +
+        measureVp(uiContext, $r('app.float.ds_space_sm')),
+    }
   }
 
   @LocalBuilder
@@ -907,7 +909,7 @@ export struct EntryEditorView {
   private generatorSheet() {
     DsHalfModalSheet({
       title: $r('app.string.generate_password'),
-      actions: [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeGeneratorSheet() }],
+      onClose: () => this.closeGeneratorSheet(),
       bodyBuilder: this.generatorBody,
       bottomBarBuilder: this.generatorBottomBar,
       contentBehindTitleBar: true,
@@ -987,30 +989,13 @@ export struct EntryEditorView {
 
   @LocalBuilder
   private bottomActions() {
-    Row({ space: $r('app.float.ds_space_sm') }) {
-      Column() {
-        DsButton({
-          label: $r('app.string.cancel'),
-          tone: DsButtonTone.Default,
-          fullWidth: true,
-          disabled: this.viewModel.busy,
-          onTap: () => this.requestExit(),
-        })
-      }
-      .layoutWeight(1)
-
-      Column() {
-        DsButton({
-          label: $r('app.string.save'),
-          loading: this.saveGate.visible,
-          fullWidth: true,
-          disabled: this.readOnly,
-          onTap: () => this.saveEntry(),
-        })
-      }
-      .layoutWeight(1)
-    }
-    .width('100%')
+    DsButton({
+      label: $r('app.string.save'),
+      loading: this.saveGate.visible,
+      fullWidth: true,
+      disabled: this.readOnly,
+      onTap: () => this.saveEntry(),
+    })
   }
 
   @LocalBuilder
@@ -1050,7 +1035,7 @@ export struct EntryEditorView {
             ? DsColorLadder.RING_MUTED
             : (this.overflowHovered ? DsColorLadder.RING_SUBTLE : Color.Transparent))
           .animation(AnimationTokens.FEEDBACK_ANIMATION)
-          .margin({ top: this.overflowButtonTop, right: $r('app.float.ds_gutter') })
+          .margin(this.overflowButtonMargin)
           .onHover((isHover: boolean) => {
             this.overflowHovered = isHover
           })

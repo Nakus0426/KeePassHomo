@@ -69,31 +69,14 @@ export struct EntrySheet {
     return this.panelHeightVp > 0 ? this.panelHeightVp : '100%'
   }
 
-  private confirmDiscard(): void {
-    const options: AlertDialogParamWithButtons = {
-      title: $r('app.string.unsaved_title'),
-      message: $r('app.string.unsaved_message'),
-      primaryButton: {
-        value: $r('app.string.continue_editing'),
-        action: () => {
-        },
-      },
-      secondaryButton: {
-        value: $r('app.string.discard'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => this.sheet.close(),
-      },
-    }
-    this.getUIContext().showAlertDialog(options)
-  }
-
   // 只有编辑态的草稿需要拦截；预览态是只读的，收起不丢数据。
+  // 草稿归编辑体所有，拦截后由它弹关闭确认，宿主不重复实现一套。
   private onSheetWillDismiss(action: DismissSheetAction): void {
     if (this.childHandler === undefined) {
       action.dismiss()
       return
     }
-    this.confirmDiscard()
+    this.childHandler()
   }
 
   @Builder

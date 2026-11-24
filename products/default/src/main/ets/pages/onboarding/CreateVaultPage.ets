@@ -9,7 +9,7 @@ import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButt
 import { DsField } from '../../components/DsField'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsInput, DsInputTone } from '../../components/DsInput'
-import { DsPageHeader, DsPageHeaderAction } from '../../components/DsPageHeader'
+import { DsPageHeader } from '../../components/DsPageHeader'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { dsNavPageTitleBarOptions } from '../../components/DsPageTitleBar'
@@ -648,15 +648,11 @@ export struct CreateVaultPage {
   private generatorSheet() {
     DsHalfModalSheet({
       title: $r('app.string.generate_password'),
-      actions: this.generatorActions(),
+      onClose: () => this.closeGenerator(),
       bodyBuilder: this.generatorBody,
       bottomBarBuilder: this.generatorBottomBar,
       contentBehindTitleBar: true,
     })
-  }
-
-  private generatorActions(): DsPageHeaderAction[] {
-    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.closeGenerator() }]
   }
 
   build() {

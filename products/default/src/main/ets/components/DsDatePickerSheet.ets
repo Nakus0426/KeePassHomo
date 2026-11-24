@@ -1,7 +1,6 @@
 import { DsBottomActionBar } from './DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { DsHalfModalSheet } from './DsHalfModalSheet'
-import { DsPageHeaderAction } from './DsPageHeader'
 
 // 设计稿三档滚轮文本：边缘 14、邻近 16、选中 20/600。
 const PICKER_EDGE_FONT_SIZE: number = 14
@@ -84,12 +83,6 @@ export struct DsDatePickerSheet {
     const initial: Date = parsed ?? new Date()
     this.selected = initial
     this.time = initial
-  }
-
-  private sheetActions(): DsPageHeaderAction[] {
-    return [
-      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
-    ]
   }
 
   private handleDateChange(date: Date): void {
@@ -201,30 +194,13 @@ export struct DsDatePickerSheet {
 
   @LocalBuilder
   private bottomBarContent() {
-    Row({ space: $r('app.float.ds_space_sm') }) {
-      Column() {
-        DsButton({
-          label: $r('app.string.cancel'),
-          variant: DsButtonVariant.Filled,
-          tone: DsButtonTone.Default,
-          fullWidth: true,
-          onTap: () => this.onClose(),
-        })
-      }
-      .layoutWeight(1)
-
-      Column() {
-        DsButton({
-          label: $r('app.string.confirm'),
-          variant: DsButtonVariant.Filled,
-          tone: DsButtonTone.Primary,
-          fullWidth: true,
-          onTap: () => this.confirm(),
-        })
-      }
-      .layoutWeight(1)
-    }
-    .width('100%')
+    DsButton({
+      label: $r('app.string.confirm'),
+      variant: DsButtonVariant.Filled,
+      tone: DsButtonTone.Primary,
+      fullWidth: true,
+      onTap: () => this.confirm(),
+    })
   }
 
   @LocalBuilder
@@ -238,7 +214,7 @@ export struct DsDatePickerSheet {
   build() {
     DsHalfModalSheet({
       title: this.pickerTitle,
-      actions: this.sheetActions(),
+      onClose: () => this.onClose(),
       bodyBuilder: this.bodyContent,
       bottomBarBuilder: this.bottomBar,
     })

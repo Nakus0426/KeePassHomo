@@ -9,7 +9,6 @@ import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPickCard } from '../../components/DsPickCard'
-import { DsPageHeaderAction } from '../../components/DsPageHeader'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；按组件宽度切档，宽度由列数均分。
 const TEMPLATE_CARD_COLUMNS: GridRowColumnOption = {
@@ -102,10 +101,6 @@ export struct EntryTemplatePicker {
     this.app.loadRecentTemplates()
   }
 
-  private templateActions(): DsPageHeaderAction[] {
-    return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() }]
-  }
-
   // 最近使用排在最前（按使用时间倒序），其余保持定义表顺序。
   @Computed
   private get orderedDefinitions(): ItemTemplateDefinition[] {
@@ -173,7 +168,7 @@ export struct EntryTemplatePicker {
   build() {
     DsHalfModalSheet({
       title: $r('app.string.new_entry'),
-      actions: this.templateActions(),
+      onClose: () => this.onClose(),
       scrollableScroller: this.scroller,
       bodyBuilder: this.bodyContent,
     })

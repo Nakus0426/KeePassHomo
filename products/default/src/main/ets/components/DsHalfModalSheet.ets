@@ -18,10 +18,15 @@ const HANDLE_HEIGHT_VP: number = 2
 export struct DsHalfModalSheet {
   @Param title: ResourceStr = ''
   @Param showBack: boolean = false
+  // 关闭按钮由壳统一绘制在动作区最右；提交中置 false 锁住退出。
+  @Param showClose: boolean = true
+  @Param closeEnabled: boolean = true
   @Param actions: DsPageHeaderAction[] = []
   // 内容是否绘制到标题栏下方（沉浸式预览，如密码生成器预览底色上探）。默认内容避让标题栏。
   @Param contentBehindTitleBar: boolean = false
   @Event onBack: () => void = () => {
+  }
+  @Event onClose: () => void = () => {
   }
 
   // 传 titleBarBuilder 时整条标题栏自定义（如分组选择带搜索栏），忽略 title/showBack/actions。
@@ -54,8 +59,11 @@ export struct DsHalfModalSheet {
           title: this.title,
           headerSize: DsPageHeaderSize.Small,
           showBack: this.showBack,
+          showClose: this.showClose,
+          closeEnabled: this.closeEnabled,
           actions: this.actions,
           onBack: () => this.onBack(),
+          onClose: () => this.onClose(),
         })
       }
     }

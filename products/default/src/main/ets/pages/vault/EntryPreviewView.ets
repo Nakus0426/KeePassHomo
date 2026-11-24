@@ -604,9 +604,10 @@ export struct EntryPreviewView {
     this.getUIContext().showAlertDialog(options)
   }
 
-  private previewActions(): DsPageHeaderAction[] {
+  @Computed
+  get previewActions(): DsPageHeaderAction[] {
     if (this.sheet.readOnly) {
-      return [{ icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() }]
+      return []
     }
     return [
       {
@@ -627,7 +628,6 @@ export struct EntryPreviewView {
         enabled: !this.viewModel.busy,
         onTap: () => this.confirmDelete(),
       },
-      { icon: $r('app.string.symbol_close'), label: $r('app.string.close'), onTap: () => this.onClose() },
     ]
   }
 
@@ -1049,7 +1049,9 @@ export struct EntryPreviewView {
   build() {
     DsHalfModalSheet({
       title: '',
-      actions: this.previewActions(),
+      closeEnabled: !this.viewModel.busy,
+      actions: this.previewActions,
+      onClose: () => this.onClose(),
       bodyBuilder: this.previewMenuBody,
     })
   }
