@@ -189,6 +189,10 @@
       "value": "#A6000000"
     },
     {
+      "name": "ds_scrim_blur",
+      "value": "#1A000000"
+    },
+    {
       "name": "ds_scrim_strong",
       "value": "#D9000000"
     },

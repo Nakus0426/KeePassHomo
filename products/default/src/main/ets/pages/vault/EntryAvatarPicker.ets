@@ -192,7 +192,8 @@ export struct EntryAvatarPicker {
         avatarData: this.avatarData,
         avatarSize: AVATAR_SIZE,
         square: true,
-        initialsFontSize: $r('app.float.ds_font_title_md'),
+        initialsFontSize: $r('app.float.ds_font_avatar_initials'),
+        initialsFontWeight: 600,
         onDecodeError: () => DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed')),
       })
 

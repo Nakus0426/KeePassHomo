@@ -146,7 +146,6 @@ export struct DsField {
           }
         }
         .width('100%')
-        .padding({ bottom: $r('app.float.ds_space_xs') })
         .alignItems(VerticalAlign.Center)
       }
 

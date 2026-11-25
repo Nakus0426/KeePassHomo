@@ -103,8 +103,8 @@ export struct DsHalfModalSheet {
       enableComponentSafeArea: !this.contentBehindTitleBar,
       style: {
         scrollEffectOpts: {
-          // 未绑定滚动容器时没有可穿透的内容，保持关闭，避免静态标题栏出现模糊层。
-          enableScrollEffect: this.scrollableScroller !== undefined,
+          // false 会让 GRADIENT_BLUR 直接静态生效；保持开启后，未绑定滚动容器的面板停在 originalStyle，没有模糊带。
+          enableScrollEffect: true,
           scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
         },
         originalStyle: {

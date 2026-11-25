@@ -3,7 +3,7 @@ import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { DsControlSize } from './DsControlSize'
 
 // 全项目弹窗统一承载参数：透明壳 + 设计系统遮罩，卡片本身由 DsDialog 绘制。
-export function dsDialogOptions(): promptAction.CustomDialogOptions {
+export function dsDialogOptions(): promptAction.DialogOptions {
   return {
     backgroundColor: Color.Transparent,
     backgroundBlurStyle: BlurStyle.NONE,
@@ -31,6 +31,8 @@ export struct DsDialog {
   @Param cancelLabel: ResourceStr | undefined = undefined
   @Param confirmLabel: ResourceStr = ''
   @Param busy: boolean = false
+  // 确认前置条件未满足时禁用主按钮（如再认证还没输入密码）。
+  @Param confirmEnabled: boolean = true
   @BuilderParam contentBuilder?: () => void
   @Event onCancel: () => void = () => {
   }
@@ -134,7 +136,7 @@ export struct DsDialog {
             tone: this.confirmTone,
             buttonSize: DsControlSize.Medium,
             fullWidth: true,
-            disabled: this.busy,
+            disabled: this.busy || !this.confirmEnabled,
             onTap: () => this.onConfirm(),
           })
         }

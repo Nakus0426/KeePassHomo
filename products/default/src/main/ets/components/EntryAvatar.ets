@@ -11,6 +11,7 @@ export struct EntryAvatar {
   @Param avatarData: ArrayBuffer | undefined = undefined
   @Param avatarSize: Length = $r('app.float.entry_card_avatar_size')
   @Param initialsFontSize: Length = $r('sys.float.Body_L')
+  @Param initialsFontWeight: FontWeight | number = FontWeight.Bold
   // 方形瓦片供密集列表使用，圆角为 0。
   @Param square: boolean = false
   // 无自定义头像时优先显示的模板图标，仍无则退回首字。
@@ -79,7 +80,7 @@ export struct EntryAvatar {
       } else {
         Text(this.initials)
           .fontSize(this.initialsFontSize)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.initialsFontWeight)
           .fontColor(this.square ? $r('app.color.ds_text_secondary') : Color.White)
       }
     }

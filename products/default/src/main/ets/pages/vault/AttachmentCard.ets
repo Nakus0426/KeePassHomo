@@ -1,10 +1,8 @@
 import { FileUtil, ResUtil } from '@pura/harmony-utils'
-import { fileTypeIcon } from '../../model/FileTypeCatalog'
-import { DsContextMenu } from '../../components/DsContextMenu'
+import { DeferredAction } from '../../components/DeferredAction'
+import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
-import { DsTag } from '../../components/DsTag'
-
-const ICON_TILE_SIZE: number = 32
+import { DsTemplateIcon } from '../../components/DsTemplateIcon'
 
 // 附件卡片：编辑态与预览态共用外观、按压反馈与长按菜单，动作由调用方注入。
 @ComponentV2
@@ -12,9 +10,6 @@ export struct AttachmentCard {
   @Param name: string = ''
   // 组件基类已占用 size（通用属性），尺寸参数改名避让。
   @Param fileSize: number = 0
-  // 预览态的附件必然已入库，不显示保存状态标签。
-  @Param showBadge: boolean = true
-  @Param persisted: boolean = true
   // 移除与重命名只属于编辑态。
   @Param editable: boolean = false
   @Event onPreview: () => void = () => {
@@ -25,6 +20,8 @@ export struct AttachmentCard {
   }
   @Event onRemove: () => void = () => {
   }
+  // 菜单退场动画结束后再触发弹窗/选择器，避免两层动效叠在一起。
+  private readonly deferred: DeferredAction = new DeferredAction()
 
   // 格式取文件扩展名大写：UTD 的 description 是带句号的文档式文案，typeId 是机器串，都不适合直出。
   private summary(): string {
@@ -62,24 +59,24 @@ export struct AttachmentCard {
     DsMenuItem({
       icon: $r('app.string.symbol_eye'),
       label: $r('app.string.attachment_preview'),
-      onAction: () => this.onPreview(),
+      onAction: () => this.deferred.defer(() => this.onPreview()),
     })
     DsMenuItem({
       icon: $r('app.string.symbol_download'),
       label: $r('app.string.attachment_export'),
-      onAction: () => this.onExport(),
+      onAction: () => this.deferred.defer(() => this.onExport()),
     })
     if (this.editable) {
       DsMenuItem({
         icon: $r('app.string.symbol_edit'),
         label: $r('app.string.attachment_rename'),
-        onAction: () => this.onRename(),
+        onAction: () => this.deferred.defer(() => this.onRename()),
       })
       DsMenuItem({
         icon: $r('app.string.symbol_delete'),
         label: $r('app.string.attachment_delete'),
         theme: DsMenuItemTheme.Error,
-        onAction: () => this.onRemove(),
+        onAction: () => this.deferred.defer(() => this.onRemove()),
       })
     }
   }
@@ -95,19 +92,7 @@ export struct AttachmentCard {
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Row({ space: $r('app.float.ds_space_md') }) {
-        Row() {
-          Image(fileTypeIcon(this.name))
-            .width($r('app.float.ds_icon_md'))
-            .height($r('app.float.ds_icon_md'))
-            .objectFit(ImageFit.Contain)
-            // Image 默认开启长按拖拽，会抢掉卡片的长按菜单。
-            .draggable(false)
-        }
-        .width(ICON_TILE_SIZE)
-        .height(ICON_TILE_SIZE)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
-        .backgroundColor($r('app.color.ds_surface_high'))
+        DsTemplateIcon({ source: $r('app.media.layout_type_attachment') })
 
         Column({ space: $r('app.float.ds_space_2') }) {
           Text(this.name)
@@ -127,13 +112,6 @@ export struct AttachmentCard {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-
-        // 标签作为行内兄弟节点占位：文件名只在剩余宽度里省略，不会压到标签上。
-        if (this.showBadge) {
-          DsTag({
-            text: this.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'),
-          })
-        }
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
@@ -143,9 +121,7 @@ export struct AttachmentCard {
     .backgroundColor($r('app.color.ds_surface_low'))
     .borderRadius($r('app.float.ds_radius_none'))
     .onClick(() => this.onPreview())
-    .bindContextMenu(this.cardMenu(), ResponseType.LongPress, {
-      preview: MenuPreviewMode.IMAGE,
-      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-    })
+    .bindContextMenu(this.cardMenu(), ResponseType.LongPress,
+      dsContextMenuOptions(() => this.deferred.run()))
   }
 }

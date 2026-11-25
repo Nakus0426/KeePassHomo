@@ -222,7 +222,7 @@ export struct DsSegmentedSwitch {
 
   private slotFill(index: number): ResourceColor {
     if (this.isThumbOverSlot(index)) {
-      return Color.Transparent
+      return this.baseFill()
     }
     if (this.isEnabled(index)) {
       if (this.pressedIndex === index) {

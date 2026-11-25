@@ -9,6 +9,7 @@ import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsPickCard } from '../../components/DsPickCard'
+import { DsTemplateIcon } from '../../components/DsTemplateIcon'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；按组件宽度切档，宽度由列数均分。
 const TEMPLATE_CARD_COLUMNS: GridRowColumnOption = {
@@ -32,11 +33,7 @@ struct TemplateCard {
   @LocalBuilder
   private cardContent() {
     Row() {
-      Image(this.definition.icon)
-        .draggable(false)
-        .width($r('app.float.ds_template_icon_size'))
-        .height($r('app.float.ds_template_icon_size'))
-        .objectFit(ImageFit.Contain)
+      DsTemplateIcon({ source: this.definition.icon })
 
       Blank()
 

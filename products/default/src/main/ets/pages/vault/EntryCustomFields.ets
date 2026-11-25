@@ -1,5 +1,5 @@
-import { LengthMetrics } from '@kit.ArkUI'
-import { AnimationTokens, VaultFieldType } from '@ohos/common'
+import { UIContext } from '@kit.ArkUI'
+import { AnimationTokens, measureVp, VaultFieldType } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { FIELD_TYPE_DEFINITIONS, FieldTypeDefinition, fieldTypeDefinition } from '../../model/FieldTypeCatalog'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
@@ -10,9 +10,9 @@ import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { DsInput, DsInputVariant } from '../../components/DsInput'
 import { IconToggleButton } from '../../components/IconToggleButton'
 import { DsButton, DsButtonVariant, DsButtonTone } from '../../components/DsButton'
-import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsPickCard } from '../../components/DsPickCard'
-import { DsListRowMotion } from '../../components/DsListRowMotion'
+import { DsListRowMotion, playRowLeave } from '../../components/DsListRowMotion'
 import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 
 import { DsMenuGroup } from '../../components/DsMenuGroup'
@@ -167,22 +167,12 @@ export struct EntryCustomFields {
     if (field.id === this.editingNameFieldId || field.id === this.editingValueFieldId) {
       this.closeCellEdit()
     }
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.EASE_EXIT,
-      onFinish: () => {
-        // 会话已关闭（切条目/收起面板）时不再写回，避免动画结束落在已释放的草稿上。
-        if (!this.active) {
-          return
-        }
-        this.editor.removeField(field)
-        if (field.id === this.invalidFieldId) {
-          this.onInvalidCleared()
-        }
-        this.removingFieldId = -1
-      },
-    }, () => {
-      this.removingFieldId = field.id
+    playRowLeave(this.getUIContext(), this.active, () => this.removingFieldId = field.id, () => {
+      this.editor.removeField(field)
+      if (field.id === this.invalidFieldId) {
+        this.onInvalidCleared()
+      }
+      this.removingFieldId = -1
     })
     this.onActivity()
   }
@@ -466,7 +456,25 @@ export struct EntryCustomFields {
       accessibilityLabel: this.showPlainValue(field) ? $r('app.string.hide') : $r('app.string.show'),
       onToggle: () => this.toggleValue(field),
     })
-      .margin({ left: $r('app.float.ds_space_xs') })
+  }
+
+  // 眼睛与值行同顶：卡片内距 + 名称行 + 名称/值间距。
+  @Computed
+  private get eyeOverlayTop(): number {
+    const uiContext: UIContext = this.getUIContext()
+    return measureVp(uiContext, $r('app.float.ds_space_md')) + FIELD_NAME_LINE_HEIGHT +
+      measureVp(uiContext, $r('app.float.ds_space_6'))
+  }
+
+  // 常态下眼睛浮在卡片之上，与菜单/点按的承载层是兄弟节点，点它不会穿透到卡片。
+  @LocalBuilder
+  private eyeOverlay(field: EntryFieldEditor) {
+    Column() {
+      this.eyeButton(field)
+    }
+    .margin({ top: this.eyeOverlayTop, right: $r('app.float.ds_space_md') })
+    // 自身和按钮响应，阻止下方卡片本体与父节点参与触摸测试。
+    .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
   }
 
   // 名称行：单行输入，溢出横向滚动；预览态即只读文本。
@@ -509,58 +517,74 @@ export struct EntryCustomFields {
   @LocalBuilder
   private valueRow(field: EntryFieldEditor) {
     Row() {
-      if (this.isEditingValue(field)) {
-        Column() {
-          // TextArea 不支持密码输入类型，密码值改用单行输入以保留掩码。
-          DsInput({
-            text: this.draftValue,
-            placeholder: $r('app.string.text_input_placeholder'),
-            variant: DsInputVariant.Inline,
-            multiline: field.type !== VaultFieldType.Password,
-            minLines: 1,
-            type: this.showPlainValue(field) ? InputType.Normal : InputType.Password,
-            showPassword: this.showPlainValue(field),
-            fontSizeOverride: $r('app.float.ds_font_body'),
-            fontFamilyOverride: field.type === VaultFieldType.Password ? PASSWORD_FONT_FAMILY : undefined,
-            lineHeightOverride: FIELD_LINE_HEIGHT,
-            focusKey: this.valueFocusKey(field),
-            autoFocus: true,
-            enterKeyType: EnterKeyType.Done,
-            onChange: (value: string) => this.changeValue(field, value),
-            onSubmit: () => this.exitValueEdit(field),
-            onFocusChange: (focused: boolean) => {
-              if (!focused) {
-                this.exitValueEdit(field)
-              }
-            },
-          })
+      // 点击区只包值文本，眼睛按钮独立在外，点按不会穿透到卡片。
+      Row() {
+        if (this.isEditingValue(field)) {
+          Column() {
+            // TextArea 不支持密码输入类型，密码值改用单行输入以保留掩码。
+            DsInput({
+              text: this.draftValue,
+              placeholder: $r('app.string.custom_field_value_placeholder'),
+              variant: DsInputVariant.Inline,
+              multiline: field.type !== VaultFieldType.Password,
+              minLines: 1,
+              // 始终是密码输入类型：显隐只切 showPassword，键盘保持系统安全键盘。
+              type: InputType.Password,
+              showPassword: this.showPlainValue(field),
+              fontSizeOverride: $r('app.float.ds_font_body'),
+              fontFamilyOverride: field.type === VaultFieldType.Password ? PASSWORD_FONT_FAMILY : undefined,
+              lineHeightOverride: FIELD_LINE_HEIGHT,
+              focusKey: this.valueFocusKey(field),
+              autoFocus: true,
+              enterKeyType: EnterKeyType.Done,
+              onChange: (value: string) => this.changeValue(field, value),
+              onSubmit: () => this.exitValueEdit(field),
+              onFocusChange: (focused: boolean) => {
+                if (!focused) {
+                  this.exitValueEdit(field)
+                }
+              },
+            })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+        } else {
+          this.valueText(field)
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-      } else {
-        this.valueText(field)
       }
+      .layoutWeight(1)
+      .constraintSize({ minHeight: FIELD_LINE_HEIGHT })
+      .alignItems(VerticalAlign.Top)
+      .onClick(() => {
+        if (!this.isEditingValue(field)) {
+          this.openValueEdit(field)
+        }
+      })
 
+      // 常态的眼睛是浮层，这里留同宽占位，文本不会压到按钮下。
       if (field.type === VaultFieldType.Password) {
-        this.eyeButton(field)
+        Row() {
+          if (this.isEditingValue(field)) {
+            this.eyeButton(field)
+          }
+        }
+        .width(FIELD_LINE_HEIGHT)
+        .margin({ left: $r('app.float.ds_space_xs') })
       }
     }
     .width('100%')
-    .constraintSize({ minHeight: FIELD_LINE_HEIGHT })
     .alignItems(VerticalAlign.Top)
-    .onClick(() => {
-      if (!this.isEditingValue(field)) {
-        this.openValueEdit(field)
-      }
-    })
   }
 
-  // 常态 → 悬停 → 按下只换底色阶；编辑中抬一档，与设计稿的沉浸编辑卡片一致。
+  // 常态 → 悬停 → 按下只换底色阶；编辑中固定为选中色，不再响应点按与悬停。
   private cardFill(field: EntryFieldEditor): ResourceColor {
+    if (this.isEditingName(field) || this.isEditingValue(field)) {
+      return $r('app.color.ds_surface_high')
+    }
     if (this.pressedFieldId === field.id) {
       return $r('app.color.ds_surface_highest')
     }
-    if (this.hoveredFieldId === field.id || this.isEditingName(field) || this.isEditingValue(field)) {
+    if (this.hoveredFieldId === field.id) {
       return $r('app.color.ds_surface_high')
     }
     return $r('app.color.ds_surface_low')
@@ -609,34 +633,29 @@ export struct EntryCustomFields {
       .id(`field_${field.id}`)
       .transition(LIST_ROW_PUSH_IN)
     } else {
-      // 外层 Column 只承载 id 与长按菜单：组件带尾随 Builder 时无法在调用处继续链属性。
+      // 外层 Column 只承载 id：长按菜单挂在卡片本体上，眼睛浮层作为兄弟节点不参与卡片事件。
       Column() {
         DsListRowMotion({
           leaving: field.id === this.removingFieldId,
           enterTransition: LIST_ROW_PUSH_IN,
         }) {
-          Column() {
-            this.cardBody(field)
+          Stack({ alignContent: Alignment.TopEnd }) {
+            Column() {
+              this.cardBody(field)
+            }
+            .width('100%')
+            .bindContextMenu(this.fieldMenu(field), ResponseType.LongPress,
+              dsContextMenuOptions(() => this.onFieldMenuDisappear()))
+
+            if (field.type === VaultFieldType.Password) {
+              this.eyeOverlay(field)
+            }
           }
           .width('100%')
         }
       }
       .width('100%')
       .id(`field_${field.id}`)
-      .bindContextMenu(this.fieldMenu(field), ResponseType.LongPress, {
-        preview: MenuPreviewMode.IMAGE,
-        previewBorderRadius: $r('app.float.ds_radius_none'),
-        borderRadius: $r('app.float.ds_radius_none'),
-        backgroundColor: $r('app.color.ds_surface_lowest'),
-        backgroundBlurStyle: BlurStyle.NONE,
-        targetSpace: LengthMetrics.vp(4),
-        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-        mask: {
-          color: $r('app.color.ds_scrim'),
-          backgroundBlurStyle: BlurStyle.NONE,
-        },
-        onDisappear: () => this.onFieldMenuDisappear(),
-      })
     }
   }
 
@@ -646,7 +665,6 @@ export struct EntryCustomFields {
       label: $r('app.string.add_field'),
       variant: DsButtonVariant.Dashed,
       tone: DsButtonTone.Default,
-      leadingIcon: $r('app.string.symbol_add'),
       fullWidth: true,
       onTap: () => this.openTypeSheet(),
     })
@@ -705,7 +723,7 @@ export struct EntryCustomFields {
   }
 
   build() {
-    Column({ space: $r('app.float.ds_space_sm') }) {
+    Column({ space: $r('app.float.ds_space_md') }) {
       ForEach(this.customFields, (field: EntryFieldEditor) => {
         this.fieldCard(field)
       }, (field: EntryFieldEditor) => `${field.id}`)

@@ -1,5 +1,4 @@
 import { ContentSlideTransition, SlideFrame, SshKeyAlgorithm } from '@ohos/common'
-import { FormItem, LabelPlacement } from '../../components/FormItem'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsControlSize } from '../../components/DsControlSize'
@@ -14,6 +13,10 @@ const RSA_BITS_STEP: number = 1024
 const RSA_BITS_DEFAULT: number = 3072
 // 提示文案里必须加粗的推荐位长，数字不进资源。
 const RSA_RECOMMENDED_BITS: string = '3072'
+// 内容与底部操作栏之间留出的间距，与设计稿 body 的 24 一致。
+const BOTTOM_BAR_CONTENT_GAP: number = 24
+// 与 DsNotice 正文同一行高，bodyBuilder 自绘时保持一致。
+const TIP_BODY_LINE_HEIGHT: number = 18
 
 // 页签下标即密钥类型，用数值枚举避免在页签索引与类型之间来回转换。
 enum SshKeyType {
@@ -45,6 +48,7 @@ export struct SshKeyGeneratorSheet {
   @Local private segmentIndex: number = SshKeyType.Ed25519
   @Local private bits: number = RSA_BITS_DEFAULT
   @Local private contentWidth: number = 0
+  @Local private bottomBarHeight: number = 0
   // 直接持有数组，V2 才能观测逐项写入；SlideFrame 仅作传参视图。
   @Local private tabOpacity: number[] = [1, 0]
   @Local private tabOffsetX: number[] = [0, 0]
@@ -85,29 +89,35 @@ export struct SshKeyGeneratorSheet {
       : $r('app.string.ssh_key_recommend_rsa')
   }
 
+  // 只有 RSA2048 的推荐位长需要加粗，整段走 Span 才不会复制 DsNotice 的正文样式。
   @LocalBuilder
   private tipBody() {
-    if (this.segmentIndex === SshKeyType.Ed25519) {
-      Text($r('app.string.ssh_key_tip_ed25519'))
-        .layoutWeight(1)
-        .fontSize($r('app.float.ds_font_body_sm'))
-        .fontColor($r('app.color.ds_on_surface_variant'))
-    } else if (this.bits === RSA_BITS_MIN) {
-      Text() {
+    Text() {
+      if (this.segmentIndex === SshKeyType.Ed25519) {
+        Span($r('app.string.ssh_key_tip_ed25519'))
+      } else if (this.bits === RSA_BITS_MIN) {
         Span($r('app.string.ssh_key_tip_rsa2048_prefix'))
         Span(RSA_RECOMMENDED_BITS)
           .fontWeight(FontWeight.Bold)
         Span($r('app.string.ssh_key_tip_rsa2048_suffix'))
+      } else {
+        Span($r('app.string.ssh_key_tip_rsa_compat'))
       }
-      .layoutWeight(1)
-      .fontSize($r('app.float.ds_font_body_sm'))
-      .fontColor($r('app.color.ds_on_surface_variant'))
-    } else {
-      Text($r('app.string.ssh_key_tip_rsa_compat'))
-        .layoutWeight(1)
-        .fontSize($r('app.float.ds_font_body_sm'))
-        .fontColor($r('app.color.ds_on_surface_variant'))
     }
+    .width('100%')
+    .fontSize($r('app.float.ds_font_body_sm'))
+    .lineHeight(TIP_BODY_LINE_HEIGHT)
+    .fontColor($r('app.color.ds_on_surface_variant'))
+  }
+
+  // 生成器的字段标签比表单页更轻：12 / Medium / 次级色，与设计稿一致。
+  @LocalBuilder
+  private fieldLabel(label: Resource) {
+    Text(label)
+      .width('100%')
+      .fontSize($r('app.float.ds_font_label_md'))
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('app.color.ds_text_secondary'))
   }
 
   @LocalBuilder
@@ -135,14 +145,10 @@ export struct SshKeyGeneratorSheet {
   @LocalBuilder
   private typeTabContent(type: number) {
     TabContent() {
-      Column({ space: $r('app.float.ds_space_sm') }) {
+      Column({ space: $r('app.float.ds_space_16') }) {
         if (type === SshKeyType.Rsa) {
-          FormItem({
-            label: $r('app.string.ssh_key_generate_bits'),
-            labelPlacement: LabelPlacement.Top,
-            showFeedback: false,
-            contentBuilder: this.bitsContent,
-          })
+          this.fieldLabel($r('app.string.ssh_key_generate_bits'))
+          this.bitsContent()
         }
 
         DsNotice({
@@ -181,13 +187,9 @@ export struct SshKeyGeneratorSheet {
   @LocalBuilder
   private bodyContent() {
     Scroll() {
-      Column({ space: $r('app.float.ds_space_sm') }) {
-        FormItem({
-          label: $r('app.string.ssh_key_generate_type'),
-          labelPlacement: LabelPlacement.Top,
-          showFeedback: false,
-          contentBuilder: this.typeSelector,
-        })
+      Column({ space: $r('app.float.ds_space_16') }) {
+        this.fieldLabel($r('app.string.ssh_key_generate_type'))
+        this.typeSelector()
 
         Tabs({
           barPosition: BarPosition.Start,
@@ -209,10 +211,10 @@ export struct SshKeyGeneratorSheet {
       .width('100%')
       .constraintSize({ maxWidth: $r('app.float.content_max_width') })
       .padding({
-        top: $r('app.float.ds_space_lg'),
-        bottom: $r('app.float.ds_space_16'),
-        left: $r('app.float.ds_space_sm'),
-        right: $r('app.float.ds_space_sm'),
+        top: $r('app.float.ds_space_24'),
+        bottom: this.bottomBarHeight + BOTTOM_BAR_CONTENT_GAP,
+        left: $r('app.float.ds_gutter'),
+        right: $r('app.float.ds_gutter'),
       })
       // 位移量取内容列实测宽度，不取 Tabs 自身：页签内容在切换瞬间会超出 Tabs 边界。
       .onAreaChange((_oldValue: Area, newValue: Area) => {
@@ -243,7 +245,11 @@ export struct SshKeyGeneratorSheet {
   @LocalBuilder
   private bottomBar() {
     DsBottomActionBar({
-      includeSafeArea: false,
+      onHeightChange: (height: number) => {
+        if (height !== this.bottomBarHeight) {
+          this.bottomBarHeight = height
+        }
+      },
       contentBuilder: this.bottomBarContent,
     })
   }

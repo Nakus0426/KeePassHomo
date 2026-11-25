@@ -187,22 +187,6 @@ struct VaultFilter {
       .foregroundColor($r('app.color.ds_text_secondary'))
   }
 
-  @LocalBuilder
-  private searchTrailing() {
-    if (this.home.searchQuery.length > 0) {
-      DsButton({
-        variant: DsButtonVariant.Text,
-        buttonSize: DsControlSize.Small,
-        iconOnly: true,
-        leadingIcon: $r('app.string.symbol_close'),
-        iconSizeOverride: $r('app.float.ds_icon_xs'),
-        iconColorOverride: $r('app.color.ds_text_secondary'),
-        accessibilityLabelResource: $r('app.string.close'),
-        onTap: () => this.home.setSearchQuery(''),
-      })
-    }
-  }
-
   @Builder
   private groupPickerSheet() {
     DsGroupPicker({
@@ -244,7 +228,8 @@ struct VaultFilter {
         text: this.home.searchQuery,
         inputSize: DsControlSize.Medium,
         leadingBuilder: this.searchLeading,
-        trailingBuilder: this.searchTrailing,
+        clearable: true,
+        onClear: () => this.home.setSearchQuery(''),
         onChange: (value: string) => this.home.setSearchQuery(value),
         onSubmit: () => this.app.recordActivity(),
       })

@@ -133,6 +133,10 @@
       "value": "18fp"
     },
     {
+      "name": "ds_font_avatar_initials",
+      "value": "24fp"
+    },
+    {
       "name": "ds_font_title",
       "value": "15fp"
     },

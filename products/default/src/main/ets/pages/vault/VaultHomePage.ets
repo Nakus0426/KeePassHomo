@@ -1,5 +1,5 @@
 import { BusinessError } from '@kit.BasicServicesKit'
-import { LengthMetrics, promptAction } from '@kit.ArkUI'
+import { promptAction } from '@kit.ArkUI'
 import { AnimationTokens, ItemTemplate } from '@ohos/common'
 import {
   hdsMaterial,
@@ -12,7 +12,8 @@ import {
 import { LogUtil, ResUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
-import { DsContextMenu } from '../../components/DsContextMenu'
+import { DeferredAction } from '../../components/DeferredAction'
+import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsListRowMotion } from '../../components/DsListRowMotion'
 import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
@@ -61,7 +62,7 @@ export struct VaultHomePage {
   private removalLeavingKeys: Set<string> = new Set()
   private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private pendingDeleteRow: EntryRowModel | undefined = undefined
-  private pendingMenuAction: (() => void) | undefined = undefined
+  private readonly deferredMenuAction: DeferredAction = new DeferredAction()
   private pickedTemplate: ItemTemplate | undefined = undefined
   private pickedGroupUuid: string = ''
   private readonly stateSwitchTransition: TransitionEffect = TransitionEffect.OPACITY
@@ -208,12 +209,7 @@ export struct VaultHomePage {
 
   // 菜单含预览图时在子窗显示，层级高于主窗弹窗与半模态；菜单项动作须等菜单彻底消失再执行，否则会被预览图盖住。
   private onRowMenuClosed(): void {
-    const action: (() => void) | undefined = this.pendingMenuAction
-    if (action === undefined) {
-      return
-    }
-    this.pendingMenuAction = undefined
-    action()
+    this.deferredMenuAction.run()
   }
 
   private openDeleteDialog(row: EntryRowModel | undefined): void {
@@ -533,7 +529,7 @@ export struct VaultHomePage {
       icon: $r('app.string.symbol_edit'),
       label: $r('app.string.entry_menu_edit'),
       onAction: () => {
-        this.pendingMenuAction = () => entrySheetViewModel.openEdit(row.uuid)
+        this.deferredMenuAction.defer(() => entrySheetViewModel.openEdit(row.uuid))
       },
     })
     DsMenuItem({
@@ -545,9 +541,9 @@ export struct VaultHomePage {
       icon: $r('app.string.symbol_check_box'),
       label: $r('app.string.entry_menu_select'),
       onAction: () => {
-        this.pendingMenuAction = () => animateBatchTransition(this.getUIContext(), () => {
+        this.deferredMenuAction.defer(() => animateBatchTransition(this.getUIContext(), () => {
           this.home.enterBatch(row.uuid)
-        })
+        }))
       },
     })
   }
@@ -559,7 +555,7 @@ export struct VaultHomePage {
       label: $r('app.string.entry_menu_delete'),
       theme: DsMenuItemTheme.Error,
       onAction: () => {
-        this.pendingMenuAction = () => this.openDeleteDialog(row)
+        this.deferredMenuAction.defer(() => this.openDeleteDialog(row))
       },
     })
   }
@@ -618,21 +614,8 @@ export struct VaultHomePage {
       }
     }
     .width('100%')
-    .bindContextMenu(this.rowMenu(row), ResponseType.LongPress, {
-        preview: MenuPreviewMode.IMAGE,
-        previewBorderRadius: $r('app.float.ds_radius_none'),
-        borderRadius: $r('app.float.ds_radius_none'),
-        backgroundColor: $r('app.color.ds_surface_lowest'),
-        backgroundBlurStyle: BlurStyle.NONE,
-        placement: Placement.BottomRight,
-        targetSpace: LengthMetrics.vp(4),
-        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-        onDisappear: () => this.onRowMenuClosed(),
-        mask: {
-          color: $r('app.color.ds_scrim'),
-          backgroundBlurStyle: BlurStyle.NONE,
-        },
-      })
+    .bindContextMenu(this.rowMenu(row), ResponseType.LongPress,
+      dsContextMenuOptions(() => this.onRowMenuClosed(), Placement.BottomRight))
   }
 
   // 视口外的离场行只占零高度：收缩会让列表不断把后续行拉进视口，整表逐行构建代价过高。

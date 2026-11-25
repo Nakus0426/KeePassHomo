@@ -89,12 +89,24 @@
       "value": "卡号"
     },
     {
+      "name": "card_number_placeholder",
+      "value": "请输入卡号"
+    },
+    {
       "name": "card_issuer",
       "value": "发卡行"
     },
     {
+      "name": "card_issuer_placeholder",
+      "value": "请输入发卡行"
+    },
+    {
       "name": "card_type",
       "value": "卡类型"
+    },
+    {
+      "name": "card_type_placeholder",
+      "value": "请选择卡类型"
     },
     {
       "name": "card_type_menu_title",
@@ -117,8 +129,16 @@
       "value": "持卡人"
     },
     {
+      "name": "card_holder_placeholder",
+      "value": "请输入持卡人姓名"
+    },
+    {
       "name": "card_expiry",
       "value": "有效期"
+    },
+    {
+      "name": "card_expiry_placeholder",
+      "value": "MM/YY"
     },
     {
       "name": "entry_card_ssh_key_count",
@@ -461,6 +481,10 @@
       "value": "主密码不正确"
     },
     {
+      "name": "reauth_password_placeholder",
+      "value": "输入主密码"
+    },
+    {
       "name": "preview_reauth_message",
       "value": "请输入主密码以预览附件"
     },
@@ -481,12 +505,28 @@
       "value": "请输入标题"
     },
     {
+      "name": "entry_title_placeholder",
+      "value": "请输入标题"
+    },
+    {
       "name": "username",
       "value": "用户名"
     },
     {
+      "name": "username_placeholder",
+      "value": "请输入用户名"
+    },
+    {
       "name": "password",
       "value": "密码"
+    },
+    {
+      "name": "password_placeholder",
+      "value": "请输入密码"
+    },
+    {
+      "name": "password_strength_label",
+      "value": "强度"
     },
     {
       "name": "password_hide_countdown",
@@ -505,12 +545,24 @@
       "value": "网址"
     },
     {
+      "name": "website_placeholder",
+      "value": "请输入网址"
+    },
+    {
       "name": "url_format_warning",
       "value": "网址格式异常，但不会阻止保存"
     },
     {
       "name": "notes",
       "value": "备注"
+    },
+    {
+      "name": "notes_placeholder",
+      "value": "请输入备注"
+    },
+    {
+      "name": "custom_field_value_placeholder",
+      "value": "请输入内容"
     },
     {
       "name": "tags",
@@ -1027,6 +1079,10 @@
     {
       "name": "advanced_item_count",
       "value": "%s 项"
+    },
+    {
+      "name": "advanced_meta_placeholder",
+      "value": "自定义字段、标签"
     },
     {
       "name": "copy_field_name",

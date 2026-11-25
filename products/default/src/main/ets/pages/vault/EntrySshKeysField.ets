@@ -13,9 +13,11 @@ import { isPasteboardReadGranted, requestPasteboardRead } from '../../model/Past
 import { SshKeyGeneratorSheet } from './SshKeyGeneratorSheet'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
-import { DsDialog, dsDialogOptions } from '../../components/DsDialog'
+import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
+import { DsListRowMotion, playRowLeave } from '../../components/DsListRowMotion'
+import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 import { DsMenuItem } from '../../components/DsMenuItem'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsToastHost } from '../../components/DsToast'
@@ -40,6 +42,8 @@ function sshKeyFileName(sourceName: string, inspection: SshKeyInspection): strin
 export struct EntrySshKeysField {
   @Param editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Param readOnly: boolean = false
+  // 编辑会话是否仍打开：关闭时动画回调不再写回草稿。
+  @Param active: boolean = false
   @Event onActivity: () => void = () => {
   }
   @Local private busy: boolean = false
@@ -49,6 +53,9 @@ export struct EntrySshKeysField {
   @Local private renameName: string = ''
   @Local private renameError: ResourceStr | undefined = undefined
   private renameTarget: SshKeyDraft | undefined = undefined
+  private removeTarget: SshKeyDraft | undefined = undefined
+  // 正在离场的密钥：卡片据此收高倒塌，动画结束后才删数据。
+  @Local private removingKeyId: number = -1
   private readonly app: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
   private readonly renameDialogController: promptAction.DialogController = new promptAction.DialogController()
@@ -240,25 +247,52 @@ export struct EntrySshKeysField {
     this.onActivity()
   }
 
+  // 与自定义字段卡同一套离场：先在原位收高倒塌，动画结束后才删数据。
+  private removeKey(key: SshKeyDraft): void {
+    if (this.removingKeyId !== -1) {
+      return
+    }
+    playRowLeave(this.getUIContext(), this.active, () => this.removingKeyId = key.id, () => {
+      this.editor.removeSshKey(key)
+      this.onActivity()
+      this.removingKeyId = -1
+    })
+  }
+
+  // 新建条目还没有 uuid，待保存密钥直接删除；编辑已有条目才走确认。
   private confirmRemove(key: SshKeyDraft): void {
-    const options: AlertDialogParamWithButtons = {
+    if (this.editor.entryUuid.length === 0) {
+      this.removeKey(key)
+      return
+    }
+    this.removeTarget = key
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.deleteDialog(), this.dialogController, dsDialogOptions())
+  }
+
+  @Builder
+  private deleteDialog() {
+    DsDialog({
       title: $r('app.string.ssh_key_remove'),
       message: $r('app.string.ssh_key_remove_message'),
-      primaryButton: {
-        value: $r('app.string.cancel'),
-        action: () => {
-        },
+      icon: $r('app.string.symbol_delete'),
+      tone: DsDialogTone.Error,
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.ssh_key_remove'),
+      onCancel: () => {
+        this.dialogController.close()
+        this.removeTarget = undefined
       },
-      secondaryButton: {
-        value: $r('app.string.ssh_key_remove'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => {
-          this.editor.removeSshKey(key)
-          this.onActivity()
-        },
+      onConfirm: () => {
+        this.dialogController.close()
+        const target: SshKeyDraft | undefined = this.removeTarget
+        this.removeTarget = undefined
+        if (target !== undefined) {
+          this.removeKey(target)
+        }
       },
-    }
-    this.getUIContext().showAlertDialog(options)
+    })
   }
 
   @LocalBuilder
@@ -397,15 +431,20 @@ export struct EntrySshKeysField {
       }
 
       ForEach(this.keys, (key: SshKeyDraft) => {
-        SshKeyCard({
-          sshKey: key,
-          editable: !this.readOnly,
-          onCopyPrivate: () => this.copy(key.privateKey),
-          onCopyPublic: () => this.copy(key.publicKey),
-          onExport: () => exportSshPrivateKey(this.getUIContext(), key),
-          onRename: () => this.openRenameDialog(key),
-          onRemove: () => this.confirmRemove(key),
-        })
+        DsListRowMotion({
+          leaving: key.id === this.removingKeyId,
+          enterTransition: LIST_ROW_PUSH_IN,
+        }) {
+          SshKeyCard({
+            sshKey: key,
+            editable: !this.readOnly,
+            onCopyPrivate: () => this.copy(key.privateKey),
+            onCopyPublic: () => this.copy(key.publicKey),
+            onExport: () => exportSshPrivateKey(this.getUIContext(), key),
+            onRename: () => this.openRenameDialog(key),
+            onRemove: () => this.confirmRemove(key),
+          })
+        }
       }, (key: SshKeyDraft) => `${key.id}`)
 
       if (!this.readOnly) {

@@ -153,14 +153,6 @@
       "value": "全部"
     },
     {
-      "name": "badge_pending",
-      "value": "待保存"
-    },
-    {
-      "name": "badge_saved",
-      "value": "已添加"
-    },
-    {
       "name": "number_stepper_decrease",
       "value": "减少"
     },

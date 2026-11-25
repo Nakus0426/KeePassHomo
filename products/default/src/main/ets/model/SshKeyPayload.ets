@@ -18,8 +18,6 @@ export class SshKeyDraft {
   @Trace addedAt: number = 0
   @Trace privateKey: string = ''
   @Trace publicKey: string = ''
-  // 已入库的密钥显示「已添加」，本次编辑会话新增的显示「待保存」。
-  @Trace persisted: boolean = false
 }
 
 interface SshKeyPayloadItem {
@@ -59,7 +57,6 @@ export function parseSshKeys(json: string): SshKeyDraft[] {
     draft.addedAt = item.addedAt ?? 0
     draft.privateKey = item.privateKey ?? ''
     draft.publicKey = item.publicKey ?? ''
-    draft.persisted = true
     return draft
   })
 }

@@ -29,6 +29,8 @@ export class AnimationTokens {
   static readonly FAVORITE_BOUNCE_SCALE: number = 1.16
   // 解锁分屏外移时首页的开场缩放，与两片外移同帧并行。
   static readonly UNLOCK_HOME_REVEAL_SCALE: number = 0.98
+  // 输入框尾随清除按钮显隐的缩放起点：与复选框勾选同一档，出现像被按下弹出。
+  static readonly INPUT_CLEAR_SCALE: number = 0.6
   // 底部提示条出现上浮 / 消失下沉距离，单位 vp。
   static readonly BANNER_ENTER_OFFSET: number = 12
   static readonly BANNER_EXIT_OFFSET: number = 8

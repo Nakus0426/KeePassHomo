@@ -14,6 +14,8 @@ export interface TemplateFieldOption {
 export interface TemplateFieldDefinition {
   key: string;
   label: Resource;
+  // 输入井占位文案；附件、密钥等不渲染输入井的行不设置。
+  placeholder?: Resource;
   icon: Resource;
   type: VaultFieldType;
   protected: boolean;
@@ -43,33 +45,44 @@ export interface ItemTemplateDefinition {
   fields: TemplateFieldDefinition[];
 }
 
-function reservedField(key: string, label: Resource, icon: Resource, protectedValue: boolean,
-  multiline: boolean): TemplateFieldDefinition {
+// 字段工厂入参：多数字段只设 key/label/icon，具名配置避免调用处排一串 false 与空数组。
+interface FieldSpec {
+  key: string;
+  label: Resource;
+  icon: Resource;
+  protectedValue?: boolean;
+  multiline?: boolean;
+  options?: TemplateFieldOption[];
+  placeholder?: Resource;
+}
+
+function reservedField(spec: FieldSpec): TemplateFieldDefinition {
   return {
-    key,
-    label,
-    icon,
-    type: protectedValue ? VaultFieldType.Password : VaultFieldType.Text,
-    protected: protectedValue,
-    multiline,
-    reservedField: key,
+    key: spec.key,
+    label: spec.label,
+    placeholder: spec.placeholder,
+    icon: spec.icon,
+    type: spec.protectedValue === true ? VaultFieldType.Password : VaultFieldType.Text,
+    protected: spec.protectedValue === true,
+    multiline: spec.multiline === true,
+    reservedField: spec.key,
     options: [],
     attachments: false,
     sshKeys: false,
   }
 }
 
-function customField(key: string, label: Resource, icon: Resource, protectedValue: boolean,
-  multiline: boolean = false, options: TemplateFieldOption[] = []): TemplateFieldDefinition {
+function customField(spec: FieldSpec): TemplateFieldDefinition {
   return {
-    key,
-    label,
-    icon,
-    type: protectedValue ? VaultFieldType.Password : VaultFieldType.Text,
-    protected: protectedValue,
-    multiline,
+    key: spec.key,
+    label: spec.label,
+    placeholder: spec.placeholder,
+    icon: spec.icon,
+    type: spec.protectedValue === true ? VaultFieldType.Password : VaultFieldType.Text,
+    protected: spec.protectedValue === true,
+    multiline: spec.multiline === true,
     reservedField: '',
-    options,
+    options: spec.options ?? [],
     attachments: false,
     sshKeys: false,
   }
@@ -149,10 +162,12 @@ const LOGIN: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_login'),
   icon: $r('app.media.layout_type_login'),
   fields: [
-    reservedField('UserName', $r('app.string.username'), $r('app.string.symbol_person'), false, false),
-    reservedField('Password', $r('app.string.password'), $r('app.string.symbol_lock'), true, false),
-    reservedField('URL', $r('app.string.website'), $r('app.string.symbol_link'), false, false),
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    reservedField({ key: 'UserName', label: $r('app.string.username'), icon: $r('app.string.symbol_person') }),
+    reservedField({
+      key: 'Password', label: $r('app.string.password'), icon: $r('app.string.symbol_lock'), protectedValue: true,
+    }),
+    reservedField({ key: 'URL', label: $r('app.string.website'), icon: $r('app.string.symbol_link') }),
+    reservedField({ key: 'Notes', label: $r('app.string.notes'), icon: $r('app.string.symbol_notes'), multiline: true }),
   ],
 }
 
@@ -163,7 +178,7 @@ const SECURE_NOTE: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_secure_note'),
   icon: $r('app.media.layout_type_secure_note'),
   fields: [
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    reservedField({ key: 'Notes', label: $r('app.string.notes'), icon: $r('app.string.symbol_notes'), multiline: true }),
   ],
 }
 
@@ -174,12 +189,45 @@ const CREDIT_CARD: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_credit_card'),
   icon: $r('app.media.layout_type_credit_card'),
   fields: [
-    customField('CardNumber', $r('app.string.card_number'), $r('app.string.symbol_credit_card'), true),
-    customField('Issuer', $r('app.string.card_issuer'), $r('app.string.symbol_business'), false),
-    customField('CardType', $r('app.string.card_type'), $r('app.string.symbol_credit_card'), false, false, CARD_TYPE_OPTIONS),
-    customField('CardHolderName', $r('app.string.card_holder'), $r('app.string.symbol_person'), false),
-    customField('Expiry', $r('app.string.card_expiry'), $r('app.string.symbol_calendar'), false),
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    customField({
+      key: 'CardNumber',
+      label: $r('app.string.card_number'),
+      icon: $r('app.string.symbol_credit_card'),
+      protectedValue: true,
+      placeholder: $r('app.string.card_number_placeholder'),
+    }),
+    customField({
+      key: 'CardType',
+      label: $r('app.string.card_type'),
+      icon: $r('app.string.symbol_credit_card'),
+      options: CARD_TYPE_OPTIONS,
+      placeholder: $r('app.string.card_type_placeholder'),
+    }),
+    customField({
+      key: 'Issuer',
+      label: $r('app.string.card_issuer'),
+      icon: $r('app.string.symbol_business'),
+      placeholder: $r('app.string.card_issuer_placeholder'),
+    }),
+    customField({
+      key: 'CardHolderName',
+      label: $r('app.string.card_holder'),
+      icon: $r('app.string.symbol_person'),
+      placeholder: $r('app.string.card_holder_placeholder'),
+    }),
+    customField({
+      key: 'Expiry',
+      label: $r('app.string.card_expiry'),
+      icon: $r('app.string.symbol_calendar'),
+      placeholder: $r('app.string.card_expiry_placeholder'),
+    }),
+    reservedField({
+      key: 'Notes',
+      label: $r('app.string.notes'),
+      icon: $r('app.string.symbol_notes'),
+      multiline: true,
+      placeholder: $r('app.string.notes_placeholder'),
+    }),
   ],
 }
 
@@ -190,8 +238,10 @@ const PASSWORD: ItemTemplateDefinition = {
   summary: $r('app.string.template_summary_password'),
   icon: $r('app.media.layout_type_password'),
   fields: [
-    reservedField('Password', $r('app.string.password'), $r('app.string.symbol_lock'), true, false),
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    reservedField({
+      key: 'Password', label: $r('app.string.password'), icon: $r('app.string.symbol_lock'), protectedValue: true,
+    }),
+    reservedField({ key: 'Notes', label: $r('app.string.notes'), icon: $r('app.string.symbol_notes'), multiline: true }),
   ],
 }
 
@@ -203,7 +253,7 @@ const SSH_KEY: ItemTemplateDefinition = {
   icon: $r('app.media.layout_type_ssh_key'),
   fields: [
     sshKeysField($r('app.string.ssh_key_add'), $r('app.string.symbol_key')),
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    reservedField({ key: 'Notes', label: $r('app.string.notes'), icon: $r('app.string.symbol_notes'), multiline: true }),
   ],
 }
 
@@ -215,7 +265,7 @@ const ATTACHMENT: ItemTemplateDefinition = {
   icon: $r('app.media.layout_type_attachment'),
   fields: [
     attachmentField($r('app.string.attachment_file'), $r('app.string.symbol_attach_file')),
-    reservedField('Notes', $r('app.string.notes'), $r('app.string.symbol_notes'), false, true),
+    reservedField({ key: 'Notes', label: $r('app.string.notes'), icon: $r('app.string.symbol_notes'), multiline: true }),
   ],
 }
 

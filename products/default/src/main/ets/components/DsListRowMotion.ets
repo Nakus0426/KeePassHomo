@@ -1,5 +1,21 @@
+import { UIContext } from '@kit.ArkUI'
 import { AnimationTokens } from '@ohos/common'
 import { LIST_ROW_FADE_IN } from './ListRowEnterTransition'
+
+// 离场提交：先标记收高让卡片原位塌陷，动画结束后再提交数据删除。
+// 会话已关闭（切条目 / 收起面板）时不再写回，避免落在已释放的草稿上。
+export function playRowLeave(uiContext: UIContext, active: boolean, markLeaving: () => void,
+  commit: () => void): void {
+  uiContext.animateTo({
+    duration: AnimationTokens.STATE_TRANSITION_DURATION,
+    curve: AnimationTokens.EASE_EXIT,
+    onFinish: () => {
+      if (active) {
+        commit()
+      }
+    },
+  }, markLeaving)
+}
 
 // 全项目列表行统一动效：进场淡入（可选自下方轻推），离场收高 + 后倾倒塌。
 // 离场由 leaving 状态驱动而非 transition：卡片留在自己的位置塌陷，下方内容随布局上移，

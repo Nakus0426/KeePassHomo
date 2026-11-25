@@ -29,7 +29,6 @@ export struct EntrySshKeyList {
       ForEach(this.keys, (key: SshKeyDraft) => {
         SshKeyCard({
           sshKey: key,
-          showBadge: false,
           onCopyPrivate: () => this.copy(key.privateKey),
           onCopyPublic: () => this.copy(key.publicKey),
           onExport: () => exportSshPrivateKey(this.getUIContext(), key),

@@ -8,7 +8,7 @@ import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButt
 import { DsColorLadder } from '../../components/DsColorLadder'
 import { DsControlSize } from '../../components/DsControlSize'
 import { DsContextMenu } from '../../components/DsContextMenu'
-import { DsDatePickerMode, DsDatePickerSheet } from '../../components/DsDatePickerSheet'
+import { dsDatePickerSheetHeight, DsDatePickerMode, DsDatePickerSheet } from '../../components/DsDatePickerSheet'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
@@ -43,8 +43,8 @@ import { DsToastHost } from '../../components/DsToast'
 // 头像与标题输入井同高，两者在标题行里顶部对齐。
 const TITLE_ROW_GAP: number = 12
 const ADVANCED_HEADER_HEIGHT: number = 44
-// 头像对齐的是输入井而不是字段标签：标签行（含行高与 4vp 间距）实测 24vp。
-const TITLE_LABEL_OFFSET: number = 24
+// 头像对齐的是输入井而不是字段标签：标签行 16vp + 字段间距 4vp。
+const TITLE_LABEL_OFFSET: number = 20
 // 菜单与按钮的间距，设计稿的 8。
 const MENU_TARGET_SPACE: number = 8
 // 银行卡有效期：模板字段键，走 MM/YY 文本 + 年月选择器。
@@ -62,6 +62,8 @@ export struct EntryEditorView {
   }
   @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
   @Local private passwordVisible: boolean = false
+  // 受保护模板字段（如卡号）的明文预览，同一时刻只展开一个。
+  @Local private protectedFieldVisibleKey: string = ''
   @Local private generatorSheetVisible: boolean = false
   @Local private generatorBottomBarHeight: number = 0
   @Local private groupPickerVisible: boolean = false
@@ -125,8 +127,10 @@ export struct EntryEditorView {
   @Computed
   get advancedMeta(): string {
     const count: number = this.editor.customFields().length + this.editor.tags.length
-    return count === 0 ? '' : ResUtil.getStringSync($r('app.string.advanced_item_count'))
-      .replace('%s', `${count}`)
+    if (count === 0) {
+      return ResUtil.getStringSync($r('app.string.advanced_meta_placeholder'))
+    }
+    return ResUtil.getStringSync($r('app.string.advanced_item_count'), [count])
   }
 
   @Computed
@@ -137,6 +141,7 @@ export struct EntryEditorView {
   private releaseEditor(): void {
     this.invalidFieldId = -1
     this.passwordVisible = false
+    this.protectedFieldVisibleKey = ''
     this.editor.reset()
   }
 
@@ -251,6 +256,10 @@ export struct EntryEditorView {
 
   private toggleFavorite(): void {
     this.editor.favorite = !this.editor.favorite
+    // 新建条目没有可写入的 uuid，收藏只改草稿，保存时随条目一起落库。
+    if (this.isNewEntry) {
+      return
+    }
     this.viewModel.toggleFavorite(this.editor.entryUuid).then(() => {
       this.editor.favorite = this.viewModel.entry(this.editor.entryUuid).favorite
     })
@@ -314,7 +323,7 @@ export struct EntryEditorView {
   private titleInput() {
     DsInput({
       text: this.editor.title,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: $r('app.string.entry_title_placeholder'),
       tone: this.editor.titleController.status === Status.Invalid ? DsInputTone.Error : DsInputTone.Default,
       readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setTitle(value),
@@ -325,24 +334,30 @@ export struct EntryEditorView {
   private usernameInput() {
     DsInput({
       text: this.editor.username,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: $r('app.string.username_placeholder'),
       readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setUsername(value),
+    })
+  }
+
+  // 显隐眼睛：主密码与受保护模板字段共用同一套图标与无障碍文案。
+  @LocalBuilder
+  private eyeToggle(checked: boolean, onToggle: () => void) {
+    IconToggleButton({
+      symbol: $r('app.string.symbol_eye_off'),
+      symbolChecked: $r('app.string.symbol_eye'),
+      checked: checked,
+      symbolColor: $r('app.color.ds_text_secondary'),
+      accessibilityLabel: checked ? $r('app.string.hide') : $r('app.string.show'),
+      clickable: !this.readOnly,
+      onToggle: onToggle,
     })
   }
 
   @LocalBuilder
   private passwordTrailing() {
     Row({ space: $r('app.float.ds_space_xs') }) {
-      IconToggleButton({
-        symbol: $r('app.string.symbol_eye_off'),
-        symbolChecked: $r('app.string.symbol_eye'),
-        checked: this.passwordVisible,
-        symbolColor: $r('app.color.ds_text_secondary'),
-        accessibilityLabel: this.passwordVisible ? $r('app.string.hide') : $r('app.string.show'),
-        clickable: !this.readOnly,
-        onToggle: () => this.passwordVisible = !this.passwordVisible,
-      })
+      this.eyeToggle(this.passwordVisible, () => this.passwordVisible = !this.passwordVisible)
 
       IconToggleButton({
         symbol: $r('app.string.symbol_generate'),
@@ -358,7 +373,7 @@ export struct EntryEditorView {
   private passwordInput() {
     DsInput({
       text: this.editor.password,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: $r('app.string.password_placeholder'),
       type: InputType.Password,
       showPassword: this.passwordVisible,
       readOnly: this.readOnly,
@@ -371,7 +386,7 @@ export struct EntryEditorView {
   private urlInput() {
     DsInput({
       text: this.editor.url,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: $r('app.string.website_placeholder'),
       readOnly: this.readOnly,
       onChange: (value: string) => this.editor.setUrl(value),
     })
@@ -381,7 +396,7 @@ export struct EntryEditorView {
   private notesInput() {
     DsInput({
       text: this.editor.notes,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: $r('app.string.notes_placeholder'),
       multiline: true,
       minLines: 4,
       readOnly: this.readOnly,
@@ -389,27 +404,44 @@ export struct EntryEditorView {
     })
   }
 
+  private fieldPlaceholder(definition: TemplateFieldDefinition): ResourceStr {
+    return definition.placeholder ?? $r('app.string.text_input_placeholder')
+  }
+
   @LocalBuilder
   private templateFieldInput(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
     if (definition.multiline) {
       DsInput({
         text: field.value,
-        placeholder: $r('app.string.text_input_placeholder'),
+        placeholder: this.fieldPlaceholder(definition),
         multiline: true,
         minLines: 4,
         readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
+    } else if (definition.protected) {
+      DsInput({
+        text: field.value,
+        placeholder: this.fieldPlaceholder(definition),
+        type: InputType.Password,
+        showPassword: this.protectedFieldVisibleKey === definition.key,
+        readOnly: this.readOnly,
+        trailingBuilder: () => {
+          this.protectedFieldTrailing(definition.key)
+        },
+        onChange: (value: string) => this.editor.setFieldValue(field, value),
+      })
     } else if (definition.key === EXPIRY_FIELD_KEY) {
       TemplateExpiryField({
         text: field.value,
+        placeholder: this.fieldPlaceholder(definition),
         readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     } else if (definition.options.length > 0) {
       DsInput({
         text: field.value,
-        placeholder: $r('app.string.text_input_placeholder'),
+        placeholder: this.fieldPlaceholder(definition),
         readOnly: this.readOnly,
         trailingBuilder: () => {
           this.optionMenuButton(field, definition)
@@ -419,11 +451,19 @@ export struct EntryEditorView {
     } else {
       DsInput({
         text: field.value,
-        placeholder: $r('app.string.text_input_placeholder'),
+        placeholder: this.fieldPlaceholder(definition),
         readOnly: this.readOnly,
         onChange: (value: string) => this.editor.setFieldValue(field, value),
       })
     }
+  }
+
+  // 受保护模板字段只有显隐，没有生成器。
+  @LocalBuilder
+  private protectedFieldTrailing(fieldKey: string) {
+    this.eyeToggle(this.protectedFieldVisibleKey === fieldKey, () => {
+      this.protectedFieldVisibleKey = this.protectedFieldVisibleKey === fieldKey ? '' : fieldKey
+    })
   }
 
   // 卡类型等固定取值：下拉只做快捷填入，选项文案仍可手动编辑。
@@ -463,6 +503,7 @@ export struct EntryEditorView {
     EntrySshKeysField({
       editor: this.editor,
       readOnly: this.readOnly,
+      active: this.sheet.mode === EntrySheetMode.Edit,
       onActivity: () => this.viewModel.recordActivity(),
     })
   }
@@ -525,7 +566,7 @@ export struct EntryEditorView {
     })
   }
 
-  // 新建条目还没有收藏位，收藏与更多菜单在保存后才出现。
+  // 「更多」里的复制与删除都要有已保存的条目，新建态只留收藏与关闭。
   @Computed
   get headerActions(): DsPageHeaderAction[] {
     const actions: DsPageHeaderAction[] = []
@@ -559,12 +600,10 @@ export struct EntryEditorView {
 
   @LocalBuilder
   private favoriteAction() {
-    if (!this.isNewEntry) {
-      HeaderFavoriteAction({
-        editor: this.editor,
-        onToggle: () => this.toggleFavorite(),
-      })
-    }
+    HeaderFavoriteAction({
+      editor: this.editor,
+      onToggle: () => this.toggleFavorite(),
+    })
   }
 
   @LocalBuilder
@@ -645,7 +684,7 @@ export struct EntryEditorView {
 
   @LocalBuilder
   private groupRow() {
-    Column({ space: $r('app.float.ds_space_sm') }) {
+    Column({ space: $r('app.float.ds_space_md') }) {
       Text($r('app.string.group'))
         .fontSize($r('app.float.ds_font_label_md'))
         .fontWeight(600)
@@ -712,7 +751,7 @@ export struct EntryEditorView {
       Text(this.definition.name)
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontWeight(600)
-        .letterSpacing($r('app.float.ds_tracking_wide_md'))
+        .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
         .fontColor($r('app.color.ds_text_tertiary'))
 
       ForEach(this.credentialFields, (definition: TemplateFieldDefinition) => {
@@ -723,7 +762,7 @@ export struct EntryEditorView {
           })
             .id('field_username')
         } else if (definition.reservedField === 'Password') {
-          Column({ space: $r('app.float.ds_space_sm') }) {
+          Column({ space: $r('app.float.ds_space_6') }) {
             DsField({
               label: definition.label,
               contentBuilder: this.passwordInput,
@@ -731,7 +770,14 @@ export struct EntryEditorView {
               .id('field_password')
 
             if (this.editor.password.length > 0) {
-              DsStrengthMeter({ password: this.editor.password })
+              Column({ space: $r('app.float.ds_space_6') }) {
+                Text($r('app.string.password_strength_label'))
+                  .fontSize($r('app.float.ds_font_label_sm'))
+                  .fontColor($r('app.color.ds_text_tertiary'))
+                DsStrengthMeter({ password: this.editor.password })
+              }
+              .width('100%')
+              .alignItems(HorizontalAlign.Start)
             }
           }
           .width('100%')
@@ -1176,6 +1222,7 @@ struct TemplateOptionMenuButton {
 @ComponentV2
 struct TemplateExpiryField {
   @Param text: string = ''
+  @Param placeholder: ResourceStr = ''
   @Param readOnly: boolean = false
   @Event onChange: (value: string) => void = () => {
   }
@@ -1204,20 +1251,6 @@ struct TemplateExpiryField {
   private trailing() {
     if (!this.readOnly) {
       Row({ space: $r('app.float.ds_space_xs') }) {
-        if (this.text.length > 0) {
-          DsButton({
-            variant: DsButtonVariant.Text,
-            tone: DsButtonTone.Default,
-            buttonSize: DsControlSize.Small,
-            iconOnly: true,
-            leadingIcon: $r('app.string.symbol_close'),
-            iconSizeOverride: $r('app.float.ds_icon_xs'),
-            iconColorOverride: $r('app.color.ds_text_secondary'),
-            accessibilityLabelResource: $r('app.string.card_expiry_clear'),
-            onTap: () => this.onChange(''),
-          })
-        }
-
         DsButton({
           variant: DsButtonVariant.Text,
           tone: DsButtonTone.Default,
@@ -1250,13 +1283,16 @@ struct TemplateExpiryField {
   build() {
     DsInput({
       text: this.text,
-      placeholder: $r('app.string.text_input_placeholder'),
+      placeholder: this.placeholder,
       readOnly: this.readOnly,
+      clearable: !this.readOnly,
+      clearLabel: $r('app.string.card_expiry_clear'),
+      onClear: () => this.onChange(''),
       trailingBuilder: this.trailing,
       onChange: (value: string) => this.onChange(value),
     })
       .bindSheet($$this.sheetVisible, this.pickerSheet(), dsSheetOptions({
-        detents: [SheetSize.MEDIUM],
+        detents: [dsDatePickerSheetHeight(this.getUIContext())],
         onDisappear: () => this.sheetVisible = false,
       }))
   }

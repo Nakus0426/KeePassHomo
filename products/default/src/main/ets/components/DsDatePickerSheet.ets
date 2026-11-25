@@ -1,3 +1,5 @@
+import { UIContext } from '@kit.ArkUI'
+import { immersiveLayoutState } from '../state/ImmersiveLayoutState'
 import { DsBottomActionBar } from './DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { DsHalfModalSheet } from './DsHalfModalSheet'
@@ -8,6 +10,13 @@ const PICKER_TEXT_FONT_SIZE: number = 16
 const PICKER_SELECTED_FONT_SIZE: number = 20
 const PICKER_HEIGHT: number = 180
 const TIME_PICKER_WIDTH: number = 110
+// 面板高度按内容取：拖拽行 16 + 标题栏 56 + 滚动区 24+180+24 + 底栏 72。
+const DS_DATE_PICKER_SHEET_HEIGHT: number = 372
+
+// 底栏已避让系统安全区，面板高度要把这段一并计入，否则按钮会沉到手势条下方。
+export function dsDatePickerSheetHeight(uiContext: UIContext): number {
+  return DS_DATE_PICKER_SHEET_HEIGHT + uiContext.px2vp(immersiveLayoutState.bottomAvoidAreaHeightPx)
+}
 
 export enum DsDatePickerMode {
   YearMonth = 'yearMonth',
@@ -157,39 +166,29 @@ export struct DsDatePickerSheet {
       .onChange((value: TimePickerResult) => this.handleTimeChange(value))
   }
 
+  // 内容高度固定且不需要滚动：不放滚动容器，避免滚轮之外再叠一层回弹。
   @LocalBuilder
   private bodyContent() {
-    Scroll() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
       Column() {
-        Row({ space: $r('app.float.ds_space_sm') }) {
-          Column() {
-            this.dateWheel()
-          }
-          .layoutWeight(1)
-
-          if (this.mode === DsDatePickerMode.DateTime) {
-            this.timeWheel()
-          }
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
+        this.dateWheel()
       }
-      .width('100%')
-      .padding({
-        top: $r('app.float.ds_space_24'),
-        bottom: $r('app.float.ds_space_24'),
-        left: $r('app.float.ds_gutter'),
-        right: $r('app.float.ds_gutter'),
-      })
+      .layoutWeight(1)
+
+      if (this.mode === DsDatePickerMode.DateTime) {
+        this.timeWheel()
+      }
     }
     .width('100%')
-    .height('100%')
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .align(Alignment.Top)
+    .padding({
+      top: $r('app.float.ds_space_24'),
+      bottom: $r('app.float.ds_space_24'),
+      left: $r('app.float.ds_gutter'),
+      right: $r('app.float.ds_gutter'),
+    })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
     .onTouch(() => this.onActivity())
-    .clip(false)
   }
 
   @LocalBuilder
@@ -206,7 +205,6 @@ export struct DsDatePickerSheet {
   @LocalBuilder
   private bottomBar() {
     DsBottomActionBar({
-      includeSafeArea: false,
       contentBuilder: this.bottomBarContent,
     })
   }

@@ -1,18 +1,15 @@
 import { SshKeyDraft, sshKeySummary } from '../../model/SshKeyPayload'
 import { sshPublicKeyFingerprint } from '../../model/SshFingerprint'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
-import { DsContextMenu } from '../../components/DsContextMenu'
+import { DeferredAction } from '../../components/DeferredAction'
+import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
-import { DsTag } from '../../components/DsTag'
-
-const ICON_TILE_SIZE: number = 32
+import { DsTemplateIcon } from '../../components/DsTemplateIcon'
 
 // 密钥卡片：编辑态与预览态共用外观、按压反馈与长按菜单，动作由调用方注入。
 @ComponentV2
 export struct SshKeyCard {
   @Param sshKey: SshKeyDraft = new SshKeyDraft()
-  // 预览态的密钥必然已入库，不显示保存状态标签。
-  @Param showBadge: boolean = true
   // 重命名与删除只属于编辑态。
   @Param editable: boolean = false
   @Event onCopyPrivate: () => void = () => {
@@ -25,6 +22,8 @@ export struct SshKeyCard {
   }
   @Event onRemove: () => void = () => {
   }
+  // 导出、重命名与删除会打开弹窗/选择器，等菜单退场后再触发。
+  private readonly deferred: DeferredAction = new DeferredAction()
 
   // 指纹只由公钥行派生，不写回受保护字段。
   @Computed
@@ -57,31 +56,31 @@ export struct SshKeyCard {
   @LocalBuilder
   private menuContent() {
     DsMenuItem({
-      icon: $r('app.string.symbol_docs'),
+      icon: $r('app.string.symbol_copy'),
       label: $r('app.string.ssh_key_copy_private'),
       onAction: () => this.onCopyPrivate(),
     })
     DsMenuItem({
-      icon: $r('app.string.symbol_key'),
+      icon: $r('app.string.symbol_copy'),
       label: $r('app.string.ssh_key_copy_public'),
       onAction: () => this.onCopyPublic(),
     })
     DsMenuItem({
       icon: $r('app.string.symbol_download'),
       label: $r('app.string.ssh_key_export'),
-      onAction: () => this.onExport(),
+      onAction: () => this.deferred.defer(() => this.onExport()),
     })
     if (this.editable) {
       DsMenuItem({
         icon: $r('app.string.symbol_edit'),
         label: $r('app.string.ssh_key_rename'),
-        onAction: () => this.onRename(),
+        onAction: () => this.deferred.defer(() => this.onRename()),
       })
       DsMenuItem({
         icon: $r('app.string.symbol_delete'),
         label: $r('app.string.ssh_key_remove'),
         theme: DsMenuItemTheme.Error,
-        onAction: () => this.onRemove(),
+        onAction: () => this.deferred.defer(() => this.onRemove()),
       })
     }
   }
@@ -97,17 +96,7 @@ export struct SshKeyCard {
   build() {
     Button({ type: ButtonType.Normal, stateEffect: true }) {
       Row({ space: $r('app.float.ds_space_md') }) {
-        Row() {
-          SymbolGlyph($r('app.string.symbol_key'))
-            .fontSize($r('app.float.ds_icon_md'))
-            .fontColor([$r('app.color.ds_text_primary')])
-            .foregroundColor($r('app.color.ds_text_primary'))
-        }
-        .width(ICON_TILE_SIZE)
-        .height(ICON_TILE_SIZE)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(VerticalAlign.Center)
-        .backgroundColor($r('app.color.ds_surface_high'))
+        DsTemplateIcon({ source: $r('app.media.layout_type_ssh_key') })
 
         Column({ space: $r('app.float.ds_space_2') }) {
           Text(this.sshKey.name)
@@ -137,13 +126,6 @@ export struct SshKeyCard {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-
-        // 标签作为行内兄弟节点占位：名称只在剩余宽度里省略，不会压到标签上。
-        if (this.showBadge) {
-          DsTag({
-            text: this.sshKey.persisted ? $r('app.string.badge_saved') : $r('app.string.badge_pending'),
-          })
-        }
       }
       .width('100%')
       .alignItems(VerticalAlign.Top)
@@ -152,10 +134,7 @@ export struct SshKeyCard {
     .padding($r('app.float.ds_space_md'))
     .backgroundColor($r('app.color.ds_surface_low'))
     .borderRadius($r('app.float.ds_radius_none'))
-    .onClick(() => this.onCopyPrivate())
-    .bindContextMenu(this.keyMenu(), ResponseType.LongPress, {
-      preview: MenuPreviewMode.IMAGE,
-      hapticFeedbackMode: HapticFeedbackMode.ENABLED,
-    })
+    .bindContextMenu(this.keyMenu(), ResponseType.LongPress,
+      dsContextMenuOptions(() => this.deferred.run()))
   }
 }

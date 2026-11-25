@@ -8,10 +8,13 @@ import { AttachmentEditAction, EntryAttachmentEditor, EntryEditorViewModel } fro
 import { exportAttachment, previewAttachment } from '../../model/AttachmentFiles'
 import { AttachmentCard } from './AttachmentCard'
 import { AttachmentReauthDialog } from './AttachmentReauthDialog'
+import { DeferredAction } from '../../components/DeferredAction'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
-import { DsDialog, dsDialogOptions } from '../../components/DsDialog'
+import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
+import { DsListRowMotion, playRowLeave } from '../../components/DsListRowMotion'
+import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsToastHost } from '../../components/DsToast'
 import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
@@ -33,11 +36,15 @@ export struct EntryAttachmentField {
   @Local private reauthConfirm: ResourceStr = ''
   @Local private renameName: string = ''
   @Local private renameError: ResourceStr | undefined = undefined
-  private pendingAction: (() => void) | undefined = undefined
+  private readonly deferred: DeferredAction = new DeferredAction()
   private renameTarget: EntryAttachmentEditor | undefined = undefined
+  private removeTarget: EntryAttachmentEditor | undefined = undefined
+  // 正在离场的附件：卡片据此收高倒塌，动画结束后才删数据。
+  @Local private removingAttachmentId: number = -1
   private readonly app: AppViewModel = appViewModel
   private readonly dialogController: promptAction.DialogController = new promptAction.DialogController()
   private readonly renameDialogController: promptAction.DialogController = new promptAction.DialogController()
+  private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
 
   @Computed
   private get attachments(): EntryAttachmentEditor[] {
@@ -118,25 +125,52 @@ export struct EntryAttachmentField {
     }
   }
 
+  // 与自定义字段卡同一套离场：先在原位收高倒塌，动画结束后才删数据。
+  private removeAttachment(item: EntryAttachmentEditor): void {
+    if (this.removingAttachmentId !== -1) {
+      return
+    }
+    playRowLeave(this.getUIContext(), this.active, () => this.removingAttachmentId = item.id, () => {
+      this.editor.removeAttachment(item)
+      this.onActivity()
+      this.removingAttachmentId = -1
+    })
+  }
+
+  // 新建条目还没有 uuid，待保存附件直接删除；编辑已有条目才走确认。
   private confirmRemove(item: EntryAttachmentEditor): void {
-    const options: AlertDialogParamWithButtons = {
+    if (this.entryUuid.length === 0) {
+      this.removeAttachment(item)
+      return
+    }
+    this.removeTarget = item
+    this.getUIContext()
+      .getPromptAction()
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
+  }
+
+  @Builder
+  private deleteDialog() {
+    DsDialog({
       title: $r('app.string.attachment_remove_title'),
       message: $r('app.string.attachment_remove_message'),
-      primaryButton: {
-        value: $r('app.string.cancel'),
-        action: () => {
-        },
+      icon: $r('app.string.symbol_delete'),
+      tone: DsDialogTone.Error,
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.attachment_delete'),
+      onCancel: () => {
+        this.deleteDialogController.close()
+        this.removeTarget = undefined
       },
-      secondaryButton: {
-        value: $r('app.string.attachment_delete'),
-        fontColor: $r('app.color.ds_error'),
-        action: () => {
-          this.editor.removeAttachment(item)
-          this.onActivity()
-        },
+      onConfirm: () => {
+        this.deleteDialogController.close()
+        const target: EntryAttachmentEditor | undefined = this.removeTarget
+        this.removeTarget = undefined
+        if (target !== undefined) {
+          this.removeAttachment(target)
+        }
       },
-    }
-    this.getUIContext().showAlertDialog(options)
+    })
   }
 
   // 未保存的新附件直接用草稿字节，已入库的附件才回读引擎。
@@ -206,25 +240,15 @@ export struct EntryAttachmentField {
   }
 
   private presentReauth(message: ResourceStr, confirmLabel: ResourceStr, action: () => void): void {
-    this.pendingAction = action
+    this.deferred.defer(action)
     this.reauthMessage = message
     this.reauthConfirm = confirmLabel
     this.getUIContext()
       .getPromptAction()
-      .presentCustomDialog(() => this.reauthDialog(), this.dialogController, {
-        backgroundColor: $r('sys.color.comp_background_primary'),
-      })
+      .presentCustomDialog(() => this.reauthDialog(), this.dialogController, dsDialogOptions())
       .catch((error: BusinessError) => {
         LogUtil.error(`打开再认证弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
       })
-  }
-
-  private runPendingAction(): void {
-    const action: (() => void) | undefined = this.pendingAction
-    this.pendingAction = undefined
-    if (action !== undefined) {
-      action()
-    }
   }
 
   @Builder
@@ -233,7 +257,7 @@ export struct EntryAttachmentField {
       controller: this.dialogController,
       message: this.reauthMessage,
       confirmLabel: this.reauthConfirm,
-      onAuthenticated: () => this.runPendingAction(),
+      onAuthenticated: () => this.deferred.run(),
     })
   }
 
@@ -272,16 +296,20 @@ export struct EntryAttachmentField {
 
   @Builder
   private attachmentRow(item: EntryAttachmentEditor) {
-    AttachmentCard({
-      name: item.name,
-      fileSize: item.size,
-      persisted: item.action === AttachmentEditAction.Keep,
-      editable: !this.readOnly,
-      onPreview: () => this.startPreview(item),
-      onExport: () => this.startExport(item),
-      onRename: () => this.openRename(item),
-      onRemove: () => this.confirmRemove(item),
-    })
+    DsListRowMotion({
+      leaving: item.id === this.removingAttachmentId,
+      enterTransition: LIST_ROW_PUSH_IN,
+    }) {
+      AttachmentCard({
+        name: item.name,
+        fileSize: item.size,
+        editable: !this.readOnly,
+        onPreview: () => this.startPreview(item),
+        onExport: () => this.startExport(item),
+        onRename: () => this.openRename(item),
+        onRemove: () => this.confirmRemove(item),
+      })
+    }
   }
 
   build() {

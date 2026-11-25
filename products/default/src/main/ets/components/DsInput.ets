@@ -1,4 +1,5 @@
 import { AnimationTokens } from '@ohos/common'
+import { DsButton, DsButtonTone, DsButtonVariant } from './DsButton'
 import { DsControlSize } from './DsControlSize'
 
 
@@ -46,6 +47,11 @@ export struct DsInput {
   @Param enterKeyType: EnterKeyType | undefined = undefined
   @Param prefix: ResourceStr | undefined = undefined
   @Param suffix: ResourceStr | undefined = undefined
+  // 尾部清除按钮：常驻占位，仅在有值时可见，可编辑状态由调用方通过该开关控制。
+  @Param clearable: boolean = false
+  @Param clearLabel: Resource = $r('app.string.close')
+  @Event onClear: () => void = () => {
+  }
   @Event onChange: (value: string) => void = () => {
   }
   @Event onSubmit: (value: string) => void = () => {
@@ -133,6 +139,11 @@ export struct DsInput {
   @Computed
   get canEdit(): boolean {
     return !this.readOnly && !this.disabled
+  }
+
+  @Computed
+  get hasClearValue(): boolean {
+    return this.text.length > 0
   }
 
   @Computed
@@ -244,10 +255,40 @@ export struct DsInput {
     }
   }
 
+  // 始终占住 32 的宽度：显隐只淡入淡出并缩放，输入文本不会随按钮出现而重排。
+  @Builder
+  private clearSlot() {
+    Stack() {
+      DsButton({
+        variant: DsButtonVariant.Text,
+        tone: DsButtonTone.Default,
+        buttonSize: DsControlSize.Small,
+        iconOnly: true,
+        leadingIcon: $r('app.string.symbol_close'),
+        iconColorOverride: $r('app.color.ds_text_secondary'),
+        accessibilityLabelResource: this.clearLabel,
+        onTap: () => this.onClear(),
+      })
+    }
+    .width($r('app.float.ds_button_small_height'))
+    .height($r('app.float.ds_button_small_height'))
+    .opacity(this.hasClearValue ? 1 : 0)
+    .scale({
+      x: this.hasClearValue ? 1 : AnimationTokens.INPUT_CLEAR_SCALE,
+      y: this.hasClearValue ? 1 : AnimationTokens.INPUT_CLEAR_SCALE,
+    })
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
+    .hitTestBehavior(this.hasClearValue ? HitTestMode.Default : HitTestMode.None)
+    .accessibilityLevel(this.hasClearValue ? 'auto' : 'no-hide-descendants')
+  }
+
   @Builder
   private trailingSlot() {
-    if (this.suffix !== undefined || this.trailingBuilder !== undefined) {
+    if (this.suffix !== undefined || this.clearable || this.trailingBuilder !== undefined) {
       Row({ space: $r('app.float.ds_space_xs') }) {
+        if (this.clearable) {
+          this.clearSlot()
+        }
         if (this.suffix !== undefined) {
           Text(this.suffix)
             .fontSize(this.inputFontSize)
