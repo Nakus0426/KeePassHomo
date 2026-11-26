@@ -20,6 +20,8 @@ export class AnimationTokens {
     duration: AnimationTokens.DURATION_FEEDBACK,
     curve: AnimationTokens.EASE_STATE,
   }
+  // 强度条逐段级联：相邻段错开一档填充，避免五段同时闪变。
+  static readonly STRENGTH_CASCADE_DELAY: number = 40
   // 智感握姿悬浮按钮：跨侧绕行与首次出场使用官方推荐的弹簧曲线。
   static readonly FAB_SIDE_MOVE_CURVE: ICurve = curves.interpolatingSpring(0, 1, 170, 17)
   static readonly FAB_FIRST_APPEAR_CURVE: ICurve = curves.interpolatingSpring(0, 1, 200, 17)

@@ -769,16 +769,15 @@ export struct EntryEditorView {
             })
               .id('field_password')
 
-            if (this.editor.password.length > 0) {
-              Column({ space: $r('app.float.ds_space_6') }) {
-                Text($r('app.string.password_strength_label'))
-                  .fontSize($r('app.float.ds_font_label_sm'))
-                  .fontColor($r('app.color.ds_text_tertiary'))
-                DsStrengthMeter({ password: this.editor.password })
-              }
-              .width('100%')
-              .alignItems(HorizontalAlign.Start)
+            // 空密码也占住这块，输入时不会把下方字段整体顶下去。
+            Column({ space: $r('app.float.ds_space_6') }) {
+              Text($r('app.string.password_strength_label'))
+                .fontSize($r('app.float.ds_font_label_sm'))
+                .fontColor($r('app.color.ds_text_tertiary'))
+              DsStrengthMeter({ password: this.editor.password })
             }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)

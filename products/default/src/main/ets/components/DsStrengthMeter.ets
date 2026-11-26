@@ -1,4 +1,4 @@
-import { PasswordStrengthCalculator, StrengthLevel } from '@ohos/common'
+import { AnimationTokens, PasswordStrengthCalculator, StrengthLevel } from '@ohos/common'
 
 @ComponentV2
 export struct DsStrengthMeter {
@@ -32,6 +32,12 @@ export struct DsStrengthMeter {
           .height($r('app.float.ds_meter_height'))
           .layoutWeight(1)
           .backgroundColor(index < this.level ? this.levelColor : $r('app.color.ds_surface_highest'))
+          // 级联：逐段错开填充，颜色变化不整条闪。
+          .animation({
+            duration: AnimationTokens.DURATION_FEEDBACK,
+            curve: AnimationTokens.EASE_STATE,
+            delay: index * AnimationTokens.STRENGTH_CASCADE_DELAY,
+          })
       }, (index: number) => index.toString())
     }
     .width('100%')

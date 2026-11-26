@@ -13,6 +13,8 @@ oh_modules/
 **/.preview
 .zcode
 .codegenie
+.deveco-cli
+.agents
 /sign
 /signing/*.p12
 /signing/*.p7b

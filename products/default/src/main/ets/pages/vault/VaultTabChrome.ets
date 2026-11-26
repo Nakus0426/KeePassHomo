@@ -114,33 +114,31 @@ struct VaultHeaderBar {
   }
 }
 
-// 标题行与批量选择头同高：常驻叠放交叉淡入，避免模式切换时整行闪现。
+// 标题行与批量选择头同高：切换时交叉淡入，避免整行闪现。
+// 只挂载当前模式那一行：常驻叠放会让不可见层在几何上盖住可见层的按钮。
+const HEADER_FADE: TransitionEffect = TransitionEffect.OPACITY.animation(AnimationTokens.FEEDBACK_ANIMATION)
+
 @ComponentV2
 struct VaultHeaderStack {
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
 
   build() {
     Stack() {
-      Row() {
-        VaultHeaderBar()
+      if (this.home.batchMode) {
+        Row() {
+          VaultSelectionHeader()
+        }
+        .width('100%')
+        .height('100%')
+        .transition(HEADER_FADE)
+      } else {
+        Row() {
+          VaultHeaderBar()
+        }
+        .width('100%')
+        .height('100%')
+        .transition(HEADER_FADE)
       }
-      .width('100%')
-      .height('100%')
-      .opacity(this.home.batchMode ? 0 : 1)
-      // 隐藏层必须用 BLOCK_DESCENDANTS：None 只停自身，子节点仍会抢走下层按钮的点击。
-      .hitTestBehavior(this.home.batchMode ? HitTestMode.BLOCK_DESCENDANTS : HitTestMode.Default)
-      .accessibilityLevel(this.home.batchMode ? 'no-hide-descendants' : 'auto')
-      .animation(AnimationTokens.FEEDBACK_ANIMATION)
-
-      Row() {
-        VaultSelectionHeader()
-      }
-      .width('100%')
-      .height('100%')
-      .opacity(this.home.batchMode ? 1 : 0)
-      .hitTestBehavior(this.home.batchMode ? HitTestMode.Default : HitTestMode.BLOCK_DESCENDANTS)
-      .accessibilityLevel(this.home.batchMode ? 'auto' : 'no-hide-descendants')
-      .animation(AnimationTokens.FEEDBACK_ANIMATION)
     }
     .width('100%')
     .height('100%')
