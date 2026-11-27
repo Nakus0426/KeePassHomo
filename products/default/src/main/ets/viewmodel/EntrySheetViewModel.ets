@@ -1,11 +1,11 @@
 import { ItemTemplate, RESERVED_FIELD_NAMES, VaultAttachmentMeta, VaultEntry, VaultField, VaultFieldType } from '@ohos/common'
-import { DateUtil } from '@pura/harmony-utils'
 import { definitionFor, ItemTemplateDefinition, TemplateFieldDefinition, TemplateFieldOption } from '../model/EntryTemplateCatalog'
 import { fieldTypeDefinition } from '../model/FieldTypeCatalog'
 import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../model/SshKeyPayload'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { AppViewModel, appViewModel } from './AppViewModel'
-import { ENTRY_FIELD_CARD_NUMBER, ENTRY_FIELD_CARD_TYPE } from './EntryPresentation'
+import { EntryEditorViewModel } from './EntryEditorViewModel'
+import { ENTRY_FIELD_CARD_NUMBER, ENTRY_FIELD_CARD_TYPE, formatEntryTime } from './EntryPresentation'
 
 const CARD_ISSUER_KEY: string = 'Issuer'
 const CARD_HOLDER_KEY: string = 'CardHolderName'
@@ -46,11 +46,20 @@ export class EntrySheetViewModel {
   @Trace expandedFields: Set<string> = new Set<string>()
   @Trace previewEntry: VaultEntry | undefined = undefined
   @Trace avatarData: ArrayBuffer | undefined = undefined
+  // 编辑草稿归半模态所有：页头、底栏与编辑器视图读同一份，不再经视图回调反向交出。
+  readonly draft: EntryEditorViewModel = new EntryEditorViewModel()
   private readonly app: AppViewModel = appViewModel
+  // 本次会话产生过首页数据变更（保存 / 删除 / 复制）：收起时才需要重建列表快照。
+  private homeDirty: boolean = false
 
   @Computed
   get isNewEntry(): boolean {
     return this.entryUuid.length === 0
+  }
+
+  @Computed
+  get editing(): boolean {
+    return this.mode === EntrySheetMode.Edit
   }
 
   @Computed
@@ -146,8 +155,7 @@ export class EntrySheetViewModel {
 
   @Computed
   get lastModified(): string {
-    const time: number = this.previewEntry?.lastModifiedAt ?? 0
-    return time > 0 ? DateUtil.getFormatDateStr(time, 'yyyy-MM-dd HH:mm') : ''
+    return formatEntryTime(this.previewEntry?.lastModifiedAt ?? 0)
   }
 
   @Computed
@@ -202,8 +210,9 @@ export class EntrySheetViewModel {
   }
 
   // 只读能力属于 AppViewModel，缓存进来会读到旧值。
+  @Computed
   get readOnly(): boolean {
-    return this.app.currentSource().readOnly
+    return this.app.readOnly
   }
 
   openNew(template: ItemTemplate, groupUuid: string = ''): void {
@@ -212,29 +221,39 @@ export class EntrySheetViewModel {
     this.newEntryGroupUuid = groupUuid
     this.editFromPreview = false
     this.mode = EntrySheetMode.Edit
+    this.prepareDraft()
     this.visible = true
   }
 
-  openPreview(entryUuid: string): void {
+  openEntry(entryUuid: string, mode: EntrySheetMode): void {
     this.entryUuid = entryUuid
     this.editFromPreview = false
-    this.mode = EntrySheetMode.Preview
+    this.mode = mode
+    if (mode === EntrySheetMode.Edit) {
+      this.prepareDraft()
+    }
     this.visible = true
     stageOneVaultStore.touch()
   }
 
-  openEdit(entryUuid: string): void {
-    this.entryUuid = entryUuid
-    this.editFromPreview = false
-    this.mode = EntrySheetMode.Edit
-    this.visible = true
-    stageOneVaultStore.touch()
+  markHomeDirty(): void {
+    this.homeDirty = true
   }
 
   // 预览态进入编辑：退出后回预览，而不是收起半模态。
   beginEdit(): void {
     this.editFromPreview = true
     this.mode = EntrySheetMode.Edit
+    this.prepareDraft()
+  }
+
+  // 编辑进入点唯一：新建按模板装载，既有条目按 uuid 装载。
+  private prepareDraft(): void {
+    if (this.entryUuid.length === 0) {
+      this.app.loadNewEntry(this.draft, this.newEntryTemplate, this.newEntryGroupUuid)
+      return
+    }
+    this.app.loadEntryForEdit(this.draft, this.entryUuid)
   }
 
   close(): void {
@@ -249,13 +268,17 @@ export class EntrySheetViewModel {
     this.mode = EntrySheetMode.Preview
   }
 
-  // 收起后复位形态并重建首页快照：列表变更要放在动画上下文里才可见。
+  // 收起后复位形态；只有本次会话写过数据才重建首页快照，纯预览不触发全表重算。
   onDismissed(): void {
     this.visible = false
     this.mode = EntrySheetMode.Preview
     this.editFromPreview = false
     this.expandedFields = new Set<string>()
-    this.app.refreshHomeSnapshot()
+    this.draft.reset()
+    if (this.homeDirty) {
+      this.homeDirty = false
+      this.app.refreshHomeSnapshot()
+    }
   }
 
   // 唯一装载入口：不可见或新建时清空，避免残留上一条的内容。

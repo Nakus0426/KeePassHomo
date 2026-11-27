@@ -3,6 +3,8 @@ import { ResUtil } from '@pura/harmony-utils'
 import { stageOneVaultStore, VaultBrowseMode } from '../model/StageOneVaultStore'
 
 const GROUP_LABEL_MAX_CHARS: number = 10
+// 搜索逐字符输入合并成一次全库过滤；清空立即生效，避免列表残留旧结果。
+const SEARCH_DEBOUNCE_MS: number = 180
 
 // 快照变化来源：搜索逐字符刷新，不播列表动画；其余变化播行进场/离场。
 export enum HomeSnapshotCause {
@@ -30,11 +32,20 @@ export class VaultHomeViewModel {
   // 条目数据版本：仅数据变化时递增，筛选切换不变，行模型据此判断是否需要重算。
   dataRevision: number = 0
   private readonly selectedLookup: Set<string> = new Set()
+  private searchTimer: number = -1
 
   setSearchQuery(value: string): void {
+    if (value === this.searchQuery) {
+      return
+    }
     this.searchQuery = value
     this.snapshotCause = HomeSnapshotCause.Search
-    this.rebuild()
+    if (value.length === 0) {
+      this.rebuild()
+      return
+    }
+    clearTimeout(this.searchTimer)
+    this.searchTimer = setTimeout(() => this.rebuild(), SEARCH_DEBOUNCE_MS)
   }
 
   setBrowseMode(mode: VaultBrowseMode): void {
@@ -199,6 +210,8 @@ export class VaultHomeViewModel {
 
   // 锁定时清空搜索词、选中分组、批量状态与快照：条目标题、用户名不留在内存里。
   clear(): void {
+    clearTimeout(this.searchTimer)
+    this.searchTimer = -1
     this.searchQuery = ''
     this.selectedGroupUuids = []
     this.entries = []
@@ -213,6 +226,8 @@ export class VaultHomeViewModel {
   // 重建快照是全量过滤并排序，只在数据或筛选变化时执行，绝不进入 build() 之类的高频路径。
   // 锁定判断取 store 自己的锁定态：解锁流程里先刷新、后同步界面锁定标志。
   private rebuild(): void {
+    clearTimeout(this.searchTimer)
+    this.searchTimer = -1
     if (stageOneVaultStore.locked) {
       this.entries = []
       this.hasAnyEntry = false

@@ -5,12 +5,12 @@ import { LogUtil } from '@pura/harmony-utils'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
-import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { DeferredAction } from '../../components/DeferredAction'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonVariant } from '../../components/DsButton'
 import { DsContextMenu } from '../../components/DsContextMenu'
-import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
+import { dsDialogOptions } from '../../components/DsDialog'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
@@ -18,6 +18,7 @@ import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../compon
 import { DsToastHost } from '../../components/DsToast'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
+import { EntryDeleteDialog } from './EntryDeleteDialog'
 import { EntryEditorActions, EntryEditorView } from './EntryEditorView'
 import { EntryPreviewView } from './EntryPreviewView'
 
@@ -25,6 +26,26 @@ import { EntryPreviewView } from './EntryPreviewView'
 class EntrySheetChromeState {
   @Trace editor: EntryEditorActions | undefined = undefined
   @Trace switching: boolean = false
+}
+
+// HDS 标题栏的 builder 链只构建一次，插槽内容不会随页面状态重建：
+// 收藏按钮放进独立组件自读模型，收藏值与可用态才能跟着变。
+@ComponentV2
+struct EntrySheetFavoriteAction {
+  @Require @Param sheet: EntrySheetViewModel
+  @Require @Param chrome: EntrySheetChromeState
+  @Event onToggle: () => void = () => {}
+  private readonly app: AppViewModel = appViewModel
+
+  build() {
+    FavoriteToggle({
+      visible: this.sheet.editing || !this.sheet.readOnly,
+      favorite: this.sheet.editing ? this.sheet.draft.favorite : this.sheet.favorite,
+      clickable: !this.app.busy && !this.chrome.switching,
+      iconSizeOverride: $r('app.float.ds_icon_md'),
+      onToggle: () => this.onToggle(),
+    })
+  }
 }
 
 // HDS 标题栏只构建一次，由此组件直接订阅视图状态。
@@ -38,7 +59,7 @@ struct EntrySheetHeader {
 
   @Computed
   private get editing(): boolean {
-    return this.sheet.mode === EntrySheetMode.Edit
+    return this.sheet.editing
   }
 
   @Computed
@@ -64,11 +85,9 @@ struct EntrySheetHeader {
 
   @LocalBuilder
   private favoriteAction() {
-    FavoriteToggle({
-      visible: this.editing || !this.sheet.readOnly,
-      favorite: this.editing ? this.chrome.editor?.draft.favorite ?? this.sheet.favorite : this.sheet.favorite,
-      clickable: !this.app.busy && !this.chrome.switching,
-      iconSizeOverride: $r('app.float.ds_icon_md'),
+    EntrySheetFavoriteAction({
+      sheet: this.sheet,
+      chrome: this.chrome,
       onToggle: () => this.onToggleFavorite(),
     })
   }
@@ -126,7 +145,7 @@ export struct EntrySheet {
 
   @Computed
   private get editing(): boolean {
-    return this.sheet.mode === EntrySheetMode.Edit
+    return this.sheet.editing
   }
 
   @Computed
@@ -175,17 +194,22 @@ export struct EntrySheet {
     this.opening = false
     const version: number = ++this.transitionVersion
     this.chrome.switching = true
+    // 动画被后续动画打断时 onFinish 不再回调，定时器保证交互一定恢复。
+    setTimeout(() => this.finishSwitch(version), AnimationTokens.STATE_TRANSITION_DURATION + 16)
     this.getUIContext().animateTo({
       duration: AnimationTokens.STATE_TRANSITION_DURATION,
       curve: AnimationTokens.STATE_TRANSITION_CURVE,
-      onFinish: () => {
-        if (this.transitionVersion === version) {
-          this.matchPreviewAvatar = true
-          this.matchEditorAvatar = true
-          this.chrome.switching = false
-        }
-      },
+      onFinish: () => this.finishSwitch(version),
     }, change)
+  }
+
+  private finishSwitch(version: number): void {
+    if (this.transitionVersion !== version) {
+      return
+    }
+    this.matchPreviewAvatar = true
+    this.matchEditorAvatar = true
+    this.chrome.switching = false
   }
 
   private beginEdit(): void {
@@ -251,6 +275,9 @@ export struct EntrySheet {
 
   private async duplicateEntry(): Promise<void> {
     const uuid: string = await this.viewModel.duplicateEntry(this.sheet.entryUuid)
+    if (uuid.length > 0) {
+      this.sheet.markHomeDirty()
+    }
     DsToastHost.show(this.getUIContext(), uuid.length > 0 ? $r('app.string.entry_copied') : this.viewModel.status)
   }
 
@@ -272,27 +299,23 @@ export struct EntrySheet {
       })
   }
 
-  private async deleteEntry(): Promise<void> {
-    const deleted: boolean = await this.viewModel.deleteEntry(this.sheet.entryUuid)
+  private deleteEntry(): void {
+    // 落盘是异步写文件，等回调再关弹窗不会被关掉，必须先关再删。
     this.deleteDialogController.close()
-    if (deleted) {
-      DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
-      this.sheet.close()
-      return
-    }
-    DsToastHost.show(this.getUIContext(), this.viewModel.status)
+    this.viewModel.deleteEntry(this.sheet.entryUuid).then((deleted: boolean) => {
+      if (deleted) {
+        this.sheet.markHomeDirty()
+        DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+        this.sheet.close()
+        return
+      }
+      DsToastHost.show(this.getUIContext(), this.viewModel.status)
+    })
   }
 
   @Builder
   private deleteDialog() {
-    DsDialog({
-      title: $r('app.string.delete_entry_title'),
-      message: $r('app.string.delete_entry_message'),
-      icon: $r('app.string.symbol_delete'),
-      tone: DsDialogTone.Error,
-      cancelLabel: $r('app.string.cancel'),
-      confirmLabel: $r('app.string.delete_entry'),
-      busy: this.viewModel.busy,
+    EntryDeleteDialog({
       onCancel: () => this.deleteDialogController.close(),
       onConfirm: () => this.deleteEntry(),
     })
@@ -430,6 +453,7 @@ export struct EntrySheet {
       if (this.editing) {
         EntryEditorView({
           sheet: this.sheet,
+          draft: this.sheet.draft,
           scroller: this.editorScroller,
           bottomOffset: this.contentBottomOffset,
           avatarTransitionKey: this.matchEditorAvatar ? this.avatarTransitionKey : '',
@@ -438,6 +462,7 @@ export struct EntrySheet {
           onReady: (actions: EntryEditorActions) => this.chrome.editor = actions,
           onCancel: () => this.exitEditor(),
           onSaved: () => {
+            this.sheet.markHomeDirty()
             if (this.sheet.editFromPreview) {
               this.sheet.load()
             }

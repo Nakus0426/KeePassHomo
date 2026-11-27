@@ -1,6 +1,6 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { promptAction } from '@kit.ArkUI'
-import { AnimationTokens, ItemTemplate } from '@ohos/common'
+import { AnimationTokens, ItemTemplate, measureVp } from '@ohos/common'
 import {
   hdsMaterial,
   HideMode,
@@ -9,13 +9,13 @@ import {
   HdsNavigationTitleMode,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { LogUtil } from '@pura/harmony-utils'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
 import { DeferredAction } from '../../components/DeferredAction'
 import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsListRowMotion } from '../../components/DsListRowMotion'
-import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
+import { dsDialogOptions } from '../../components/DsDialog'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
@@ -33,6 +33,8 @@ import { EntryGroupHeaderModel, EntryListItem, EntryListItemKind, EntryRowModel 
 import { HomeEntryListViewModel, homeEntryListViewModel } from '../../viewmodel/HomeEntryListViewModel'
 import { HomeSnapshotCause, VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { EntrySheetMode, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { copyEntryValue } from './EntryClipboardActions'
+import { EntryDeleteDialog } from './EntryDeleteDialog'
 import { EntrySheet } from './EntrySheet'
 import { EntryTemplatePicker } from './EntryTemplatePicker'
 import { VaultEntryRow } from './VaultEntryRow'
@@ -52,8 +54,6 @@ export struct VaultHomePage {
   @Local private pickedSkipRecent: boolean = false
   @Local private fabHasAppeared: boolean = false
   @Local private batchBarHeight: number = 0
-  @Local private deleteDialogBatch: boolean = false
-  @Local private deleteBusy: boolean = false
   private removalToken: number = 0
   // 离场动画开始时在视口内的行：只有它们需要逐行收缩，其余离场行直接占零高度，避免整表逐行挂载。
   private visibleStart: number = 0
@@ -137,23 +137,23 @@ export struct VaultHomePage {
   }
 
   @Computed
+  get bottomGap(): number {
+    return measureVp(this.getUIContext(), $r('app.float.ds_space_sm'))
+  }
+
+  @Computed
   get bottomAvoidHeight(): number {
-    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
-    return TAB_BAR_FLOAT_TOP_INSET_VP + this.getUIContext().px2vp(gapPx)
+    return TAB_BAR_FLOAT_TOP_INSET_VP + this.bottomGap
   }
 
   @Computed
   get contentBottomAvoid(): number {
-    if (!this.home.batchMode) {
-      return this.bottomAvoidHeight
-    }
-    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
-    return this.batchBarHeight + this.getUIContext().px2vp(gapPx)
+    return this.home.batchMode ? this.batchBarHeight + this.bottomGap : this.bottomAvoidHeight
   }
 
   @Computed
   get readOnly(): boolean {
-    return this.app.isReadOnly()
+    return this.app.readOnly
   }
 
   @Computed
@@ -211,11 +211,7 @@ export struct VaultHomePage {
     if (this.session.vaultLocked || entrySheetViewModel.visible) {
       return
     }
-    if (mode === EntrySheetMode.Edit) {
-      entrySheetViewModel.openEdit(row.uuid)
-    } else {
-      entrySheetViewModel.openPreview(row.uuid)
-    }
+    entrySheetViewModel.openEntry(row.uuid, mode)
   }
 
   // 菜单含预览图时在子窗显示，层级高于主窗弹窗与半模态；菜单项动作须等菜单彻底消失再执行，否则会被预览图盖住。
@@ -225,8 +221,6 @@ export struct VaultHomePage {
 
   private openDeleteDialog(row: EntryRowModel | undefined): void {
     this.pendingDeleteRow = row
-    this.deleteDialogBatch = row === undefined
-    this.deleteBusy = false
     this.getUIContext()
       .getPromptAction()
       .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
@@ -240,10 +234,10 @@ export struct VaultHomePage {
     if (row === undefined) {
       return
     }
-    this.deleteBusy = true
+    // 落盘是异步写文件，等回调再关弹窗不会被关掉，必须先关再删。
+    this.deleteDialogController.close()
+    // 失败提示由 @Monitor('app.status') 统一弹出，这里只处理成功后的列表刷新。
     this.app.deleteEntry(row.uuid).then((deleted: boolean) => {
-      this.deleteBusy = false
-      this.deleteDialogController.close()
       if (deleted) {
         this.app.refreshHomeSnapshot()
         DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
@@ -253,10 +247,8 @@ export struct VaultHomePage {
 
   private runBatchDelete(): void {
     const uuids: string[] = this.home.selectedUuids
-    this.deleteBusy = true
+    this.deleteDialogController.close()
     this.app.deleteEntries(uuids).then((deleted: boolean) => {
-      this.deleteBusy = false
-      this.deleteDialogController.close()
       if (deleted) {
         this.app.refreshHomeSnapshot()
         DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
@@ -272,23 +264,11 @@ export struct VaultHomePage {
 
   @Builder
   private deleteDialog() {
-    DsDialog({
-      title: this.deleteDialogBatch
-        ? $r('app.string.entry_batch_delete_title')
-        : $r('app.string.delete_entry_title'),
-      message: this.deleteDialogBatch
-        ? $r('app.string.entry_batch_delete_message')
-        : $r('app.string.delete_entry_message'),
-      icon: $r('app.string.symbol_delete'),
-      tone: DsDialogTone.Error,
-      cancelLabel: $r('app.string.cancel'),
-      confirmLabel: this.deleteDialogBatch
-        ? $r('app.string.entry_batch_delete')
-        : $r('app.string.delete_entry'),
-      busy: this.deleteBusy,
+    EntryDeleteDialog({
+      batch: this.pendingDeleteRow === undefined,
       onCancel: () => this.deleteDialogController.close(),
       onConfirm: () => {
-        if (this.deleteDialogBatch) {
+        if (this.pendingDeleteRow === undefined) {
           this.runBatchDelete()
         } else {
           this.runDelete()
@@ -322,15 +302,7 @@ export struct VaultHomePage {
   }
 
   private copyField(row: EntryRowModel, fieldName: string): void {
-    const value: string = row.fieldValue(fieldName)
-    if (value.length === 0) {
-      return
-    }
-    this.app.copyValue(value).then((copied: boolean) => {
-      if (copied) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
+    copyEntryValue(this.getUIContext(), this.app, row.fieldValue(fieldName))
   }
 
   @Builder
@@ -350,20 +322,19 @@ export struct VaultHomePage {
     })
   }
 
-  // 子组件 BuilderParam 会延迟执行：传 RepeatItem 时节点复用到另一类列表项会读到 undefined，必须传稳定模型。
   @Builder
-  private groupHeader(header: EntryGroupHeaderModel) {
+  private groupHeader(item: RepeatItem<EntryListItem>) {
     DsListRowMotion({
-      leaving: header.leaving,
+      leaving: item.item.header!.leaving,
     }) {
-      this.groupHeaderRow(header)
+      this.groupHeaderRow(item)
     }
   }
 
   @Builder
-  private groupHeaderRow(header: EntryGroupHeaderModel) {
+  private groupHeaderRow(item: RepeatItem<EntryListItem>) {
     Row({ space: $r('app.float.ds_space_sm') }) {
-      Text(header.groupName)
+      Text(item.item.header!.groupName)
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontWeight(600)
         .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
@@ -371,7 +342,7 @@ export struct VaultHomePage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text(String(header.count))
+      Text(String(item.item.header!.count))
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontFamily(PASSWORD_FONT_FAMILY)
         .fontColor($r('app.color.ds_text_tertiary'))
@@ -387,7 +358,7 @@ export struct VaultHomePage {
           iconSizeOverride: $r('app.float.ds_icon_sm'),
           iconColorOverride: $r('app.color.ds_text_secondary'),
           accessibilityLabelResource: $r('app.string.new_entry'),
-          onTap: () => this.openTemplatePicker(header.groupUuid),
+          onTap: () => this.openTemplatePicker(item.item.header!.groupUuid),
         })
       }
     }
@@ -397,58 +368,41 @@ export struct VaultHomePage {
     .alignItems(VerticalAlign.Center)
   }
 
-  // swipeAction 内容随列表项缓存、延迟执行，行模型必须在此刻取值，复用后回读 RepeatItem 会拿到分组头。
   private swipeEnd(item: RepeatItem<EntryListItem>): (() => void) | undefined {
-    const row: EntryRowModel | undefined = item.item.row
-    if (row === undefined || this.removalLeavingKeys.has(item.item.key) || this.readOnly || this.home.batchMode) {
+    if (this.removalLeavingKeys.has(item.item.key) || this.readOnly || this.home.batchMode) {
       return undefined
     }
-    return (): void => this.swipeActions(row)
+    return (): void => this.swipeActions(item)
   }
 
   @Builder
-  private swipeActions(row: EntryRowModel) {
+  private swipeActionButton(icon: Resource, glyphColor: Resource, background: Resource, onTap: () => void) {
+    Button({ type: ButtonType.Normal, stateEffect: true }) {
+      SymbolGlyph(icon)
+        .fontSize($r('app.float.ds_icon_sm'))
+        .fontColor([glyphColor])
+        .foregroundColor(glyphColor)
+    }
+    .width($r('app.float.ds_swipe_action_width'))
+    .height('100%')
+    .borderRadius($r('app.float.ds_radius_none'))
+    .backgroundColor(background)
+    .onClick(onTap)
+  }
+
+  @Builder
+  private swipeActions(item: RepeatItem<EntryListItem>) {
     Row() {
-      Button({ type: ButtonType.Normal, stateEffect: true }) {
-        SymbolGlyph($r('app.string.symbol_edit'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_on_primary')])
-          .foregroundColor($r('app.color.ds_on_primary'))
-      }
-      .width($r('app.float.ds_swipe_action_width'))
-      .height('100%')
-      .borderRadius($r('app.float.ds_radius_none'))
-      .backgroundColor($r('app.color.ds_primary'))
-      .onClick(() => {
-        this.openEntry(row, EntrySheetMode.Edit)
-        this.scroller.closeAllSwipeActions()
-      })
-
-      Button({ type: ButtonType.Normal, stateEffect: true }) {
-        SymbolGlyph(row.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_text_primary')])
-          .foregroundColor($r('app.color.ds_text_primary'))
-      }
-      .width($r('app.float.ds_swipe_action_width'))
-      .height('100%')
-      .borderRadius($r('app.float.ds_radius_none'))
-      .backgroundColor($r('app.color.ds_surface_high'))
-      .onClick(() => {
-        this.toggleArchive(row)
-      })
-
-      Button({ type: ButtonType.Normal, stateEffect: true }) {
-        SymbolGlyph($r('app.string.symbol_delete'))
-          .fontSize($r('app.float.ds_icon_sm'))
-          .fontColor([$r('app.color.ds_on_primary')])
-          .foregroundColor($r('app.color.ds_on_primary'))
-      }
-      .width($r('app.float.ds_swipe_action_width'))
-      .height('100%')
-      .borderRadius($r('app.float.ds_radius_none'))
-      .backgroundColor($r('app.color.ds_error'))
-      .onClick(() => this.openDeleteDialog(row))
+      this.swipeActionButton($r('app.string.symbol_edit'), $r('app.color.ds_on_primary'), $r('app.color.ds_primary'),
+        () => {
+          this.openEntry(item.item.row!, EntrySheetMode.Edit)
+          this.scroller.closeAllSwipeActions()
+        })
+      this.swipeActionButton(
+        item.item.row!.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'),
+        $r('app.color.ds_text_primary'), $r('app.color.ds_surface_high'), () => this.toggleArchive(item.item.row!))
+      this.swipeActionButton($r('app.string.symbol_delete'), $r('app.color.ds_on_primary'), $r('app.color.ds_error'),
+        () => this.openDeleteDialog(item.item.row!))
     }
     .height('100%')
   }
@@ -610,25 +564,24 @@ export struct VaultHomePage {
     })
   }
 
-  // 同 groupHeader：传稳定行模型，避免 RepeatItem 跨 BuilderParam 复用后读到其他类型的列表项。
-  // 进场只淡入：滚动挂载的行若带位移会跟着播一遍入场，看起来像列表在抖。
+  // Builder 保留完整 RepeatItem，节点复用时渲染和事件都能跟踪当前条目。
   @Builder
-  private entryRow(row: EntryRowModel) {
+  private entryRow(item: RepeatItem<EntryListItem>) {
     // 外层 Column 只承载长按菜单：组件带尾随 Builder 时无法在调用处继续链属性。
     Column() {
       DsListRowMotion({
-        leaving: row.leaving,
+        leaving: item.item.row!.leaving,
       }) {
         VaultEntryRow({
-          row: row,
+          row: item.item.row!,
           favoriteEnabled: !this.readOnly,
-          onRowClick: () => this.onRowTap(row),
-          onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(row.uuid),
+          onRowClick: () => this.onRowTap(item.item.row!),
+          onFavoriteToggle: (_next: boolean) => this.list.toggleFavorite(item.item.row!.uuid),
         })
       }
     }
     .width('100%')
-    .bindContextMenu(this.rowMenu(row), ResponseType.LongPress,
+    .bindContextMenu(this.rowMenu(item.item.row!), ResponseType.LongPress,
       dsContextMenuOptions(() => this.onRowMenuClosed(), Placement.BottomRight))
   }
 
@@ -640,9 +593,9 @@ export struct VaultHomePage {
         .width('100%')
         .height(0)
     } else if (item.item.kind === EntryListItemKind.Header) {
-      this.groupHeader(item.item.header!)
+      this.groupHeader(item)
     } else {
-      this.entryRow(item.item.row!)
+      this.entryRow(item)
     }
   }
 
@@ -659,7 +612,19 @@ export struct VaultHomePage {
   private entryList() {
     List({ scroller: this.scroller }) {
       Repeat<EntryListItem>(this.list.items)
-        .each((item: RepeatItem<EntryListItem>) => {
+        .each(() => {})
+        .key((item: EntryListItem) => item.key)
+        .virtualScroll({
+          totalCount: this.list.items.length,
+          memoryOptimizationStrategy: RepeatMemOptStrategy.ENABLE_AUTO_CACHE_OPTIMIZATION,
+        })
+        .templateId((item: EntryListItem) => item.kind)
+        .template(EntryListItemKind.Header, (item: RepeatItem<EntryListItem>) => {
+          ListItem() {
+            this.listItemBody(item)
+          }
+        })
+        .template(EntryListItemKind.Row, (item: RepeatItem<EntryListItem>) => {
           ListItem() {
             this.listItemBody(item)
           }
@@ -667,10 +632,6 @@ export struct VaultHomePage {
             end: this.swipeEnd(item),
             edgeEffect: SwipeEdgeEffect.None,
           })
-        })
-        .key((item: EntryListItem) => item.key)
-        .virtualScroll({
-          memoryOptimizationStrategy: RepeatMemOptStrategy.ENABLE_AUTO_CACHE_OPTIMIZATION,
         })
 
       this.listFooter()
@@ -782,9 +743,6 @@ export struct VaultHomePage {
 
   @Computed
   get emptyTitle(): ResourceStr {
-    if (this.home.searchQuery.length > 0) {
-      return $r('app.string.entry_search_no_result_title')
-    }
     if (this.home.isFavoritesMode) {
       return $r('app.string.entry_favorites_empty_title')
     }

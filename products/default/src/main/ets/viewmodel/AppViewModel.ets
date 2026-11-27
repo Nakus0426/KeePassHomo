@@ -822,7 +822,9 @@ export class AppViewModel {
     return stageOneVaultStore.currentSource
   }
 
-  isReadOnly(): boolean {
+  // 无最近库也按不可写处理；所有页面与半模态统一读这一处能力。
+  @Computed
+  get readOnly(): boolean {
     return this.hasRecentVault() ? this.currentSource().readOnly : true
   }
 

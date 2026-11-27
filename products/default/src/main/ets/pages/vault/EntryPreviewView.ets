@@ -2,7 +2,7 @@ import { LengthMetrics } from '@kit.ArkUI'
 import { AnimationTokens, VaultFieldType } from '@ohos/common'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
-import { ENTRY_FIELD_CARD_NUMBER } from '../../viewmodel/EntryPresentation'
+import { ENTRY_FIELD_CARD_NUMBER, PASSWORD_MASK } from '../../viewmodel/EntryPresentation'
 import {
   EntryPreviewField, EntrySheetMode, EntrySheetViewModel, entrySheetViewModel,
 } from '../../viewmodel/EntrySheetViewModel'
@@ -21,7 +21,6 @@ import { DsMenuItem } from '../../components/DsMenuItem'
 import { DsToastHost } from '../../components/DsToast'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 
-const PASSWORD_MASK: string = '********'
 const PREVIEW_REVEAL_SECONDS: number = 30
 const PROTECTION_TICK_MS: number = AnimationTokens.DURATION_FEEDBACK
 const MAX_TEXT_LINES: number = 2147483647
@@ -65,6 +64,12 @@ struct EntryPreviewFieldCard {
   @Computed
   get isLink(): boolean {
     return !this.field.protectedValue && this.field.type === VaultFieldType.Url
+  }
+
+  @Computed
+  private get isPasswordField(): boolean {
+    return this.field.protectedValue && this.field.type === VaultFieldType.Password &&
+      this.field.key !== ENTRY_FIELD_CARD_NUMBER
   }
 
   @Computed
@@ -128,7 +133,7 @@ struct EntryPreviewFieldCard {
 
   @Computed
   get copyLabel(): Resource {
-    if (this.field.protectedValue && this.field.type === VaultFieldType.Password && this.field.key !== ENTRY_FIELD_CARD_NUMBER) {
+    if (this.isPasswordField) {
       return $r('app.string.entry_menu_copy_password')
     }
     if (this.isLink) {
@@ -187,7 +192,7 @@ struct EntryPreviewFieldCard {
     if (this.field.protectedValue) {
       DsMenuItem({
         icon: this.revealed ? $r('app.string.symbol_eye_off') : $r('app.string.symbol_eye'),
-        label: this.field.type === VaultFieldType.Password && this.field.key !== ENTRY_FIELD_CARD_NUMBER
+        label: this.isPasswordField
           ? (this.revealed ? $r('app.string.hide_password') : $r('app.string.show_password'))
           : (this.revealed ? $r('app.string.hide') : $r('app.string.show')),
         onAction: () => this.deferred.defer(() => this.onReveal()),

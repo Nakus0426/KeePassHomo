@@ -2,7 +2,7 @@ import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { SshKeyDraft } from '../../model/SshKeyPayload'
 import { exportSshPrivateKey } from '../../model/SshKeyExport'
 import { SshKeyCard } from './SshKeyCard'
-import { DsToastHost } from '../../components/DsToast'
+import { copyEntryValue } from './EntryClipboardActions'
 
 // 预览态的 SSH 密钥卡片列表：卡片与编辑态共用 SshKeyCard，只注入预览态可用的动作。
 @ComponentV2
@@ -13,14 +13,7 @@ export struct EntrySshKeyList {
   private readonly app: AppViewModel = appViewModel
 
   private copy(value: string): void {
-    if (value.length === 0) {
-      return
-    }
-    this.app.copyValue(value).then((copied: boolean) => {
-      if (copied) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
+    copyEntryValue(this.getUIContext(), this.app, value)
     this.onActivity()
   }
 

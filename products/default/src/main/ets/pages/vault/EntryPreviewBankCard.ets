@@ -2,8 +2,7 @@ import { matrix4 } from '@kit.ArkUI'
 import { AnimationTokens, ColorUtil, VaultField } from '@ohos/common'
 import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
 import { DsMenuItem } from '../../components/DsMenuItem'
-
-const PASSWORD_MASK: string = '********'
+import { PASSWORD_MASK } from '../../viewmodel/EntryPresentation'
 // 真实 ID-1 卡比例 85.6 / 54。
 const CARD_ASPECT: number = 1.585
 // 卡面内元素比例统一以卡宽为基准：按卡高定的比例已除 CARD_ASPECT 折算过来。
@@ -46,6 +45,16 @@ const CARD_RIM_MAX_OPACITY: number = 0.45
 // ShadowOptions 的 radius / offset 单位是 px，由 vp2px 换算。
 const CARD_SHADOW_RADIUS_VP: number = 26
 const CARD_SHADOW_OFFSET_VP: number = 6
+// 渐变只换角度，颜色与停止点固定；提为常量，跟手时不再逐帧重建。
+const CARD_GLARE_COLORS: Array<[ResourceColor, number]> = [
+  [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 0],
+  [ColorUtil.withAlphaHex($r('sys.color.white'), CARD_GLARE_PEAK_ALPHA), CARD_GLARE_PEAK_POSITION],
+  [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 1],
+]
+const CARD_SHADE_COLORS: Array<[ResourceColor, number]> = [
+  [ColorUtil.withAlphaHex($r('sys.color.black'), CARD_SHADE_MAX_ALPHA), 0],
+  [ColorUtil.withAlphaHex($r('sys.color.black'), 0), 1],
+]
 
 interface CardFaceMetrics {
   numberFontSize: number;
@@ -89,6 +98,10 @@ export struct EntryPreviewBankCard {
   @Local private cardPressed: boolean = false
   @Local private cardTiltNx: number = 0
   @Local private cardTiltNy: number = 0
+  // 目标点数组复用；矩阵本身每帧新建，交给框架做属性比较。
+  private readonly cardDstPoints: MatrixPoint[] = [
+    { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 },
+  ]
 
   @Computed
   private get cardMetrics(): CardFaceMetrics {
@@ -149,8 +162,9 @@ export struct EntryPreviewBankCard {
     const maxProjection: number = halfWidth * Math.abs(dirX) + halfHeight * Math.abs(dirY)
     const pressScale: number = this.cardPressed ? CARD_PRESS_SCALE : 1
     const src: MatrixPoint[] = this.cardCorners
-    const dst: MatrixPoint[] = []
-    for (const corner of src) {
+    const dst: MatrixPoint[] = this.cardDstPoints
+    for (let index: number = 0; index < src.length; index++) {
+      const corner: MatrixPoint = src[index]
       const x: number = corner.x - halfWidth
       const y: number = corner.y - halfHeight
       const projection: number = x * dirX + y * dirY
@@ -164,7 +178,8 @@ export struct EntryPreviewBankCard {
       const planarX: number = x * cosTilt - dirY * axial * (1 - cosTilt)
       const planarY: number = y * cosTilt + dirX * axial * (1 - cosTilt)
       const factor: number = perspectivePx / (perspectivePx - z) * pressScale
-      dst.push({ x: halfWidth + planarX * factor, y: halfHeight + planarY * factor })
+      dst[index].x = halfWidth + planarX * factor
+      dst[index].y = halfHeight + planarY * factor
     }
     return matrix4.identity().setPolyToPoly({ src: src, dst: dst, pointCount: 4 })
   }
@@ -404,11 +419,7 @@ export struct EntryPreviewBankCard {
         .height('100%')
         .linearGradient({
           angle: this.cardLightAngle,
-          colors: [
-            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 0],
-            [ColorUtil.withAlphaHex($r('sys.color.white'), CARD_GLARE_PEAK_ALPHA), CARD_GLARE_PEAK_POSITION],
-            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 1],
-          ],
+          colors: CARD_GLARE_COLORS,
         })
         .opacity(this.cardGlareOpacity)
         .hitTestBehavior(HitTestMode.None)
@@ -419,10 +430,7 @@ export struct EntryPreviewBankCard {
         .height('100%')
         .linearGradient({
           angle: this.cardLightAngle,
-          colors: [
-            [ColorUtil.withAlphaHex($r('sys.color.black'), CARD_SHADE_MAX_ALPHA), 0],
-            [ColorUtil.withAlphaHex($r('sys.color.black'), 0), 1],
-          ],
+          colors: CARD_SHADE_COLORS,
         })
         .opacity(this.cardPressDepth)
         .hitTestBehavior(HitTestMode.None)

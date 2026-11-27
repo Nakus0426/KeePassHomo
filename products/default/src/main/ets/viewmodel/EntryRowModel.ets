@@ -1,5 +1,5 @@
 import { ItemTemplate, PasswordStrengthCalculator, VaultEntry, VaultField } from '@ohos/common'
-import { DateUtil, ResUtil } from '@pura/harmony-utils'
+import { ResUtil } from '@pura/harmony-utils'
 import { definitionFor } from '../model/EntryTemplateCatalog'
 import { stageOneVaultStore } from '../model/StageOneVaultStore'
 import { parseSshKeys, SSH_KEYS_FIELD } from '../model/SshKeyPayload'
@@ -9,6 +9,7 @@ import {
   ENTRY_FIELD_NOTES,
   ENTRY_FIELD_PASSWORD,
   ENTRY_FIELD_USERNAME,
+  formatEntryTime,
   strengthLabel,
 } from './EntryPresentation'
 
@@ -28,6 +29,11 @@ export class EntryRowModel {
   @Trace leaving: boolean = false
   // 行内容对应的数据版本：与当前版本一致即可跳过重算，筛选切换时复用整张行模型。
   revision: number = -1
+  // 内容每次重写递增：行挂载后据此惰性重算副标题，未上屏的行不做密码强度与资源查表。
+  @Trace contentVersion: number = 0
+  private entry: VaultEntry | undefined = undefined
+  private appendGroupName: boolean = false
+  private subtitleDirty: boolean = false
   private fields: VaultField[] = []
   // 长按菜单才需要的字段留到展开时再算，避免逐行构造时做资源查表与日期格式化。
   private template: ItemTemplate | undefined = undefined
@@ -39,10 +45,12 @@ export class EntryRowModel {
   }
 
   update(entry: VaultEntry, appendGroupName: boolean = false): void {
+    this.entry = entry
+    this.appendGroupName = appendGroupName
     this.fields = entry.fields
     this.groupUuid = entry.groupUuid
     this.title = entry.title
-    this.subtitle = this.buildSubtitle(entry, appendGroupName)
+    this.subtitleDirty = true
     this.archived = entry.archived
     this.favorite = entry.favorite
     this.hasAvatar = entry.hasAvatar
@@ -55,6 +63,16 @@ export class EntryRowModel {
       this.avatarData = stageOneVaultStore.loadEntryAvatar(this.uuid)
     }
     this.lastModifiedAt = entry.lastModifiedAt
+    this.contentVersion++
+  }
+
+  // 由行组件在挂载与内容变化时调用：副标题要读字段、算密码强度并查资源，只在上屏后付这个代价。
+  ensureSubtitle(): void {
+    if (!this.subtitleDirty || this.entry === undefined) {
+      return
+    }
+    this.subtitleDirty = false
+    this.subtitle = this.buildSubtitle(this.entry, this.appendGroupName)
   }
 
   setFavorite(favorite: boolean): void {
@@ -127,8 +145,7 @@ export class EntryRowModel {
   menuSubtitle(): string {
     const password: string = this.passwordSubtitle()
     const modified: string = this.lastModifiedAt > 0
-      ? ResUtil.getStringSync($r('app.string.entry_menu_last_modified'),
-        [DateUtil.getFormatDateStr(this.lastModifiedAt, 'yyyy-MM-dd HH:mm')])
+      ? ResUtil.getStringSync($r('app.string.entry_menu_last_modified'), [formatEntryTime(this.lastModifiedAt)])
       : ''
     return [password, modified].filter((part: string) => part.length > 0).join(' · ')
   }

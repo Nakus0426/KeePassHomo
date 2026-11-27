@@ -44,16 +44,18 @@ export struct VaultEntryRow {
 
   aboutToAppear(): void {
     this.row.ensureAvatar()
+    this.row.ensureSubtitle()
   }
 
-  @Monitor('row')
+  @Monitor('row', 'row.hasAvatar')
   onRowChanged(): void {
     this.row.ensureAvatar()
+    this.row.ensureSubtitle()
   }
 
-  @Monitor('row.hasAvatar')
-  onAvatarAvailabilityChanged(): void {
-    this.row.ensureAvatar()
+  @Monitor('row.contentVersion')
+  onRowContentChanged(): void {
+    this.row.ensureSubtitle()
   }
 
   build() {

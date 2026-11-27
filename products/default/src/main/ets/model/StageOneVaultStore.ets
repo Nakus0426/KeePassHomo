@@ -93,6 +93,11 @@ export class StageOneVaultStore {
   private readonly session: DefaultVaultSession = new DefaultVaultSession()
   // 打开失败时保留来源，供摘要页「重试」重新探测同一个文件。
   private lastAttemptedSource: VaultSource | undefined
+  // 平铺条目与头像随文档实例缓存，落盘后失效：单条查找不再遍历整棵分组树。
+  private entryCacheDocument: VaultDocument | undefined = undefined
+  private flatEntriesCache: VaultEntry[] = []
+  private entryIndexCache: Map<string, VaultEntry> = new Map()
+  private avatarCache: Map<string, ArrayBuffer | undefined> = new Map()
 
   get failedSource(): VaultSource | undefined {
     return this.lastAttemptedSource
@@ -460,12 +465,24 @@ export class StageOneVaultStore {
     })
   }
 
-  // 全部条目：不含回收站子树。
+  // 全部条目：不含回收站子树。调用方会排序或筛选，返回副本；平铺结果随文档缓存。
   entries(): VaultEntry[] {
+    return this.flatEntries().slice()
+  }
+
+  private flatEntries(): VaultEntry[] {
     const document: VaultDocument = this.session.getDocument()
-    const entries: VaultEntry[] = []
-    this.collectEntries(document.groups, entries, document.recycleBinUuid)
-    return entries
+    if (this.entryCacheDocument !== document) {
+      this.flatEntriesCache = []
+      this.collectEntries(document.groups, this.flatEntriesCache, document.recycleBinUuid)
+      this.entryIndexCache.clear()
+      for (const entry of this.flatEntriesCache) {
+        this.entryIndexCache.set(entry.uuid, entry)
+      }
+      this.avatarCache.clear()
+      this.entryCacheDocument = document
+    }
+    return this.flatEntriesCache
   }
 
   // 全库排序是 O(n log n) 且 localeCompare 很贵；随文档实例缓存，落盘与重新解锁都会换文档对象。
@@ -551,7 +568,8 @@ export class StageOneVaultStore {
   }
 
   entry(entryUuid: string): VaultEntry {
-    const entry: VaultEntry | undefined = this.entries().find((item: VaultEntry) => item.uuid === entryUuid)
+    this.flatEntries()
+    const entry: VaultEntry | undefined = this.entryIndexCache.get(entryUuid)
     if (entry === undefined) {
       throw new Error('保险库条目不存在')
     }
@@ -563,7 +581,13 @@ export class StageOneVaultStore {
   }
 
   loadEntryAvatar(entryUuid: string): ArrayBuffer | undefined {
-    return this.engine.loadEntryAvatar(this.session.getDocument(), entryUuid)
+    this.flatEntries()
+    if (this.avatarCache.has(entryUuid)) {
+      return this.avatarCache.get(entryUuid)
+    }
+    const data: ArrayBuffer | undefined = this.engine.loadEntryAvatar(this.session.getDocument(), entryUuid)
+    this.avatarCache.set(entryUuid, data)
+    return data
   }
 
   // 附件变更与条目写入同一次落盘：先改内存模型，再统一写入并校验。
@@ -771,6 +795,11 @@ export class StageOneVaultStore {
     this.credential = undefined
     this.session.clearSensitiveData()
     this.engine = new KdbxVaultEngine()
+    this.sortedCache = undefined
+    this.entryCacheDocument = undefined
+    this.flatEntriesCache = []
+    this.entryIndexCache.clear()
+    this.avatarCache.clear()
   }
 
   onForeground(): void {
@@ -948,6 +977,8 @@ export class StageOneVaultStore {
     }
     this.sourceModifiedAt = Date.now() / 1000
     this.sortedCache = undefined
+    // 写入会原地改文档，缓存的平铺条目与头像必须失效。
+    this.entryCacheDocument = undefined
     PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)
     this.session.touch()
   }

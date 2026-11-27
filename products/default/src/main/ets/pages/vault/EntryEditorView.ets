@@ -1,6 +1,5 @@
 import { LengthMetrics, promptAction } from '@kit.ArkUI'
-import { AnimationTokens, BounceAnimator, DelayedVisibility, VaultGroup } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
+import { AnimationTokens, BounceAnimator, DelayedVisibility, measureVp, VaultGroup } from '@ohos/common'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
@@ -49,7 +48,6 @@ const EDITOR_SCROLL_ID: string = 'entry_edit_scroll'
 const EXPIRY_FIELD_KEY: string = 'Expiry'
 
 export interface EntryEditorActions {
-  draft: EntryEditorViewModel
   saveGate: DelayedVisibility
   save: () => void
   requestExit: () => void
@@ -69,7 +67,8 @@ export struct EntryEditorView {
   }
   @Event onSaved: () => void = () => {
   }
-  @Local private editor: EntryEditorViewModel = new EntryEditorViewModel()
+  // 草稿由 EntrySheetViewModel 持有，本组件只渲染与提交。
+  @Require @Param draft: EntryEditorViewModel
   @Local private passwordVisible: boolean = false
   // 受保护模板字段（如卡号）的明文预览，同一时刻只展开一个。
   @Local private protectedFieldVisibleKey: string = ''
@@ -91,11 +90,9 @@ export struct EntryEditorView {
   aboutToAppear(): void {
     this.passwordVisible = false
     this.invalidFieldId = -1
-    this.loadEditor()
     // 已有自定义字段或标签时默认展开，避免用户找不到自己的内容。
-    this.advancedExpanded = this.editor.customFields().length > 0 || this.editor.tags.length > 0
+    this.advancedExpanded = this.draft.customFields().length > 0 || this.draft.tags.length > 0
     this.onReady({
-      draft: this.editor,
       saveGate: this.saveGate,
       save: () => this.saveEntry(),
       requestExit: () => this.requestExit(),
@@ -109,17 +106,9 @@ export struct EntryEditorView {
     this.releaseEditor()
   }
 
-  private loadEditor(): void {
-    if (this.sheet.entryUuid.length > 0) {
-      this.viewModel.loadEntryForEdit(this.editor, this.sheet.entryUuid)
-      return
-    }
-    this.viewModel.loadNewEntry(this.editor, this.sheet.newEntryTemplate, this.sheet.newEntryGroupUuid)
-  }
-
   @Computed
   get definition(): ItemTemplateDefinition {
-    return definitionFor(this.editor.template)
+    return definitionFor(this.draft.template)
   }
 
   @Computed
@@ -134,7 +123,7 @@ export struct EntryEditorView {
 
   @Computed
   get advancedMeta(): Resource {
-    const count: number = this.editor.customFields().length + this.editor.tags.length
+    const count: number = this.draft.customFields().length + this.draft.tags.length
     if (count === 0) {
       return $r('app.string.advanced_meta_placeholder')
     }
@@ -143,14 +132,14 @@ export struct EntryEditorView {
 
   @Computed
   get isNewEntry(): boolean {
-    return this.editor.entryUuid.length === 0
+    return this.draft.entryUuid.length === 0
   }
 
   private releaseEditor(): void {
     this.invalidFieldId = -1
     this.passwordVisible = false
     this.protectedFieldVisibleKey = ''
-    this.editor.reset()
+    this.draft.reset()
   }
 
   // 页头关闭与下滑/遮罩/返回走同一条退出路径；保存中转场一律不生效。
@@ -158,7 +147,7 @@ export struct EntryEditorView {
     if (this.viewModel.busy) {
       return
     }
-    if (!this.editor.changed()) {
+    if (!this.draft.changed()) {
       this.onCancel()
       return
     }
@@ -191,10 +180,10 @@ export struct EntryEditorView {
     if (this.viewModel.busy) {
       return
     }
-    const invalidFieldKey: string | undefined = this.editor.validate()
+    const invalidFieldKey: string | undefined = this.draft.validate()
     if (invalidFieldKey === undefined) {
       this.saveGate.setActive(true)
-      this.viewModel.saveEntry(this.editor).then((saved: boolean) => {
+      this.viewModel.saveEntry(this.draft).then((saved: boolean) => {
         this.saveGate.setActive(false)
         if (saved) {
           DsToastHost.show(this.getUIContext(), $r('app.string.saved'))
@@ -253,52 +242,53 @@ export struct EntryEditorView {
     if (password.length === 0) {
       return
     }
-    this.editor.setPassword(password)
+    this.draft.setPassword(password)
     this.viewModel.recordActivity()
     this.closeGeneratorSheet()
   }
 
-  private get readOnly(): boolean {
-    return this.viewModel.currentSource().readOnly
+  @Computed
+  get readOnly(): boolean {
+    return this.sheet.readOnly
   }
 
   private async toggleFavorite(): Promise<void> {
-    this.editor.favorite = !this.editor.favorite
+    this.draft.favorite = !this.draft.favorite
     // 新建条目没有可写入的 uuid，收藏只改草稿，保存时随条目一起落库。
     if (this.isNewEntry) {
       return
     }
-    const uuid: string = this.editor.entryUuid
+    const uuid: string = this.draft.entryUuid
     await this.viewModel.toggleFavorite(uuid)
-    if (this.editor.entryUuid === uuid) {
-      this.editor.favorite = this.viewModel.entry(uuid).favorite
+    if (this.draft.entryUuid === uuid) {
+      this.draft.favorite = this.viewModel.entry(uuid).favorite
     }
   }
 
   @Computed
   get titleFeedback(): ResourceStr | undefined {
-    return this.editor.titleController.status === Status.Invalid
-      ? this.editor.titleController.message : undefined
+    return this.draft.titleController.status === Status.Invalid
+      ? this.draft.titleController.message : undefined
   }
 
   @LocalBuilder
   private titleInput() {
     DsInput({
-      text: this.editor.title,
+      text: this.draft.title,
       placeholder: $r('app.string.entry_title_placeholder'),
-      tone: this.editor.titleController.status === Status.Invalid ? DsInputTone.Error : DsInputTone.Default,
+      tone: this.draft.titleController.status === Status.Invalid ? DsInputTone.Error : DsInputTone.Default,
       readOnly: this.readOnly,
-      onChange: (value: string) => this.editor.setTitle(value),
+      onChange: (value: string) => this.draft.setTitle(value),
     })
   }
 
   @LocalBuilder
   private usernameInput() {
     DsInput({
-      text: this.editor.username,
+      text: this.draft.username,
       placeholder: $r('app.string.username_placeholder'),
       readOnly: this.readOnly,
-      onChange: (value: string) => this.editor.setUsername(value),
+      onChange: (value: string) => this.draft.setUsername(value),
     })
   }
 
@@ -334,35 +324,35 @@ export struct EntryEditorView {
   @LocalBuilder
   private passwordInput() {
     DsInput({
-      text: this.editor.password,
+      text: this.draft.password,
       placeholder: $r('app.string.password_placeholder'),
       type: InputType.Password,
       showPassword: this.passwordVisible,
       readOnly: this.readOnly,
       trailingBuilder: this.passwordTrailing,
-      onChange: (value: string) => this.editor.setPassword(value),
+      onChange: (value: string) => this.draft.setPassword(value),
     })
   }
 
   @LocalBuilder
   private urlInput() {
     DsInput({
-      text: this.editor.url,
+      text: this.draft.url,
       placeholder: $r('app.string.website_placeholder'),
       readOnly: this.readOnly,
-      onChange: (value: string) => this.editor.setUrl(value),
+      onChange: (value: string) => this.draft.setUrl(value),
     })
   }
 
   @LocalBuilder
   private notesInput() {
     DsInput({
-      text: this.editor.notes,
+      text: this.draft.notes,
       placeholder: $r('app.string.notes_placeholder'),
       multiline: true,
       minLines: 4,
       readOnly: this.readOnly,
-      onChange: (value: string) => this.editor.setNotes(value),
+      onChange: (value: string) => this.draft.setNotes(value),
     })
   }
 
@@ -379,7 +369,7 @@ export struct EntryEditorView {
         multiline: true,
         minLines: 4,
         readOnly: this.readOnly,
-        onChange: (value: string) => this.editor.setFieldValue(field, value),
+        onChange: (value: string) => this.draft.setFieldValue(field, value),
       })
     } else if (definition.protected) {
       DsInput({
@@ -391,14 +381,14 @@ export struct EntryEditorView {
         trailingBuilder: () => {
           this.protectedFieldTrailing(definition.key)
         },
-        onChange: (value: string) => this.editor.setFieldValue(field, value),
+        onChange: (value: string) => this.draft.setFieldValue(field, value),
       })
     } else if (definition.key === EXPIRY_FIELD_KEY) {
       TemplateExpiryField({
         text: field.value,
         placeholder: this.fieldPlaceholder(definition),
         readOnly: this.readOnly,
-        onChange: (value: string) => this.editor.setFieldValue(field, value),
+        onChange: (value: string) => this.draft.setFieldValue(field, value),
       })
     } else if (definition.options.length > 0) {
       DsInput({
@@ -408,14 +398,14 @@ export struct EntryEditorView {
         trailingBuilder: () => {
           this.optionMenuButton(field, definition)
         },
-        onChange: (value: string) => this.editor.setFieldValue(field, value),
+        onChange: (value: string) => this.draft.setFieldValue(field, value),
       })
     } else {
       DsInput({
         text: field.value,
         placeholder: this.fieldPlaceholder(definition),
         readOnly: this.readOnly,
-        onChange: (value: string) => this.editor.setFieldValue(field, value),
+        onChange: (value: string) => this.draft.setFieldValue(field, value),
       })
     }
   }
@@ -433,7 +423,7 @@ export struct EntryEditorView {
   private optionMenuButton(field: EntryFieldEditor, definition: TemplateFieldDefinition) {
     TemplateOptionMenuButton({
       definition: definition,
-      onSelect: (value: string) => this.editor.setFieldValue(field, value),
+      onSelect: (value: string) => this.draft.setFieldValue(field, value),
     })
   }
 
@@ -442,7 +432,7 @@ export struct EntryEditorView {
     DsField({
       label: definition.label,
       contentBuilder: () => {
-        this.templateFieldInput(this.editor.templateField(definition.key)!, definition)
+        this.templateFieldInput(this.draft.templateField(definition.key)!, definition)
       },
     })
       .id(`field_${definition.key}`)
@@ -452,7 +442,7 @@ export struct EntryEditorView {
   @LocalBuilder
   private attachmentField() {
     EntryAttachmentField({
-      editor: this.editor,
+      editor: this.draft,
       entryUuid: this.sheet.entryUuid,
       readOnly: this.readOnly,
       active: this.sheet.mode === EntrySheetMode.Edit,
@@ -463,7 +453,7 @@ export struct EntryEditorView {
   @LocalBuilder
   private sshKeysField() {
     EntrySshKeysField({
-      editor: this.editor,
+      editor: this.draft,
       readOnly: this.readOnly,
       active: this.sheet.mode === EntrySheetMode.Edit,
       onActivity: () => this.viewModel.recordActivity(),
@@ -491,7 +481,7 @@ export struct EntryEditorView {
   @LocalBuilder
   customFieldsBuilder() {
     EntryCustomFields({
-      editor: this.editor,
+      editor: this.draft,
       readOnly: this.readOnly,
       invalidFieldId: this.invalidFieldId,
       active: this.sheet.mode === EntrySheetMode.Edit,
@@ -504,7 +494,7 @@ export struct EntryEditorView {
   @LocalBuilder
   tagsBuilder() {
     EntryTagEditor({
-      editor: this.editor,
+      editor: this.draft,
       readOnly: this.readOnly,
       active: this.sheet.mode === EntrySheetMode.Edit,
       onActivity: () => this.viewModel.recordActivity(),
@@ -517,14 +507,14 @@ export struct EntryEditorView {
     Row({ space: TITLE_ROW_GAP }) {
       Column() {
         EntryAvatarPicker({
-          title: this.editor.title,
-          avatarData: this.editor.avatarData,
+          title: this.draft.title,
+          avatarData: this.draft.avatarData,
           avatarTransitionKey: this.avatarTransitionKey,
           avatarEntranceScale: this.avatarEntranceScale,
           onAvatarVisibilityChange: (visible: boolean) => this.onAvatarVisibilityChange(visible),
           readOnly: this.readOnly,
-          onPicked: (data: ArrayBuffer) => this.editor.setAvatar(data),
-          onReset: () => this.editor.clearAvatar(),
+          onPicked: (data: ArrayBuffer) => this.draft.setAvatar(data),
+          onReset: () => this.draft.clearAvatar(),
         })
       }
       .padding({ top: TITLE_LABEL_OFFSET })
@@ -562,13 +552,13 @@ export struct EntryEditorView {
           .foregroundColor($r('app.color.ds_text_primary'))
 
         Column({ space: $r('app.float.ds_space_2') }) {
-          Text(this.editor.groupName)
+          Text(this.draft.groupName)
             .fontSize($r('app.float.ds_font_title'))
             .fontWeight(600)
             .fontColor($r('app.color.ds_text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.editor.groupPath)
+          Text(this.draft.groupPath)
             .fontSize($r('app.float.ds_font_body_sm'))
             .fontColor($r('app.color.ds_text_secondary'))
             .maxLines(1)
@@ -638,7 +628,7 @@ export struct EntryEditorView {
               Text($r('app.string.password_strength_label'))
                 .fontSize($r('app.float.ds_font_label_sm'))
                 .fontColor($r('app.color.ds_text_tertiary'))
-              DsStrengthMeter({ password: this.editor.password })
+              DsStrengthMeter({ password: this.draft.password })
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
@@ -712,7 +702,7 @@ export struct EntryEditorView {
     Column({ space: $r('app.float.ds_space_md') }) {
       this.customFieldsBuilder()
 
-      if (!this.readOnly || this.editor.tags.length > 0) {
+      if (!this.readOnly || this.draft.tags.length > 0) {
         DsField({
           label: $r('app.string.tags'),
           contentBuilder: this.tagsBuilder,
@@ -780,8 +770,7 @@ export struct EntryEditorView {
   // 预览底色上探到标题栏底部：内容绘制到标题栏下方，标题栏悬浮其上。
   @Computed
   get sheetTitleBarHeightVp(): number {
-    const titleBarPx: number = ResUtil.getNumber($r('app.float.ds_page_header_height_sm').id)
-    return this.getUIContext().px2vp(titleBarPx)
+    return measureVp(this.getUIContext(), $r('app.float.ds_page_header_height_sm'))
   }
 
   @LocalBuilder
@@ -837,10 +826,10 @@ export struct EntryEditorView {
           allGroups,
         }
       },
-      initialGroupUuid: this.editor.groupUuid,
+      initialGroupUuid: this.draft.groupUuid,
       busy: this.viewModel.busy,
       onPicked: (groupUuid: string) => {
-        this.editor.setGroup(this.viewModel.requireGroup(groupUuid))
+        this.draft.setGroup(this.viewModel.requireGroup(groupUuid))
         this.groupPickerVisible = false
       },
       onClose: () => this.groupPickerVisible = false,

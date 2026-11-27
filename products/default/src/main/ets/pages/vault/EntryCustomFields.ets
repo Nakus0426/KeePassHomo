@@ -18,6 +18,7 @@ import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 import { DsToastHost } from '../../components/DsToast'
+import { copyEntryValue } from './EntryClipboardActions'
 
 // 窄屏一行 2 个，宽屏一行最多 3 个；与模板选择器同档，按组件宽度切档，宽度由列数均分。
 const FIELD_TYPE_CARD_COLUMNS: GridRowColumnOption = {
@@ -304,14 +305,7 @@ export struct EntryCustomFields {
   }
 
   private copy(text: string): void {
-    if (text.length === 0) {
-      return
-    }
-    this.viewModel.copyValue(text).then((copied: boolean) => {
-      if (copied) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
+    copyEntryValue(this.getUIContext(), this.viewModel, text)
   }
 
   // 菜单内容必须落在 @Builder 方法里：@BuilderParam 传箭头函数会报 class constructor 错误。

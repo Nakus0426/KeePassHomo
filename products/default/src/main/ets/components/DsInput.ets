@@ -83,7 +83,7 @@ export struct DsInput {
 
   @Computed
   get inputBorderColor(): ResourceColor {
-    if (this.disabled || this.variant === DsInputVariant.Inline) {
+    if (this.disabled) {
       return Color.Transparent
     }
     if (this.readOnly) {
@@ -95,22 +95,26 @@ export struct DsInput {
     return this.toneColor
   }
 
+  // 描边走 outline：不参与布局，宽度的出现与消失不会顶开周围内容。
   @Computed
-  get inputBorderWidth(): Length {
-    if (this.variant === DsInputVariant.Inline) {
+  get inputBorderWidth(): Dimension {
+    if (this.variant === DsInputVariant.Inline || this.disabled) {
       return 0
     }
-    if (this.canEdit && this.focused) {
-      return $r('app.float.ds_border_width_focus')
+    if (this.readOnly || this.focused || this.tone !== DsInputTone.Default) {
+      return $r('app.float.ds_border_width')
     }
-    return $r('app.float.ds_border_width')
+    return 0
   }
 
-  // 行内变体全程不着色，聚焦只留光标；常规表单域始终是输入井底色。
+  // 常态是内陷井底，聚焦换成画布底色；错误态保持井底。
   @Computed
   get fillColor(): ResourceColor {
     if (this.variant === DsInputVariant.Inline) {
       return Color.Transparent
+    }
+    if (this.focused) {
+      return $r('app.color.ds_surface_canvas')
     }
     return $r('app.color.ds_surface_inset')
   }
@@ -396,9 +400,10 @@ export struct DsInput {
     }
     .width('100%')
     .backgroundColor(this.fillColor)
-    .border({
+    .outline({
       width: this.inputBorderWidth,
       color: this.inputBorderColor,
+      radius: $r('app.float.ds_radius_none'),
     })
     .animation(AnimationTokens.FEEDBACK_ANIMATION)
   }

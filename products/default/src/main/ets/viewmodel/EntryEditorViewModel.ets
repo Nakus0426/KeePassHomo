@@ -135,11 +135,9 @@ export class EntryEditorViewModel {
   }
 
   addTag(value: string): TagAddResult {
-    if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
-      return TagAddResult.Separator
-    }
-    if (this.tags.includes(value)) {
-      return TagAddResult.Duplicate
+    const rejected: TagAddResult | undefined = this.checkTag(value)
+    if (rejected !== undefined) {
+      return rejected
     }
     this.tags.push(value)
     return TagAddResult.Added
@@ -155,11 +153,9 @@ export class EntryEditorViewModel {
 
   // 原地替换：改名与新增共用同一套重复与分隔符校验。
   renameTag(previous: string, value: string): TagAddResult {
-    if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
-      return TagAddResult.Separator
-    }
-    if (previous !== value && this.tags.includes(value)) {
-      return TagAddResult.Duplicate
+    const rejected: TagAddResult | undefined = this.checkTag(value, previous)
+    if (rejected !== undefined) {
+      return rejected
     }
     // 就地按下标改写：map 会换掉整个数组，连带重建未改名的标签。
     const index: number = this.tags.indexOf(previous)
@@ -167,6 +163,16 @@ export class EntryEditorViewModel {
       this.tags[index] = value
     }
     return TagAddResult.Added
+  }
+
+  private checkTag(value: string, previous: string = ''): TagAddResult | undefined {
+    if (TAG_SEPARATORS.some((separator: string) => value.includes(separator))) {
+      return TagAddResult.Separator
+    }
+    if (previous !== value && this.tags.includes(value)) {
+      return TagAddResult.Duplicate
+    }
+    return undefined
   }
 
   // 密钥草稿的唯一真源是 SshKeys 字段值：每次增删改后立刻回写，沿用既有的字段保存链路。
@@ -203,13 +209,7 @@ export class EntryEditorViewModel {
 
   // 条目内密钥名唯一：重名自动加序号后缀，用户不必先改名再添加。
   private uniqueSshKeyName(name: string): string {
-    let candidate: string = name
-    let suffix: number = 2
-    while (this.sshKeyNameTaken(candidate)) {
-      candidate = `${name} ${suffix}`
-      suffix++
-    }
-    return candidate
+    return this.uniqueName(name, (candidate: string) => this.sshKeyNameTaken(candidate))
   }
 
   private syncSshKeyField(): void {
@@ -364,10 +364,15 @@ export class EntryEditorViewModel {
   }
 
   private uniqueFieldName(name: string): string {
-    let candidate: string = name
+    return this.uniqueName(name, (candidate: string) =>
+    this.fields.some((field: EntryFieldEditor) => field.name === candidate))
+  }
+
+  private uniqueName(base: string, taken: (candidate: string) => boolean): string {
+    let candidate: string = base
     let suffix: number = 2
-    while (this.fields.some((field: EntryFieldEditor) => field.name === candidate)) {
-      candidate = `${name} ${suffix}`
+    while (taken(candidate)) {
+      candidate = `${base} ${suffix}`
       suffix++
     }
     return candidate

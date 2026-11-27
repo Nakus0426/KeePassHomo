@@ -21,6 +21,7 @@ import { LIST_ROW_PUSH_IN } from '../../components/ListRowEnterTransition'
 import { DsMenuItem } from '../../components/DsMenuItem'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
 import { DsToastHost } from '../../components/DsToast'
+import { copyEntryValue } from './EntryClipboardActions'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { pickFiles, UserCancelledError } from '../../model/DocumentPicker'
 
@@ -81,14 +82,7 @@ export struct EntrySshKeysField {
   }
 
   private copy(value: string): void {
-    if (value.length === 0) {
-      return
-    }
-    this.app.copyValue(value).then((copied: boolean) => {
-      if (copied) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
+    copyEntryValue(this.getUIContext(), this.app, value)
   }
 
   private async pickKeyFile(): Promise<void> {
