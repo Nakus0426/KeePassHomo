@@ -1,106 +1,482 @@
-import { AnimationTokens } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
+import { LengthMetrics, promptAction } from '@kit.ArkUI'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { AnimationTokens, measureVp } from '@ohos/common'
+import { LogUtil } from '@pura/harmony-utils'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
 import { ImmersiveLayoutState, immersiveLayoutState } from '../../state/ImmersiveLayoutState'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { EntrySheetMode, EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
-import { EntryEditorView } from './EntryEditorView'
-import { EntryPreviewView } from './EntryPreviewView'
+import { DeferredAction } from '../../components/DeferredAction'
+import { DsBottomActionBar } from '../../components/DsBottomActionBar'
+import { DsButton, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu } from '../../components/DsContextMenu'
+import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
+import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
+import { DsMenuGroup } from '../../components/DsMenuGroup'
+import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
+import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../components/DsPageHeader'
+import { DsToastHost } from '../../components/DsToast'
+import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
+import { EntryEditorActions, EntryEditorView } from './EntryEditorView'
+import { EntryPreviewView } from './EntryPreviewView'
 
-// 三种入口共用一套开合逻辑：只负责半模态容器、形态转场与收起拦截，内容体各自管理自己的状态。
+@ObservedV2
+class EntrySheetChromeState {
+  @Trace editor: EntryEditorActions | undefined = undefined
+  @Trace switching: boolean = false
+}
+
+// HDS 标题栏只构建一次，由此组件直接订阅视图状态。
+@ComponentV2
+struct EntrySheetHeader {
+  @Require @Param sheet: EntrySheetViewModel
+  @Require @Param chrome: EntrySheetChromeState
+  @Event onClose: () => void = () => {}
+  @Event onToggleFavorite: () => void = () => {}
+  private readonly app: AppViewModel = appViewModel
+
+  @Computed
+  private get editing(): boolean {
+    return this.sheet.mode === EntrySheetMode.Edit
+  }
+
+  @Computed
+  private get title(): ResourceStr {
+    if (!this.editing) {
+      return this.sheet.title
+    }
+    return this.sheet.isNewEntry ? $r('app.string.new_entry') : $r('app.string.edit_entry')
+  }
+
+  @Computed
+  private get headerActions(): DsPageHeaderAction[] {
+    if (this.sheet.isNewEntry || (!this.editing && this.sheet.readOnly)) {
+      return []
+    }
+    return [{
+      icon: $r('app.string.symbol_more'),
+      label: $r('app.string.more'),
+      enabled: !this.app.busy && !this.chrome.switching,
+      onTap: () => {},
+    }]
+  }
+
+  @LocalBuilder
+  private favoriteAction() {
+    FavoriteToggle({
+      visible: this.editing || !this.sheet.readOnly,
+      favorite: this.editing ? this.chrome.editor?.draft.favorite ?? this.sheet.favorite : this.sheet.favorite,
+      clickable: !this.app.busy && !this.chrome.switching,
+      iconSizeOverride: $r('app.float.ds_icon_md'),
+      onToggle: () => this.onToggleFavorite(),
+    })
+  }
+
+  build() {
+    DsPageHeader({
+      title: this.title,
+      titleTransitionKey: this.sheet.mode,
+      scrollOverflowingTitle: !this.editing,
+      headerSize: DsPageHeaderSize.Small,
+      showBack: false,
+      showClose: true,
+      closeEnabled: !this.app.busy && !this.chrome.switching,
+      actions: this.headerActions,
+      actionsBuilder: this.favoriteAction,
+      onClose: () => this.onClose(),
+    })
+  }
+}
+
 @ComponentV2
 export struct EntrySheet {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Local private session: AppSessionState = appSessionState
   @Local private immersiveLayout: ImmersiveLayoutState = immersiveLayoutState
-  // 系统回传的面板高度（vp，含键盘避让），未回调前为 0。
+  @Local private chrome: EntrySheetChromeState = new EntrySheetChromeState()
+  // 系统回传的面板高度（vp），避免嵌套滚动容器按整窗高度布局。
   @Local private panelHeightVp: number = 0
-  // 草稿归编辑体所有，宿主只能在收起前问它；形态或条目变化时必须重置以免回调残留。
-  private childHandler: (() => void) | undefined = undefined
+  @Local private bottomBarHeight: number = 0
+  @Local private previewScrollOffset: number = 0
+  @Local private matchPreviewAvatar: boolean = true
+  @Local private matchEditorAvatar: boolean = true
+  @Local private opening: boolean = true
+  private previewAvatarVisible: boolean = false
+  private editorAvatarVisible: boolean = false
+  private restorePreviewAvatar: boolean = false
+  private transitionVersion: number = 0
   private readonly viewModel: AppViewModel = appViewModel
-  // 预览与编辑共用半模态容器，只对内容做轻微缩放交叉淡化，避免窗口整体跳动。
-  private readonly contentTransition: TransitionEffect = TransitionEffect.asymmetric(
-    TransitionEffect.OPACITY
-      .combine(TransitionEffect.scale({ x: 0.96, y: 0.96 }))
-      .animation({
-        duration: AnimationTokens.STATE_TRANSITION_DURATION,
-        curve: AnimationTokens.STATE_TRANSITION_CURVE,
-      }),
-    TransitionEffect.OPACITY
-      .combine(TransitionEffect.scale({ x: 1.02, y: 1.02 }))
-      .animation({
-        duration: AnimationTokens.STATE_TRANSITION_DURATION,
-        curve: AnimationTokens.STATE_TRANSITION_CURVE,
-      }),
-  )
+  private readonly previewScroller: Scroller = new Scroller()
+  private readonly editorScroller: Scroller = new Scroller()
+  private readonly overflowDeferred: DeferredAction = new DeferredAction()
+  private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
 
   @Monitor('session.vaultLocked')
   onVaultLockChanged(): void {
     if (this.session.vaultLocked) {
-      this.sheet.visible = false
+      this.sheet.close()
     }
   }
 
-  // 换条目、重新打开、revision 变化时重取；收藏与归档都会推进 revision。
-  @Monitor('sheet.entryUuid', 'sheet.visible', 'viewModel.revision')
+  @Monitor('sheet.entryUuid', 'sheet.visible')
   onTargetChanged(): void {
-    this.childHandler = undefined
     this.sheet.load()
   }
 
-  // 形态变化时重置拦截钩子，避免残留指向已销毁实例的回调。
-  @Monitor('sheet.mode')
-  onModeChanged(): void {
-    this.childHandler = undefined
+  @Computed
+  private get editing(): boolean {
+    return this.sheet.mode === EntrySheetMode.Edit
   }
 
-  // 半模态内容底部 = 窗口安全区 + 安全间距：只让出安全区时最后一项仍压在导航条上。
   @Computed
-  get contentBottomOffset(): number {
-    const gapPx: number = ResUtil.getNumber($r('app.float.ds_space_sm').id)
-    return this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx + gapPx)
+  private get avatarEntranceScale(): number {
+    if (!this.opening || this.sheet.isNewEntry) {
+      return 1
+    }
+    const context: UIContext = this.getUIContext()
+    return measureVp(context, $r('app.float.ds_entry_avatar_size')) /
+      measureVp(context, $r('app.float.ds_entry_preview_avatar_size'))
   }
 
-  // 半模态内容层按整屏高度布局（HdsNavigation 内部的 100% 在无界 Scroll 内按窗口解析），
-  // 比面板高出面板顶部内缩量，拖拽标题栏时整页会跟着滑走；按面板高度定高后该层没有可滚动余量。
   @Computed
-  private get contentHeight(): Length {
+  private get panelContentHeight(): Length {
     return this.panelHeightVp > 0 ? this.panelHeightVp : '100%'
   }
 
-  // 只有编辑态的草稿需要拦截；预览态是只读的，收起不丢数据。
-  // 草稿归编辑体所有，拦截后由它弹关闭确认，宿主不重复实现一套。
-  private onSheetWillDismiss(action: DismissSheetAction): void {
-    if (this.childHandler === undefined) {
-      action.dismiss()
+  @Computed
+  private get contentBottomOffset(): number {
+    if (this.bottomBarHeight > 0 && !this.sheet.readOnly) {
+      return this.bottomBarHeight
+    }
+    const context: UIContext = this.getUIContext()
+    return context.px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx) +
+      measureVp(context, $r('app.float.ds_space_sm'))
+  }
+
+  @Computed
+  private get avatarTransitionKey(): string {
+    return this.sheet.isNewEntry ? '' : 'entry-sheet-avatar-' + this.sheet.entryUuid
+  }
+
+  @Computed
+  private get overflowButtonMargin(): Margin {
+    const context: UIContext = this.getUIContext()
+    const handle: number = measureVp(context, $r('app.float.ds_space_16'))
+    const header: number = measureVp(context, $r('app.float.ds_page_header_height_sm'))
+    const button: number = measureVp(context, $r('app.float.ds_button_height'))
+    return {
+      top: handle + (header - button) / 2,
+      right: button + measureVp(context, $r('app.float.ds_space_sm')),
+    }
+  }
+
+  private switchMode(change: () => void): void {
+    this.opening = false
+    const version: number = ++this.transitionVersion
+    this.chrome.switching = true
+    this.getUIContext().animateTo({
+      duration: AnimationTokens.STATE_TRANSITION_DURATION,
+      curve: AnimationTokens.STATE_TRANSITION_CURVE,
+      onFinish: () => {
+        if (this.transitionVersion === version) {
+          this.matchPreviewAvatar = true
+          this.matchEditorAvatar = true
+          this.chrome.switching = false
+        }
+      },
+    }, change)
+  }
+
+  private beginEdit(): void {
+    this.previewScrollOffset = Math.max(0, this.previewScroller.currentOffset().yOffset)
+    this.restorePreviewAvatar = this.previewAvatarVisible &&
+      this.previewScrollOffset <= measureVp(this.getUIContext(), $r('app.float.ds_space_sm'))
+    this.editorAvatarVisible = false
+    this.switchMode(() => {
+      this.matchEditorAvatar = this.restorePreviewAvatar
+      this.sheet.beginEdit()
+    })
+  }
+
+  private exitEditor(): void {
+    this.chrome.editor = undefined
+    if (!this.sheet.editFromPreview) {
+      this.sheet.exitEditor()
       return
     }
-    this.childHandler()
+    this.previewAvatarVisible = false
+    this.switchMode(() => {
+      this.matchPreviewAvatar = this.restorePreviewAvatar && this.editorAvatarVisible
+      this.sheet.exitEditor()
+    })
+  }
+
+  private async toggleFavorite(): Promise<void> {
+    const uuid: string = this.sheet.entryUuid
+    if (this.editing) {
+      await this.chrome.editor?.toggleFavorite()
+    } else {
+      await this.sheet.toggleFavorite()
+    }
+    if (uuid.length > 0 && this.sheet.visible && this.sheet.entryUuid === uuid) {
+      this.sheet.load()
+    }
+  }
+
+  private onDismissed(): void {
+    this.opening = true
+    this.transitionVersion++
+    this.chrome.switching = false
+    this.chrome.editor = undefined
+    this.previewScrollOffset = 0
+    this.previewAvatarVisible = false
+    this.editorAvatarVisible = false
+    this.restorePreviewAvatar = false
+    this.matchPreviewAvatar = true
+    this.matchEditorAvatar = true
+    this.sheet.onDismissed()
+  }
+
+  private onSheetWillDismiss(action: DismissSheetAction): void {
+    if (this.chrome.switching || this.viewModel.busy) {
+      return
+    }
+    if (this.editing && this.chrome.editor !== undefined) {
+      this.chrome.editor.requestExit()
+      return
+    }
+    action.dismiss()
+  }
+
+  private async duplicateEntry(): Promise<void> {
+    const uuid: string = await this.viewModel.duplicateEntry(this.sheet.entryUuid)
+    DsToastHost.show(this.getUIContext(), uuid.length > 0 ? $r('app.string.entry_copied') : this.viewModel.status)
+  }
+
+  private async toggleArchived(): Promise<void> {
+    const archived: boolean = this.sheet.previewEntry?.archived === true
+    if (await this.viewModel.toggleArchived(this.sheet.entryUuid)) {
+      DsToastHost.show(this.getUIContext(), archived ? $r('app.string.entry_restored') : $r('app.string.entry_archived'))
+      this.sheet.close()
+      return
+    }
+    DsToastHost.show(this.getUIContext(), this.viewModel.status)
+  }
+
+  private openDeleteDialog(): void {
+    this.getUIContext().getPromptAction()
+      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
+      .catch((error: BusinessError) => {
+        LogUtil.error(`打开删除条目弹窗失败，错误码=${error.code}，错误信息=${error.message}`)
+      })
+  }
+
+  private async deleteEntry(): Promise<void> {
+    const deleted: boolean = await this.viewModel.deleteEntry(this.sheet.entryUuid)
+    this.deleteDialogController.close()
+    if (deleted) {
+      DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
+      this.sheet.close()
+      return
+    }
+    DsToastHost.show(this.getUIContext(), this.viewModel.status)
+  }
+
+  @Builder
+  private deleteDialog() {
+    DsDialog({
+      title: $r('app.string.delete_entry_title'),
+      message: $r('app.string.delete_entry_message'),
+      icon: $r('app.string.symbol_delete'),
+      tone: DsDialogTone.Error,
+      cancelLabel: $r('app.string.cancel'),
+      confirmLabel: $r('app.string.delete_entry'),
+      busy: this.viewModel.busy,
+      onCancel: () => this.deleteDialogController.close(),
+      onConfirm: () => this.deleteEntry(),
+    })
+  }
+
+  @LocalBuilder
+  private overflowMenuHeader() {
+    Text($r('app.string.more_actions'))
+      .width('100%')
+      .fontSize($r('app.float.ds_font_body'))
+      .fontWeight(600)
+      .fontColor($r('app.color.ds_text_primary'))
+      .padding({
+        top: $r('app.float.ds_space_md'), bottom: $r('app.float.ds_space_md'),
+        left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter'),
+      })
+      .backgroundColor($r('app.color.ds_surface_low'))
+  }
+
+  @LocalBuilder
+  private deleteMenuItem() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_delete'),
+      label: $r('app.string.delete_entry'),
+      theme: DsMenuItemTheme.Error,
+      onAction: () => this.overflowDeferred.defer(() => this.openDeleteDialog()),
+    })
+  }
+
+  @LocalBuilder
+  private overflowMainActions() {
+    DsMenuItem({
+      icon: $r('app.string.symbol_copy'),
+      label: $r('app.string.entry_menu_duplicate'),
+      onAction: () => this.duplicateEntry(),
+    })
+    if (!this.editing) {
+      DsMenuItem({
+        icon: this.sheet.previewEntry?.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'),
+        label: this.sheet.previewEntry?.archived ? $r('app.string.entry_menu_restore') : $r('app.string.entry_menu_archive'),
+        onAction: () => this.overflowDeferred.defer(() => this.toggleArchived()),
+      })
+    }
+  }
+
+  @LocalBuilder
+  private overflowMenuItems() {
+    DsMenuGroup({ content: this.overflowMainActions })
+    if (!this.sheet.readOnly) {
+      DsMenuGroup({ dividerTop: !this.editing, content: this.deleteMenuItem })
+    }
+  }
+
+  @LocalBuilder
+  private overflowMenu() {
+    DsContextMenu({ header: this.overflowMenuHeader, content: this.overflowMenuItems })
+  }
+
+  @LocalBuilder
+  private overflowButton() {
+    // 在内容层同位置承接页头「更多」的菜单交互。
+    Row() {
+      DsButton({
+        variant: DsButtonVariant.Text,
+        iconOnly: true,
+        disabled: this.viewModel.busy || this.chrome.switching,
+        accessibilityLabelResource: $r('app.string.more'),
+        menuBuilder: this.overflowMenu,
+        menuOptions: {
+          placement: Placement.BottomRight,
+          targetSpace: LengthMetrics.resource(this.editing ? $r('app.float.ds_space_sm') : $r('app.float.ds_space_xs')),
+          borderRadius: $r('app.float.ds_radius_none'),
+          backgroundColor: $r('app.color.ds_surface_lowest'),
+          backgroundBlurStyle: BlurStyle.NONE,
+          mask: { color: $r('app.color.ds_scrim'), backgroundBlurStyle: BlurStyle.NONE },
+          onDisappear: () => this.overflowDeferred.run(),
+        },
+      })
+      .margin(this.overflowButtonMargin)
+    }
+    .width('100%')
+    .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+    .padding({ left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter') })
+    .justifyContent(FlexAlign.End)
+    .hitTestBehavior(HitTestMode.Transparent)
+  }
+
+  @LocalBuilder
+  private sheetHeader() {
+    EntrySheetHeader({
+      sheet: this.sheet,
+      chrome: this.chrome,
+      onToggleFavorite: () => this.toggleFavorite(),
+      onClose: () => {
+        if (this.editing) {
+          this.chrome.editor?.requestExit()
+        } else {
+          this.sheet.close()
+        }
+      },
+    })
+  }
+
+  @LocalBuilder
+  private primaryAction() {
+    DsButton({
+      label: this.editing ? $r('app.string.save') : $r('app.string.edit'),
+      fullWidth: true,
+      loading: this.editing && this.chrome.editor?.saveGate.visible === true,
+      disabled: this.chrome.switching || (this.editing ? this.chrome.editor === undefined : this.viewModel.busy),
+      onTap: () => {
+        if (this.editing) {
+          this.chrome.editor?.save()
+        } else {
+          this.beginEdit()
+        }
+      },
+    })
+  }
+
+  @LocalBuilder
+  private bottomBar() {
+    if (!this.sheet.readOnly) {
+      DsBottomActionBar({
+        onHeightChange: (height: number) => this.bottomBarHeight = height,
+        contentBuilder: this.primaryAction,
+      })
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+    }
+  }
+
+  @LocalBuilder
+  private sheetBody() {
+    Stack({ alignContent: Alignment.Top }) {
+      if (this.editing) {
+        EntryEditorView({
+          sheet: this.sheet,
+          scroller: this.editorScroller,
+          bottomOffset: this.contentBottomOffset,
+          avatarTransitionKey: this.matchEditorAvatar ? this.avatarTransitionKey : '',
+          avatarEntranceScale: this.avatarEntranceScale,
+          onAvatarVisibilityChange: (visible: boolean) => this.editorAvatarVisible = visible,
+          onReady: (actions: EntryEditorActions) => this.chrome.editor = actions,
+          onCancel: () => this.exitEditor(),
+          onSaved: () => {
+            if (this.sheet.editFromPreview) {
+              this.sheet.load()
+            }
+            this.exitEditor()
+          },
+        })
+          .transition(TransitionEffect.OPACITY)
+      } else {
+        EntryPreviewView({
+          sheet: this.sheet,
+          scroller: this.previewScroller,
+          bottomOffset: this.contentBottomOffset,
+          initialScrollOffset: this.previewScrollOffset,
+          avatarTransitionKey: this.matchPreviewAvatar ? this.avatarTransitionKey : '',
+          avatarEntranceScale: this.avatarEntranceScale,
+          onAvatarVisibilityChange: (visible: boolean) => this.previewAvatarVisible = visible,
+        })
+          .transition(TransitionEffect.OPACITY)
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
   private sheetContent() {
-    Column() {
-      if (this.sheet.mode === EntrySheetMode.Preview) {
-        EntryPreviewView({
-          sheet: this.sheet,
-          bottomOffset: this.contentBottomOffset,
-          onClose: () => this.sheet.close(),
-          onEdit: () => this.sheet.beginEdit(),
-        }).transition(this.contentTransition)
-      } else {
-        EntryEditorView({
-          sheet: this.sheet,
-          bottomOffset: this.contentBottomOffset,
-          onWillDismissCheck: (handler: () => void) => this.childHandler = handler,
-          onCancel: () => this.sheet.exitEditor(),
-          onSaved: () => this.sheet.exitEditor(),
-        }).transition(this.contentTransition)
+    Stack({ alignContent: Alignment.Top }) {
+      DsHalfModalSheet({
+        titleBarBuilder: this.sheetHeader,
+        scrollableScroller: this.editing ? this.editorScroller : this.previewScroller,
+        bodyBuilder: this.sheetBody,
+        bottomBarBuilder: this.bottomBar,
+      })
+      if (!this.sheet.isNewEntry && (this.editing || !this.sheet.readOnly)) {
+        this.overflowButton()
       }
     }
     .width('100%')
-    .height(this.contentHeight)
+    .height(this.panelContentHeight)
   }
 
   build() {
@@ -108,14 +484,13 @@ export struct EntrySheet {
       .width(0)
       .height(0)
       .bindSheet(this.sheet.visible, this.sheetContent(), dsSheetOptions({
-        // 面板不随键盘收缩、也不位移：键盘弹起时底部操作栏留在原位被键盘盖住，不做避让。
-        // 收缩（RESIZE_ONLY）会让 HdsNavigation 在已收缩的面板里再避让一次，内容被裁两次。
         keyboardAvoidMode: SheetKeyboardAvoidMode.NONE,
         onHeightDidChange: (heightPx: number) => {
           this.panelHeightVp = this.getUIContext().px2vp(heightPx)
         },
         onWillDismiss: (action: DismissSheetAction) => this.onSheetWillDismiss(action),
-        onDisappear: () => this.sheet.onDismissed(),
+        onAppear: () => this.opening = false,
+        onDisappear: () => this.onDismissed(),
       }))
   }
 }

@@ -82,9 +82,8 @@ export struct VaultEntryRow {
           avatarData: this.row.avatarData,
           avatarSize: $r('app.float.ds_entry_avatar_size'),
           initialsFontSize: $r('app.float.ds_font_label_sm'),
+          initialsFontWeight: 600,
           square: true,
-          fallbackIcon: this.row.templateIcon,
-          fallbackIconSize: $r('app.float.ds_icon_sm'),
         })
 
         Column({ space: $r('app.float.ds_space_2') }) {

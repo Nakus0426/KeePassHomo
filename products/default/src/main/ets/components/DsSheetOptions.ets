@@ -12,6 +12,7 @@ export interface DsSheetOptionsParams {
   scrollSizeMode?: ScrollSizeMode
   onHeightDidChange?: Callback<number>
   onWillDismiss?: Callback<DismissSheetAction>
+  onAppear?: () => void
   onDisappear?: () => void
   // 沉浸式预览需要顶部一条分隔描边，其余半模态不描边。
   topBorder?: boolean
@@ -33,6 +34,7 @@ export function dsSheetOptions(params: DsSheetOptionsParams): SheetOptions {
     scrollSizeMode: params.scrollSizeMode,
     onHeightDidChange: params.onHeightDidChange,
     onWillDismiss: params.onWillDismiss,
+    onAppear: params.onAppear,
     onDisappear: params.onDisappear,
     keyboardAvoidMode: params.keyboardAvoidMode,
     onWillSpringBackWhenDismiss: CANCEL_SPRING_BACK,

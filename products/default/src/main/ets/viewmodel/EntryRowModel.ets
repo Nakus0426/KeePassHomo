@@ -12,14 +12,13 @@ import {
   strengthLabel,
 } from './EntryPresentation'
 
-// 列表行展示模型：标题、副标题、图标和收藏状态都在 ViewModel 层算好，行组件只负责画。
+// 列表行展示模型：标题、副标题和收藏状态都在 ViewModel 层算好，行组件只负责画。
 @ObservedV2
 export class EntryRowModel {
   readonly uuid: string
   @Trace groupUuid: string = ''
   @Trace title: string = ''
   @Trace subtitle: ResourceStr = ''
-  @Trace templateIcon: Resource = $r('app.string.symbol_person')
   @Trace archived: boolean = false
   @Trace favorite: boolean = false
   @Trace hasAvatar: boolean = false
@@ -44,17 +43,18 @@ export class EntryRowModel {
     this.groupUuid = entry.groupUuid
     this.title = entry.title
     this.subtitle = this.buildSubtitle(entry, appendGroupName)
-    this.templateIcon = this.buildTemplateIcon(entry.template)
     this.archived = entry.archived
     this.favorite = entry.favorite
     this.hasAvatar = entry.hasAvatar
     this.menuGroupName = entry.groupName
     this.template = entry.template
-    this.lastModifiedAt = entry.lastModifiedAt
     this.leaving = false
     if (!entry.hasAvatar) {
       this.avatarData = undefined
+    } else if (this.avatarData !== undefined && this.lastModifiedAt !== entry.lastModifiedAt) {
+      this.avatarData = stageOneVaultStore.loadEntryAvatar(this.uuid)
     }
+    this.lastModifiedAt = entry.lastModifiedAt
   }
 
   setFavorite(favorite: boolean): void {
@@ -131,23 +131,6 @@ export class EntryRowModel {
         [DateUtil.getFormatDateStr(this.lastModifiedAt, 'yyyy-MM-dd HH:mm')])
       : ''
     return [password, modified].filter((part: string) => part.length > 0).join(' · ')
-  }
-
-  private buildTemplateIcon(template: ItemTemplate | undefined): Resource {
-    switch (template) {
-      case ItemTemplate.SecureNote:
-        return $r('app.string.symbol_notes')
-      case ItemTemplate.CreditCard:
-        return $r('app.string.symbol_credit_card')
-      case ItemTemplate.SshKey:
-        return $r('app.string.symbol_key')
-      case ItemTemplate.Attachment:
-        return $r('app.string.symbol_attach_file')
-      case ItemTemplate.Password:
-        return $r('app.string.symbol_key')
-      default:
-        return $r('app.string.symbol_person')
-    }
   }
 
   private passwordSubtitle(): string {

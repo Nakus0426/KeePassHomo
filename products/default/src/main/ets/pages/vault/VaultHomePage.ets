@@ -32,7 +32,7 @@ import { ENTRY_FIELD_PASSWORD, ENTRY_FIELD_USERNAME } from '../../viewmodel/Entr
 import { EntryGroupHeaderModel, EntryListItem, EntryListItemKind, EntryRowModel } from '../../viewmodel/EntryRowModel'
 import { HomeEntryListViewModel, homeEntryListViewModel } from '../../viewmodel/HomeEntryListViewModel'
 import { HomeSnapshotCause, VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
-import { entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { EntrySheetMode, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
 import { EntrySheet } from './EntrySheet'
 import { EntryTemplatePicker } from './EntryTemplatePicker'
 import { VaultEntryRow } from './VaultEntryRow'
@@ -42,7 +42,7 @@ import { DsToastHost } from '../../components/DsToast'
 
 @ComponentV2
 export struct VaultHomePage {
-  private readonly scroller: Scroller = new Scroller()
+  private readonly scroller: ListScroller = new ListScroller()
   @Local private session: AppSessionState = appSessionState
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private list: HomeEntryListViewModel = homeEntryListViewModel
@@ -204,7 +204,18 @@ export struct VaultHomePage {
       this.home.toggleSelection(row.uuid)
       return
     }
-    entrySheetViewModel.openPreview(row.uuid)
+    this.openEntry(row, EntrySheetMode.Preview)
+  }
+
+  private openEntry(row: EntryRowModel, mode: EntrySheetMode): void {
+    if (this.session.vaultLocked || entrySheetViewModel.visible) {
+      return
+    }
+    if (mode === EntrySheetMode.Edit) {
+      entrySheetViewModel.openEdit(row.uuid)
+    } else {
+      entrySheetViewModel.openPreview(row.uuid)
+    }
   }
 
   // 菜单含预览图时在子窗显示，层级高于主窗弹窗与半模态；菜单项动作须等菜单彻底消失再执行，否则会被预览图盖住。
@@ -408,7 +419,10 @@ export struct VaultHomePage {
       .height('100%')
       .borderRadius($r('app.float.ds_radius_none'))
       .backgroundColor($r('app.color.ds_primary'))
-      .onClick(() => entrySheetViewModel.openEdit(row.uuid))
+      .onClick(() => {
+        this.openEntry(row, EntrySheetMode.Edit)
+        this.scroller.closeAllSwipeActions()
+      })
 
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         SymbolGlyph(row.archived ? $r('app.string.symbol_unarchive') : $r('app.string.symbol_archive'))
@@ -529,7 +543,7 @@ export struct VaultHomePage {
       icon: $r('app.string.symbol_edit'),
       label: $r('app.string.entry_menu_edit'),
       onAction: () => {
-        this.deferredMenuAction.defer(() => entrySheetViewModel.openEdit(row.uuid))
+        this.deferredMenuAction.defer(() => this.openEntry(row, EntrySheetMode.Edit))
       },
     })
     DsMenuItem({

@@ -21,6 +21,8 @@ export interface DsPageHeaderAction {
 @ComponentV2
 export struct DsPageHeader {
   @Param title: ResourceStr = ''
+  @Param titleTransitionKey: string = ''
+  @Param scrollOverflowingTitle: boolean = false
   @Param subtitle: ResourceStr | undefined = undefined
   @Param headerSize: DsPageHeaderSize = DsPageHeaderSize.Large
   @Param showBack: boolean = true
@@ -100,6 +102,19 @@ export struct DsPageHeader {
     }
   }
 
+  @LocalBuilder
+  private primaryTitle() {
+    Text(this.title)
+      .fontSize(this.titleFontSize)
+      .fontWeight(600)
+      .fontColor($r('app.color.ds_text_primary'))
+      .letterSpacing(this.titleLetterSpacing)
+      .maxLines(1)
+      .textOverflow({ overflow: this.scrollOverflowingTitle ? TextOverflow.MARQUEE : TextOverflow.Ellipsis })
+      .marqueeOptions({ start: this.scrollOverflowingTitle, fadeout: this.scrollOverflowingTitle })
+      .transition(this.titleTransitionKey.length > 0 ? TransitionEffect.OPACITY : TransitionEffect.IDENTITY)
+  }
+
   build() {
     Row() {
       Row({ space: $r('app.float.ds_space_sm') }) {
@@ -126,13 +141,16 @@ export struct DsPageHeader {
           .alignItems(HorizontalAlign.Start)
         } else {
           Column({ space: 3 }) {
-            Text(this.title)
-              .fontSize(this.titleFontSize)
-              .fontWeight(600)
-              .fontColor($r('app.color.ds_text_primary'))
-              .letterSpacing(this.titleLetterSpacing)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            if (this.titleTransitionKey.length > 0) {
+              Stack({ alignContent: Alignment.Start }) {
+                ForEach([this.titleTransitionKey], (_key: string) => {
+                  this.primaryTitle()
+                }, (key: string) => key)
+              }
+              .width('100%')
+            } else {
+              this.primaryTitle()
+            }
             if (this.subtitle !== undefined) {
               Text(this.subtitle)
                 .fontSize($r('app.float.ds_font_label_sm'))

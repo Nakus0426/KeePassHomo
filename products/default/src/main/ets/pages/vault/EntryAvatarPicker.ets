@@ -13,8 +13,6 @@ import { DsLoadingIndicator, DsLoadingIndicatorSize, DsLoadingIndicatorTone } fr
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 
-// 设计稿的紧凑方形头像：48×48，与标题输入井同高。
-const AVATAR_SIZE: number = 48
 const AVATAR_MAX_EDGE: number = 384
 const AVATAR_IMAGE_FORMAT: string = 'image/jpeg'
 const AVATAR_QUALITY: number = 85
@@ -40,6 +38,9 @@ export struct EntryAvatarPicker {
   @Param title: string = ''
   @Param avatarData: ArrayBuffer | undefined = undefined
   @Param readOnly: boolean = false
+  @Param avatarTransitionKey: string = ''
+  @Param avatarEntranceScale: number = 1
+  @Event onAvatarVisibilityChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onPicked: (data: ArrayBuffer) => void = () => {
   }
   @Event onReset: () => void = () => {
@@ -190,10 +191,11 @@ export struct EntryAvatarPicker {
       EntryAvatar({
         title: this.title,
         avatarData: this.avatarData,
-        avatarSize: AVATAR_SIZE,
+        avatarSize: $r('app.float.ds_entry_preview_avatar_size'),
         square: true,
         initialsFontSize: $r('app.float.ds_font_avatar_initials'),
         initialsFontWeight: 600,
+        entranceScale: this.avatarEntranceScale,
         onDecodeError: () => DsToastHost.show(this.getUIContext(), $r('app.string.avatar_failed')),
       })
 
@@ -222,11 +224,15 @@ export struct EntryAvatarPicker {
         .backgroundColor($r('app.color.ds_scrim_strong'))
       }
     }
-    .width(AVATAR_SIZE)
-    .height(AVATAR_SIZE)
-    .backgroundColor($r('app.color.ds_surface_high'))
+    .width($r('app.float.ds_entry_preview_avatar_size'))
+    .height($r('app.float.ds_entry_preview_avatar_size'))
     .borderRadius($r('app.float.ds_radius_none'))
     .clip(true)
+    .geometryTransition(this.avatarTransitionKey)
+    .transition(TransitionEffect.OPACITY)
+    .onVisibleAreaChange([1], (visible: boolean, ratio: number) => {
+      this.onAvatarVisibilityChange(visible && ratio >= 1)
+    }, true)
     .enabled(!this.avatarBusy && !this.loadingGate.visible && !this.readOnly)
     .accessibilityText($r('app.string.avatar_menu_title'))
     .onHover((isHover: boolean) => {

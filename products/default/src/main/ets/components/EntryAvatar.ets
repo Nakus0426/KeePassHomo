@@ -1,5 +1,6 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { image } from '@kit.ImageKit'
+import { AnimationTokens } from '@ohos/common'
 import { LogUtil } from '@pura/harmony-utils'
 
 const EMPTY_TITLE_PLACEHOLDER: string = '?'
@@ -12,19 +13,19 @@ export struct EntryAvatar {
   @Param avatarSize: Length = $r('app.float.entry_card_avatar_size')
   @Param initialsFontSize: Length = $r('sys.float.Body_L')
   @Param initialsFontWeight: FontWeight | number = FontWeight.Bold
+  @Param entranceScale: number = 1
   // 方形瓦片供密集列表使用，圆角为 0。
   @Param square: boolean = false
-  // 无自定义头像时优先显示的模板图标，仍无则退回首字。
-  @Param fallbackIcon: Resource | undefined = undefined
-  @Param fallbackIconSize: Length = $r('app.float.ds_icon_sm')
   // 列表里静默退回首字；编辑态需要额外提示时由宿主接。
   @Event onDecodeError: () => void = () => {
   }
   @Local private avatarPixelMap: image.PixelMap | undefined = undefined
+  @Local private avatarScale: number = 1
   // 已解码的来源字节：列表节点换条目复用时据此判断旧图需先清空
   private decodedSource: ArrayBuffer | undefined = undefined
 
   aboutToAppear(): void {
+    this.avatarScale = this.entranceScale
     this.refreshPreview()
   }
 
@@ -36,7 +37,11 @@ export struct EntryAvatar {
   @Computed
   private get initials(): string {
     const title: string = this.title.trim()
-    return title.length === 0 ? EMPTY_TITLE_PLACEHOLDER : title.slice(0, 2).toUpperCase()
+    if (title.length === 0) {
+      return EMPTY_TITLE_PLACEHOLDER
+    }
+    const wordBoundary: RegExpMatchArray | null = title.match(/^[A-Z][a-z]+([A-Z])/)
+    return wordBoundary === null ? Array.from(title).slice(0, 2).join('').toUpperCase() : title[0] + wordBoundary[1]
   }
 
   private async refreshPreview(): Promise<void> {
@@ -72,11 +77,6 @@ export struct EntryAvatar {
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
-      } else if (this.fallbackIcon !== undefined) {
-        SymbolGlyph(this.fallbackIcon)
-          .fontSize(this.fallbackIconSize)
-          .fontColor([$r('app.color.ds_text_secondary')])
-          .foregroundColor($r('app.color.ds_text_secondary'))
       } else {
         Text(this.initials)
           .fontSize(this.initialsFontSize)
@@ -90,5 +90,11 @@ export struct EntryAvatar {
     .borderRadius(this.square ? $r('app.float.ds_radius_none') : '50%')
     .backgroundColor(this.square ? $r('app.color.ds_surface_high') : $r('sys.color.background_emphasize'))
     .clip(true)
+    .scale({ x: this.avatarScale, y: this.avatarScale })
+    .onAppear(() => {
+      if (this.avatarScale < 1) {
+        this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => this.avatarScale = 1)
+      }
+    })
   }
 }

@@ -1,15 +1,13 @@
-import { LengthMetrics, promptAction, UIContext } from '@kit.ArkUI'
-import { AnimationTokens, BounceAnimator, DelayedVisibility, measureVp, VaultGroup } from '@ohos/common'
+import { LengthMetrics, promptAction } from '@kit.ArkUI'
+import { AnimationTokens, BounceAnimator, DelayedVisibility, VaultGroup } from '@ohos/common'
 import { ResUtil } from '@pura/harmony-utils'
 import { GeneratorContent, GeneratorContentController } from '../generator/GeneratorComponents'
 import { DsBottomActionBar } from '../../components/DsBottomActionBar'
 import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
 import { DsButton, DsButtonTone, DsButtonVariant } from '../../components/DsButton'
-import { DsColorLadder } from '../../components/DsColorLadder'
 import { DsControlSize } from '../../components/DsControlSize'
 import { DsContextMenu } from '../../components/DsContextMenu'
 import { dsDatePickerSheetHeight, DsDatePickerMode, DsDatePickerSheet } from '../../components/DsDatePickerSheet'
-import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { DsDialog, DsDialogTone, dsDialogOptions } from '../../components/DsDialog'
 import { DsField } from '../../components/DsField'
 import { DsInput, DsInputTone } from '../../components/DsInput'
@@ -17,7 +15,6 @@ import { LIST_ROW_FADE_IN } from '../../components/ListRowEnterTransition'
 import { DsMenuGroup } from '../../components/DsMenuGroup'
 import { DsMenuItem, DsMenuItemTheme } from '../../components/DsMenuItem'
 import { DsNotice, DsNoticeTone } from '../../components/DsNotice'
-import { DsPageHeader, DsPageHeaderAction, DsPageHeaderSize } from '../../components/DsPageHeader'
 import { DsStrengthMeter } from '../../components/DsStrengthMeter'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { Status } from '../../components/FormItem'
@@ -47,15 +44,27 @@ const ADVANCED_HEADER_HEIGHT: number = 44
 const TITLE_LABEL_OFFSET: number = 20
 // 菜单与按钮的间距，设计稿的 8。
 const MENU_TARGET_SPACE: number = 8
+const EDITOR_SCROLL_ID: string = 'entry_edit_scroll'
 // 银行卡有效期：模板字段键，走 MM/YY 文本 + 年月选择器。
 const EXPIRY_FIELD_KEY: string = 'Expiry'
+
+export interface EntryEditorActions {
+  draft: EntryEditorViewModel
+  saveGate: DelayedVisibility
+  save: () => void
+  requestExit: () => void
+  toggleFavorite: () => Promise<void>
+}
 
 @ComponentV2
 export struct EntryEditorView {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Param bottomOffset: number = 0
-  @Event onWillDismissCheck: (handler: () => void) => void = () => {
-  }
+  @Require @Param scroller: Scroller
+  @Param avatarTransitionKey: string = ''
+  @Param avatarEntranceScale: number = 1
+  @Event onAvatarVisibilityChange: (visible: boolean) => void = (_visible: boolean) => {}
+  @Event onReady: (actions: EntryEditorActions) => void = (_actions: EntryEditorActions) => {}
   @Event onCancel: () => void = () => {
   }
   @Event onSaved: () => void = () => {
@@ -68,19 +77,12 @@ export struct EntryEditorView {
   @Local private generatorBottomBarHeight: number = 0
   @Local private groupPickerVisible: boolean = false
   @Local private advancedExpanded: boolean = false
-  // 底部固定操作栏实测高度（vp），内容按它避让。
-  @Local private bottomBarHeight: number = 0
-  @Local private deleteBusy: boolean = false
   // 返回 true 表示本次返回已被消费，半模态不收起。
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
   @Local private invalidFieldId: number = -1
   @Local private titleShake: number = 0
-  @Local private overflowHovered: boolean = false
-  @Local private overflowPressed: boolean = false
   private readonly viewModel: AppViewModel = appViewModel
-  private readonly scroller: Scroller = new Scroller()
   private readonly generatorController: GeneratorContentController = new GeneratorContentController()
-  private readonly deleteDialogController: promptAction.DialogController = new promptAction.DialogController()
   private readonly discardDialogController: promptAction.DialogController = new promptAction.DialogController()
   private bounce: BounceAnimator = new BounceAnimator()
   // 保存加载态延时门：超过 400ms 才显示脉冲，快速保存不闪烁。
@@ -92,7 +94,13 @@ export struct EntryEditorView {
     this.loadEditor()
     // 已有自定义字段或标签时默认展开，避免用户找不到自己的内容。
     this.advancedExpanded = this.editor.customFields().length > 0 || this.editor.tags.length > 0
-    this.onWillDismissCheck(() => this.requestExit())
+    this.onReady({
+      draft: this.editor,
+      saveGate: this.saveGate,
+      save: () => this.saveEntry(),
+      requestExit: () => this.requestExit(),
+      toggleFavorite: () => this.toggleFavorite(),
+    })
   }
 
   // 草稿与敏感状态要等转场结束、节点销毁后再清：官方禁止在转场过程中更新消失节点的属性。
@@ -125,12 +133,12 @@ export struct EntryEditorView {
   }
 
   @Computed
-  get advancedMeta(): string {
+  get advancedMeta(): Resource {
     const count: number = this.editor.customFields().length + this.editor.tags.length
     if (count === 0) {
-      return ResUtil.getStringSync($r('app.string.advanced_meta_placeholder'))
+      return $r('app.string.advanced_meta_placeholder')
     }
-    return ResUtil.getStringSync($r('app.string.advanced_item_count'), [count])
+    return $r('app.string.advanced_item_count', count)
   }
 
   @Computed
@@ -217,7 +225,7 @@ export struct EntryEditorView {
   private scrollToField(fieldKey: string): void {
     const componentUtils = this.getUIContext().getComponentUtils()
     const fieldTopPx: number = componentUtils.getRectangleById(`field_${fieldKey}`).windowOffset.y
-    const scrollTopPx: number = componentUtils.getRectangleById('entry_edit_scroll').windowOffset.y
+    const scrollTopPx: number = componentUtils.getRectangleById(EDITOR_SCROLL_ID).windowOffset.y
     const targetY: number = this.scroller.currentOffset().yOffset +
       this.getUIContext().px2vp(fieldTopPx - scrollTopPx)
     this.scroller.scrollTo({
@@ -254,63 +262,17 @@ export struct EntryEditorView {
     return this.viewModel.currentSource().readOnly
   }
 
-  private toggleFavorite(): void {
+  private async toggleFavorite(): Promise<void> {
     this.editor.favorite = !this.editor.favorite
     // 新建条目没有可写入的 uuid，收藏只改草稿，保存时随条目一起落库。
     if (this.isNewEntry) {
       return
     }
-    this.viewModel.toggleFavorite(this.editor.entryUuid).then(() => {
-      this.editor.favorite = this.viewModel.entry(this.editor.entryUuid).favorite
-    })
-  }
-
-  private duplicateEntry(): void {
-    if (this.isNewEntry || this.viewModel.busy) {
-      return
+    const uuid: string = this.editor.entryUuid
+    await this.viewModel.toggleFavorite(uuid)
+    if (this.editor.entryUuid === uuid) {
+      this.editor.favorite = this.viewModel.entry(uuid).favorite
     }
-    this.viewModel.duplicateEntry(this.editor.entryUuid).then((uuid: string) => {
-      if (uuid.length > 0) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.entry_copied'))
-      }
-    })
-  }
-
-  private openDeleteDialog(): void {
-    this.deleteBusy = false
-    this.getUIContext()
-      .getPromptAction()
-      .presentCustomDialog(() => this.deleteDialog(), this.deleteDialogController, dsDialogOptions())
-  }
-
-  private runDelete(): void {
-    if (this.isNewEntry) {
-      return
-    }
-    this.deleteBusy = true
-    this.viewModel.deleteEntry(this.editor.entryUuid).then((deleted: boolean) => {
-      this.deleteBusy = false
-      this.deleteDialogController.close()
-      if (deleted) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
-        this.sheet.close()
-      }
-    })
-  }
-
-  @LocalBuilder
-  private deleteDialog() {
-    DsDialog({
-      title: $r('app.string.delete_entry_title'),
-      message: $r('app.string.delete_entry_message'),
-      icon: $r('app.string.symbol_delete'),
-      tone: DsDialogTone.Error,
-      cancelLabel: $r('app.string.cancel'),
-      confirmLabel: $r('app.string.delete_entry'),
-      busy: this.deleteBusy,
-      onCancel: () => this.deleteDialogController.close(),
-      onConfirm: () => this.runDelete(),
-    })
   }
 
   @Computed
@@ -549,107 +511,6 @@ export struct EntryEditorView {
     })
   }
 
-  // 页头复用 DsPageHeader：标题 + 收藏 + 更多，更多承载复制副本与删除条目。
-  @LocalBuilder
-  private sheetHeader() {
-    DsPageHeader({
-      title: this.isNewEntry ? $r('app.string.new_entry') : $r('app.string.edit_entry'),
-      headerSize: DsPageHeaderSize.Small,
-      showBack: false,
-      // 关闭即退出编辑：有草稿先确认，保存中锁住。
-      showClose: true,
-      closeEnabled: !this.viewModel.busy,
-      onClose: () => this.requestExit(),
-      actions: this.headerActions,
-      // 收藏带切换动效，图标按钮表达不了，走动作区前置插槽。
-      actionsBuilder: this.favoriteAction,
-    })
-  }
-
-  // 「更多」里的复制与删除都要有已保存的条目，新建态只留收藏与关闭。
-  @Computed
-  get headerActions(): DsPageHeaderAction[] {
-    const actions: DsPageHeaderAction[] = []
-    if (this.isNewEntry) {
-      return actions
-    }
-    actions.push({
-      icon: $r('app.string.symbol_more'),
-      label: $r('app.string.more'),
-      // 点击由面板上覆盖的同尺寸透明节点接管，这里不处理。
-      onTap: () => {
-      },
-    })
-    return actions
-  }
-
-  // 透明点击层与页头「更多」按钮重合并随标题栏居中，同时给右侧的关闭按钮让位。
-  @Computed
-  get overflowButtonMargin(): Margin {
-    const uiContext: UIContext = this.getUIContext()
-    // 只取一次上下文，三处资源测量共用。
-    const handle: number = measureVp(uiContext, $r('app.float.ds_space_16'))
-    const header: number = measureVp(uiContext, $r('app.float.ds_page_header_height_sm'))
-    const button: number = measureVp(uiContext, $r('app.float.ds_button_height'))
-    return {
-      top: handle + (header - button) / 2,
-      right: measureVp(uiContext, $r('app.float.ds_gutter')) + button +
-        measureVp(uiContext, $r('app.float.ds_space_sm')),
-    }
-  }
-
-  @LocalBuilder
-  private favoriteAction() {
-    HeaderFavoriteAction({
-      editor: this.editor,
-      onToggle: () => this.toggleFavorite(),
-    })
-  }
-
-  @LocalBuilder
-  private overflowMenuHeader() {
-    Column() {
-      Text($r('app.string.more_actions'))
-        .fontSize($r('app.float.ds_font_body'))
-        .fontWeight(600)
-        .fontColor($r('app.color.ds_text_primary'))
-    }
-    .width('100%')
-    .padding({
-      top: $r('app.float.ds_space_md'),
-      bottom: $r('app.float.ds_space_md'),
-      left: $r('app.float.ds_gutter'),
-      right: $r('app.float.ds_gutter'),
-    })
-    .backgroundColor($r('app.color.ds_surface_low'))
-    .alignItems(HorizontalAlign.Start)
-  }
-
-  @LocalBuilder
-  private overflowMenu() {
-    DsContextMenu({
-      header: this.overflowMenuHeader,
-      content: this.overflowMenuItems,
-    })
-  }
-
-  @LocalBuilder
-  private overflowMenuItems() {
-    DsMenuItem({
-      icon: $r('app.string.symbol_copy'),
-      label: $r('app.string.entry_menu_duplicate'),
-      onAction: () => this.duplicateEntry(),
-    })
-    if (!this.readOnly) {
-      DsMenuItem({
-        icon: $r('app.string.symbol_delete'),
-        label: $r('app.string.delete_entry'),
-        theme: DsMenuItemTheme.Error,
-        onAction: () => this.openDeleteDialog(),
-      })
-    }
-  }
-
   // 头像与标题输入井对齐：字段标签行占 19，头像下沉同样高度后与输入井同顶。
   @LocalBuilder
   private titleRow() {
@@ -658,6 +519,9 @@ export struct EntryEditorView {
         EntryAvatarPicker({
           title: this.editor.title,
           avatarData: this.editor.avatarData,
+          avatarTransitionKey: this.avatarTransitionKey,
+          avatarEntranceScale: this.avatarEntranceScale,
+          onAvatarVisibilityChange: (visible: boolean) => this.onAvatarVisibilityChange(visible),
           readOnly: this.readOnly,
           onPicked: (data: ArrayBuffer) => this.editor.setAvatar(data),
           onReset: () => this.editor.clearAvatar(),
@@ -1011,7 +875,7 @@ export struct EntryEditorView {
       .padding({
         top: $r('app.float.ds_space_sm'),
         // 底部固定操作栏浮在内容上，按实测高度避让，否则「高级」区永远滚不出来。
-        bottom: this.bottomBarHeight + this.bottomOffset,
+        bottom: this.bottomOffset,
         left: $r('app.float.ds_gutter'),
         right: $r('app.float.ds_gutter'),
       })
@@ -1019,7 +883,7 @@ export struct EntryEditorView {
     }
     .width('100%')
     .height('100%')
-    .id('entry_edit_scroll')
+    .id(EDITOR_SCROLL_ID)
     .scrollBar(BarState.Off)
     // alwaysEnabled：内容不足一屏时也由滚动容器接管竖向手势，避免上下滑动拖动整个半模态。
     .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true, effectEdge: EffectEdge.START | EffectEdge.END })
@@ -1032,79 +896,9 @@ export struct EntryEditorView {
     .align(Alignment.Top)
   }
 
-  @LocalBuilder
-  private bottomActions() {
-    DsButton({
-      label: $r('app.string.save'),
-      loading: this.saveGate.visible,
-      fullWidth: true,
-      disabled: this.readOnly,
-      onTap: () => this.saveEntry(),
-    })
-  }
-
-  @LocalBuilder
-  private bottomBar() {
-    DsBottomActionBar({
-      onHeightChange: (height: number) => {
-        this.bottomBarHeight = height
-      },
-      contentBuilder: () => {
-        this.bottomActions()
-      },
-    })
-  }
-
   build() {
-    Stack({ alignContent: Alignment.TopEnd }) {
-      Stack() {
-        DsHalfModalSheet({
-          titleBarBuilder: this.sheetHeader,
-          // 不绑定滚动容器时标题栏材质常驻，内容还没上移就先出现一条模糊带。
-          scrollableScroller: this.scroller,
-          bodyBuilder: this.editorBody,
-          bottomBarBuilder: this.readOnly ? undefined : this.bottomBar,
-        })
-      }
-      .width('100%')
-      .height('100%')
-
-      // 「更多」的图标仍由页头绘制，点击由本层同尺寸节点接管：
-      // 系统菜单只有挂在可点击节点上才带模态遮罩，而标题栏内的菜单绑定不生效。
-      // 反馈色与 DsButton 文字态一致，接管点击后按钮的 hover / press 观感不丢。
-      if (!this.isNewEntry) {
-        Row()
-          .width($r('app.float.ds_button_height'))
-          .height($r('app.float.ds_button_height'))
-          .backgroundColor(this.overflowPressed
-            ? DsColorLadder.RING_MUTED
-            : (this.overflowHovered ? DsColorLadder.RING_SUBTLE : Color.Transparent))
-          .animation(AnimationTokens.FEEDBACK_ANIMATION)
-          .margin(this.overflowButtonMargin)
-          .onHover((isHover: boolean) => {
-            this.overflowHovered = isHover
-          })
-          .onTouch((event: TouchEvent) => {
-            if (event.type === TouchType.Down) {
-              this.overflowPressed = true
-              return
-            }
-            if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-              this.overflowPressed = false
-            }
-          })
-          .bindMenu(this.overflowMenu, {
-            placement: Placement.BottomRight,
-            targetSpace: LengthMetrics.vp(MENU_TARGET_SPACE),
-            borderRadius: $r('app.float.ds_radius_none'),
-            backgroundColor: $r('app.color.ds_surface_lowest'),
-            backgroundBlurStyle: BlurStyle.NONE,
-            mask: {
-              color: $r('app.color.ds_scrim'),
-              backgroundBlurStyle: BlurStyle.NONE,
-            },
-          })
-      }
+    Stack() {
+      this.editorBody()
     }
     .width('100%')
     .height('100%')
@@ -1115,23 +909,6 @@ export struct EntryEditorView {
         this.groupPickerBackHandler = undefined
       },
     }))
-  }
-}
-
-// 页头插槽内容放在独立组件里：HDS 标题栏的 builder 链不会随页面状态重建，
-// 由组件自己读编辑器模型，收藏变化时它自行刷新。
-@ComponentV2
-struct HeaderFavoriteAction {
-  @Require @Param editor: EntryEditorViewModel
-  @Event onToggle: () => void = () => {
-  }
-
-  build() {
-    FavoriteToggle({
-      favorite: this.editor.favorite,
-      iconSizeOverride: $r('app.float.ds_icon_md'),
-      onToggle: () => this.onToggle(),
-    })
   }
 }
 

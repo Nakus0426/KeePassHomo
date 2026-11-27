@@ -965,6 +965,34 @@
       "value": "最后修改 %s"
     },
     {
+      "name": "entry_preview_expand",
+      "value": "展开"
+    },
+    {
+      "name": "entry_preview_collapse",
+      "value": "收起"
+    },
+    {
+      "name": "entry_preview_copy_url",
+      "value": "复制网址"
+    },
+    {
+      "name": "entry_preview_open_url",
+      "value": "打开链接"
+    },
+    {
+      "name": "entry_preview_copy_content",
+      "value": "复制内容"
+    },
+    {
+      "name": "entry_preview_copy_holder",
+      "value": "复制持卡人"
+    },
+    {
+      "name": "entry_preview_copy_expiry",
+      "value": "复制有效期"
+    },
+    {
       "name": "entry_menu_template_login",
       "value": "登录"
     },
@@ -1078,7 +1106,7 @@
     },
     {
       "name": "advanced_item_count",
-      "value": "%s 项"
+      "value": "%d 项"
     },
     {
       "name": "advanced_meta_placeholder",

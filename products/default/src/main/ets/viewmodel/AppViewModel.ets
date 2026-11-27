@@ -44,7 +44,7 @@ import { UserCancelledError } from '../model/DocumentPicker'
 import { appSessionState } from '../state/AppSessionState'
 import { appRouter } from '../navigation/AppRouter'
 import { WelcomeParam } from '../navigation/RouteParams'
-import { EntryEditorViewModel, EntryFieldEditor } from './EntryEditorViewModel'
+import { EntryAttachmentEditor, EntryEditorViewModel, EntryFieldEditor } from './EntryEditorViewModel'
 import { definitionFor, isTemplateFieldKey, ItemTemplateDefinition } from '../model/EntryTemplateCatalog'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 import { GeneratorViewModel } from './GeneratorViewModel'
@@ -594,7 +594,17 @@ export class AppViewModel {
   // 复制为副本：沿用同一份草稿另存一条新条目，标题加后缀避免与源条目混淆。
   async duplicateEntry(entryUuid: string): Promise<string> {
     const editor: EntryEditorViewModel = new EntryEditorViewModel()
-    this.loadEntryForEdit(editor, entryUuid)
+    try {
+      this.loadEntryForEdit(editor, entryUuid)
+      const attachments: EntryAttachmentEditor[] = editor.visibleAttachments()
+      editor.syncAttachments([])
+      for (const attachment of attachments) {
+        editor.addAttachment(attachment.name, stageOneVaultStore.loadAttachment(entryUuid, attachment.name))
+      }
+    } catch (error) {
+      this.reportBoundaryError('复制条目失败', error)
+      return ''
+    }
     editor.title = `${editor.title}${ResUtil.getStringSync($r('app.string.entry_copy_suffix'))}`
     // 副本按新建处理：清空 uuid 与新建才消费的模板类型；头像要重新标记为写入，否则保持原值不会落盘。
     editor.entryUuid = ''

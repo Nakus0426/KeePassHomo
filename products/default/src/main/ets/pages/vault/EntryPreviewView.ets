@@ -1,208 +1,341 @@
-import { LengthMetrics, matrix4 } from '@kit.ArkUI'
+import { LengthMetrics } from '@kit.ArkUI'
+import { AnimationTokens, VaultFieldType } from '@ohos/common'
 import { AppViewModel, appViewModel } from '../../viewmodel/AppViewModel'
 import { AppSessionState, appSessionState } from '../../state/AppSessionState'
-import { EntrySheetViewModel, entrySheetViewModel } from '../../viewmodel/EntrySheetViewModel'
+import { ENTRY_FIELD_CARD_NUMBER } from '../../viewmodel/EntryPresentation'
+import {
+  EntryPreviewField, EntrySheetMode, EntrySheetViewModel, entrySheetViewModel,
+} from '../../viewmodel/EntrySheetViewModel'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { DsTag, DsTagSize } from '../../components/DsTag'
-import { IconToggleButton } from '../../components/IconToggleButton'
-import {
-  AnimationTokens,
-  ColorUtil,
-  ItemTemplate,
-  RESERVED_FIELD_NAMES,
-  VaultAttachmentMeta,
-  VaultField,
-  VaultFieldType,
-} from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
-import {
-  definitionFor,
-  isTemplateFieldKey,
-  ItemTemplateDefinition,
-  TemplateFieldDefinition,
-  TemplateFieldOption,
-} from '../../model/EntryTemplateCatalog'
 import { fieldTypeDefinition } from '../../model/FieldTypeCatalog'
-import { parseSshKeys, SSH_KEYS_FIELD, SshKeyDraft } from '../../model/SshKeyPayload'
 import { EntryAttachmentList } from './EntryAttachmentList'
+import { EntryPreviewBankCard } from './EntryPreviewBankCard'
 import { EntrySshKeyList } from './EntrySshKeyList'
-import { DsHalfModalSheet } from '../../components/DsHalfModalSheet'
-import { DsPageHeaderAction } from '../../components/DsPageHeader'
+import { DeferredAction } from '../../components/DeferredAction'
+import { DsButton, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu, dsContextMenuOptions } from '../../components/DsContextMenu'
+import { DsControlSize } from '../../components/DsControlSize'
+import { DsMenuGroup } from '../../components/DsMenuGroup'
+import { DsMenuItem } from '../../components/DsMenuItem'
 import { DsToastHost } from '../../components/DsToast'
+import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 
-const PASSWORD_MASK: string = '••••••••'
-// 与详情页既有显示时长一致；B04 统一切换到 PASSWORD_REVEAL_SECONDS 时改这一处。
+const PASSWORD_MASK: string = '********'
 const PREVIEW_REVEAL_SECONDS: number = 30
+const PROTECTION_TICK_MS: number = AnimationTokens.DURATION_FEEDBACK
+const MAX_TEXT_LINES: number = 2147483647
 
-const CARD_NUMBER_KEY: string = 'CardNumber'
-const CARD_TYPE_KEY: string = 'CardType'
-// 真实 ID-1 卡比例 85.6 / 54。
-const CARD_ASPECT: number = 1.585
-const CARD_DIGIT_GROUP: number = 4
-// 掩码长度固定，不泄露卡号位数。
-// 用 ASCII 星号而非 U+2022：圆点在 HarmonyOS Sans 中缺失，会回退成 CJK 全宽字形（约 1em），
-// 满字号下 16 点放不进卡内宽度，触发自适应缩字并让两态行高不一致。
-const CARD_NUMBER_MASK: string = '**** **** **** ****'
-// 卡面内元素比例统一以卡宽为基准：按卡高定的比例已除 CARD_ASPECT 折算过来。
-const CARD_NUMBER_FONT_RATIO: number = 0.06
-const CARD_NUMBER_SPACING_RATIO: number = 0.009
-const CARD_NUMBER_LEFT_RATIO: number = 0.06
-// 卡高 32%，保证整串卡号位于右下角 logo 之上。
-const CARD_NUMBER_BOTTOM_RATIO: number = 0.202
-// 卡高 22% 的方画布：最宽的 Discover 词标渲染宽约卡宽 18%，与真卡相当。
-const CARD_LOGO_SIZE_RATIO: number = 0.139
-const CARD_LOGO_RIGHT_RATIO: number = 0.055
-const CARD_LOGO_BOTTOM_RATIO: number = 0.044
-// 凸印：白字之下垫一层下移的黑影，受光面在上缘。
-const CARD_EMBOSS_OFFSET_RATIO: number = 0.0035
-// 极端长卡号（如 19 位）仍在单行内自适应缩字号，不换行。
-const CARD_NUMBER_MIN_FONT_SCALE: number = 0.7
-// 显隐交叉淡化的时长；两态各占一层，只互换透明度。
-const CARD_NUMBER_FADE_DURATION: number = 200
-// 按下瞬间的压入时长；抬起回正复用 STATE_TRANSITION_DURATION。
-const CARD_PRESS_DURATION: number = 120
-
-// 3D 按压倾斜：轴取手指相对卡心方向的垂直轴，倾角随偏离卡心距离线性增大。
-const CARD_TILT_MAX_ANGLE: number = 10
-// 相机距离取卡宽的倍数：绝对 px 会随屏幕密度改变透视强度（真实距离约卡宽 4 倍，取 3 倍做视觉强化）。
-const CARD_PERSPECTIVE_WIDTHS: number = 3
-const CARD_PRESS_SCALE: number = 0.97
-// 手指侧应被压下；若真机手感相反（手指侧被抬起），改这里即可。
-const CARD_TILT_SIGN: number = 1
-const CARD_GLARE_MAX_OPACITY: number = 0.38
-// 光带峰值不透明度，再乘按压深度控制整体亮度。
-const CARD_GLARE_PEAK_ALPHA: number = 0.55
-// 光带峰值靠近翘起侧：0 位在受压侧，1 位在翘起侧。
-const CARD_GLARE_PEAK_POSITION: number = 0.72
-// 受压侧压暗的最大不透明度。
-const CARD_SHADE_MAX_ALPHA: number = 0.22
-// 非刚体形变：受压角沿 z 额外下沉（占卡宽比例），二次分布把下沉集中在受压角。
-const CARD_PRESS_SINK_RATIO: number = 0.06
-// 内容视差：浮起的卡号与 logo 相对卡面朝受压方向外移，取卡宽比例作视觉夸张。
-const CARD_PARALLAX_RATIO: number = 0.012
-const CARD_RIM_MAX_OPACITY: number = 0.45
-// ShadowOptions 的 radius / offset 单位是 px，由 vp2px 换算。
-const CARD_SHADOW_RADIUS_VP: number = 26
-const CARD_SHADOW_OFFSET_VP: number = 6
-
-interface CardFaceMetrics {
-  numberFontSize: number;
-  numberSpacing: number;
-  numberLeft: number;
-  numberBottom: number;
-  embossOffset: number;
-  logoSize: number;
-  logoRight: number;
-  logoBottom: number;
+@ObservedV2
+class EntryPreviewProtection {
+  @Trace revealed: boolean = false
+  @Trace remainingSeconds: number = 0
+  expiresAt: number = 0
 }
 
-interface MatrixPoint {
-  x: number;
-  y: number;
+@Extend(Text)
+function previewValueStyle(fontFamily: string, maxLines: number) {
+  .width('100%')
+  .fontSize($r('app.float.ds_font_title'))
+  .lineHeight($r('app.float.ds_entry_preview_value_line_height'))
+  .fontWeight(600)
+  .fontFamily(fontFamily)
+  .fontFeature('"tnum" 1')
+  .fontColor($r('app.color.ds_text_primary'))
+  .maxLines(maxLines)
+  .textOverflow({ overflow: TextOverflow.Ellipsis })
+  .wordBreak(WordBreak.BREAK_ALL)
 }
 
 @ComponentV2
-struct Cell {
-  // 命中枚举的取值可传银行图标或字段类型图标；两者都缺省时无图标位。
-  @Param iconImage: Resource | undefined = undefined
-  @Param icon: Resource | undefined = undefined
-  @Require @Param label: ResourceStr
-  @Param value: string = ''
-  @Param valueExpanded: boolean = false
-  @Param clickable: boolean = true
-  @Param showTrailingButton: boolean = false
-  @Param trailingSymbol: Resource = $r('app.string.symbol_chevron_down')
-  @Param showExpandedContent: boolean = false
-  @Param expandedContent: string = ''
-  @Event onTrailingClick: () => void = () => {
+struct EntryPreviewFieldCard {
+  @Param @Require field: EntryPreviewField
+  @Param maskedValue: string = PASSWORD_MASK
+  @Param protection: EntryPreviewProtection | undefined = undefined
+  @Param expanded: boolean = false
+  @Event onCopy: (field: EntryPreviewField) => void = (_field: EntryPreviewField) => {}
+  @Event onOpen: (field: EntryPreviewField) => void = (_field: EntryPreviewField) => {}
+  @Event onReveal: () => void = () => {}
+  @Event onExpand: () => void = () => {}
+  @Local private valueWidth: number = 0
+  @Local private singleLineHeight: number = 0
+  @Local private fullTextHeight: number = 0
+  private readonly deferred: DeferredAction = new DeferredAction()
+
+  @Computed
+  get isLink(): boolean {
+    return !this.field.protectedValue && this.field.type === VaultFieldType.Url
   }
-  @Event onCellClick: () => void = () => {
+
+  @Computed
+  get expandable(): boolean {
+    if (this.field.protectedValue || this.isLink || this.field.value.length === 0) {
+      return false
+    }
+    if (this.field.value.includes('\n')) {
+      return true
+    }
+    if (this.valueWidth <= 0) {
+      return false
+    }
+    const context: UIContext = this.getUIContext()
+    const textWidth: number = context.getMeasureUtils().measureText({
+      textContent: this.field.value,
+      fontSize: $r('app.float.ds_font_title'),
+      fontWeight: 600,
+    })
+    return textWidth > context.vp2px(this.valueWidth)
   }
-  @BuilderParam trailingBuilder?: () => void
-  @BuilderParam extraBuilder?: () => void
+
+  @Computed
+  private get revealed(): boolean {
+    return this.protection?.revealed === true
+  }
+
+  @Computed
+  get displayValue(): string {
+    const text: string = this.field.value
+    if (text.length === 0) {
+      return ' '
+    }
+    if (this.field.protectedValue && !this.revealed) {
+      return this.maskedValue
+    }
+    const newline: number = text.indexOf('\n')
+    if (newline < 0) {
+      return text
+    }
+    return text.substring(0, text[newline - 1] === '\r' ? newline - 1 : newline)
+  }
+
+  @Computed
+  private get valueViewportHeight(): Length {
+    if (this.expanded && this.fullTextHeight > 0) {
+      return this.fullTextHeight
+    }
+    return this.singleLineHeight || $r('app.float.ds_entry_preview_value_line_height')
+  }
+
+  @Computed
+  get expandLabel(): Resource {
+    return this.expanded ? $r('app.string.entry_preview_collapse') : $r('app.string.entry_preview_expand')
+  }
+
+  @Computed
+  get expandIcon(): Resource {
+    return this.expanded ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down')
+  }
+
+  @Computed
+  get copyLabel(): Resource {
+    if (this.field.protectedValue && this.field.type === VaultFieldType.Password && this.field.key !== ENTRY_FIELD_CARD_NUMBER) {
+      return $r('app.string.entry_menu_copy_password')
+    }
+    if (this.isLink) {
+      return $r('app.string.entry_preview_copy_url')
+    }
+    return this.expandable ? $r('app.string.entry_preview_copy_content') : $r('app.string.copy_field_value')
+  }
+
+  private quickAction(): void {
+    if (this.isLink) {
+      this.onOpen(this.field)
+    } else if (this.expandable) {
+      this.toggleExpanded()
+    } else {
+      this.onCopy(this.field)
+    }
+  }
+
+  private toggleExpanded(): void {
+    this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => this.onExpand())
+  }
+
+  @Computed
+  private get fieldMenuOptions(): ContextMenuOptions {
+    const options: ContextMenuOptions = dsContextMenuOptions(() => this.deferred.run(), Placement.BottomRight)
+    // 菜单截图不会随倒计时更新，明文状态下禁用截图预览。
+    if (this.revealed) {
+      options.preview = MenuPreviewMode.NONE
+    }
+    return options
+  }
+
+  @LocalBuilder
+  private menuHeader() {
+    Row({ space: $r('app.float.ds_space_sm') }) {
+      Text(this.field.label)
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+      DsTag({ tagSize: DsTagSize.Small, text: fieldTypeDefinition(this.field.type).label })
+    }
+    .width('100%')
+    .padding({
+      top: $r('app.float.ds_space_md'), bottom: $r('app.float.ds_space_md'),
+      left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+  }
+
+  @LocalBuilder
+  private menuItems() {
+    DsMenuItem({ icon: $r('app.string.symbol_copy'), label: this.copyLabel, onAction: () => this.onCopy(this.field) })
+    if (this.field.protectedValue) {
+      DsMenuItem({
+        icon: this.revealed ? $r('app.string.symbol_eye_off') : $r('app.string.symbol_eye'),
+        label: this.field.type === VaultFieldType.Password && this.field.key !== ENTRY_FIELD_CARD_NUMBER
+          ? (this.revealed ? $r('app.string.hide_password') : $r('app.string.show_password'))
+          : (this.revealed ? $r('app.string.hide') : $r('app.string.show')),
+        onAction: () => this.deferred.defer(() => this.onReveal()),
+      })
+    } else if (this.isLink) {
+      DsMenuItem({
+        icon: $r('app.string.symbol_open_in_new'), label: $r('app.string.entry_preview_open_url'),
+        onAction: () => this.deferred.defer(() => this.onOpen(this.field)),
+      })
+    } else if (this.expandable) {
+      DsMenuItem({
+        icon: this.expandIcon, label: this.expandLabel,
+        onAction: () => this.deferred.defer(() => this.toggleExpanded()),
+      })
+    }
+  }
+
+  @LocalBuilder
+  private menuContent() {
+    DsMenuGroup({ content: this.menuItems })
+  }
+
+  @LocalBuilder
+  private fieldMenu(_response: ResponseType) {
+    DsContextMenu({ header: this.menuHeader, content: this.menuContent })
+  }
+
+  @LocalBuilder
+  private expandableValue() {
+    // 内层只负责裁剪。全文按自然高度排版，折叠时也能从顶部逐行收回。
+    Scroll() {
+      Stack({ alignContent: Alignment.TopStart }) {
+        Text(this.field.value)
+          .previewValueStyle('HarmonyOS Sans SC', MAX_TEXT_LINES)
+          .accessibilityLevel(this.expanded ? 'auto' : 'no')
+          .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+            this.fullTextHeight = size.height as number
+          })
+        Text(this.displayValue)
+          .previewValueStyle('HarmonyOS Sans SC', 1)
+          .backgroundColor($r('app.color.ds_surface_low'))
+          .opacity(this.expanded ? 0 : 1)
+          .accessibilityLevel(this.expanded ? 'no' : 'auto')
+          .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+            this.singleLineHeight = size.height as number
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .height(this.valueViewportHeight)
+    .align(Alignment.TopStart)
+    .renderFit(RenderFit.TOP_LEFT)
+    .scrollBar(BarState.Off)
+    .enableScrollInteraction(false)
+    .hitTestBehavior(HitTestMode.None)
+    .accessibilityLevel('no')
+    .clip(true)
+  }
+
+  @LocalBuilder
+  private expandChevron() {
+    if (this.expandable) {
+      SymbolGlyph($r('app.string.symbol_chevron_down'))
+        .fontSize($r('app.float.ds_icon_sm'))
+        .fontColor([$r('app.color.ds_text_primary')])
+        .foregroundColor($r('app.color.ds_text_primary'))
+        .rotate({ angle: this.expanded ? 180 : 0 })
+    }
+  }
 
   build() {
-    ListItem() {
-      Column() {
-        Row({ space: $r('app.float.ds_space_xs') }) {
-          if (this.iconImage !== undefined) {
-            Image(this.iconImage)
-              .draggable(false)
-              .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
-              .height($r('sys.float.ohos_id_min_circle_button_icon_size'))
-              .objectFit(ImageFit.Contain)
-              .flexShrink(0)
-          } else if (this.icon !== undefined) {
-            SymbolGlyph(this.icon)
-              .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
-              .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-              .fontColor([$r('app.color.ds_primary')])
-              .foregroundColor($r('app.color.ds_primary'))
-          }
+    Stack({ alignContent: Alignment.BottomStart }) {
+      Row({ space: $r('app.float.ds_space_md') }) {
+        if (this.field.iconImage !== undefined) {
+          Image(this.field.iconImage)
+            .draggable(false)
+            .width($r('app.float.ds_icon_md'))
+            .height($r('app.float.ds_icon_md'))
+            .objectFit(ImageFit.Contain)
+        } else {
+          SymbolGlyph(this.field.icon ?? $r('app.string.symbol_notes'))
+            .fontSize($r('app.float.ds_icon_md'))
+            .fontColor([$r('app.color.ds_text_secondary')])
+            .foregroundColor($r('app.color.ds_text_secondary'))
+        }
 
-          Column({ space: $r('app.float.ds_space_xs') }) {
-            Text(this.label)
-              .fontSize($r('sys.float.Body_M'))
-              .fontColor($r('app.color.ds_text_secondary'))
-            if (this.valueExpanded) {
-              Text(this.value.length > 0 ? this.value : ' ')
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('app.color.ds_text_primary'))
-                .fontWeight(FontWeight.Medium)
-                .wordBreak(WordBreak.BREAK_ALL)
-            } else {
-              Text(this.value.length > 0 ? this.value : ' ')
-                .fontSize($r('sys.float.Body_L'))
-                .fontColor($r('app.color.ds_text_primary'))
-                .fontWeight(FontWeight.Medium)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .wordBreak(WordBreak.BREAK_ALL)
-            }
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-
-          if (this.trailingBuilder !== undefined) {
-            Row({ space: $r('app.float.ds_space_xs') }) {
-              this.trailingBuilder()
-            }
-            .alignSelf(ItemAlign.Center)
-          }
-          if (this.showTrailingButton) {
-            IconToggleButton({
-              symbol: this.trailingSymbol,
-              accessibilityLabel: $r('app.string.notes'),
-              exclusive: true,
-              onToggle: () => this.onTrailingClick(),
-            })
+        Column({ space: $r('app.float.ds_space_2') }) {
+          Text(this.field.label)
+            .fontSize($r('app.float.ds_font_label_md'))
+            .lineHeight($r('app.float.ds_entry_preview_label_line_height'))
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ds_text_secondary'))
+          if (this.expandable) {
+            this.expandableValue()
+          } else {
+            Text(this.displayValue)
+              .previewValueStyle(this.field.protectedValue ? PASSWORD_FONT_FAMILY : 'HarmonyOS Sans SC', 1)
           }
         }
-        .alignItems(VerticalAlign.Top)
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        .onSizeChange((oldValue: SizeOptions, newValue: SizeOptions) => {
+          if (newValue.width !== oldValue.width) {
+            this.valueWidth = newValue.width as number
+          }
+        })
 
-        if (this.extraBuilder !== undefined) {
-          this.extraBuilder()
-        }
+        DsButton({
+          variant: DsButtonVariant.Text,
+          buttonSize: DsControlSize.Small,
+          iconOnly: true,
+          leadingIcon: this.expandable ? undefined
+            : (this.isLink ? $r('app.string.symbol_open_in_new') : $r('app.string.symbol_copy')),
+          iconSizeOverride: $r('app.float.ds_icon_sm'),
+          iconColorOverride: $r('app.color.ds_text_primary'),
+          contentBuilder: this.expandChevron,
+          accessibilityLabelResource: this.expandable ? this.expandLabel
+            : (this.isLink ? $r('app.string.entry_preview_open_url') : this.copyLabel),
+          disabled: this.field.value.length === 0,
+          onTap: () => this.quickAction(),
+        })
       }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+      .padding({
+        top: $r('app.float.ds_space_14'), bottom: $r('app.float.ds_space_14'),
+        left: $r('app.float.ds_gutter'), right: $r('app.float.ds_gutter'),
+      })
 
+      if ((this.protection?.remainingSeconds ?? 0) > 0) {
+        Row() {
+          Row()
+            .width('100%')
+            .height('100%')
+            .backgroundColor($r('app.color.ds_primary'))
+            .scale({ x: (this.protection?.remainingSeconds ?? 0) / PREVIEW_REVEAL_SECONDS, centerX: 0 })
+            .animation({ duration: PROTECTION_TICK_MS, curve: Curve.Linear })
+        }
+        .width('100%')
+        .height($r('app.float.ds_space_2'))
+        .backgroundColor($r('app.color.ds_surface_highest'))
+        .hitTestBehavior(HitTestMode.None)
+      }
     }
-    .padding($r('app.float.ds_space_6'))
-    .margin($r('app.float.ds_space_2'))
-    .stateStyles({
-      normal: {
-        .backgroundColor(Color.Transparent)
-      },
-      pressed: {
-        .backgroundColor(this.clickable ? $r('app.color.ds_default_press') : Color.Transparent)
-      },
-    })
-    .borderRadius($r('sys.float.corner_radius_level8'))
-    .onClick(() => {
-      if (!this.clickable) {
-        return
-      }
-      this.onCellClick()
-    })
+    .width('100%')
+    .backgroundColor($r('app.color.ds_surface_low'))
+    .bindContextMenuWithResponse(this.field.value.length > 0 ? this.fieldMenu : undefined, this.fieldMenuOptions)
   }
 }
 
@@ -210,849 +343,239 @@ struct Cell {
 export struct EntryPreviewView {
   @Param sheet: EntrySheetViewModel = entrySheetViewModel
   @Param bottomOffset: number = 0
-  @Event onClose: () => void = () => {
-  }
-  @Event onEdit: () => void = () => {
-  }
+  @Require @Param scroller: Scroller
+  @Param initialScrollOffset: number = 0
+  @Param avatarTransitionKey: string = ''
+  @Param avatarEntranceScale: number = 1
+  @Event onAvatarVisibilityChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Local private session: AppSessionState = appSessionState
-  // 明文可见性是敏感状态，只在预览体存活期间有效，绝不外提；受保护字段共用一套倒计时。
-  @Local private revealedKeys: Set<string> = new Set<string>()
-  @Local private revealSeconds: number = 0
-  // 卡面元素全部按卡宽比例定位，宽度由 onAreaChange 实测。
-  @Local private cardWidthVp: number = 0
-  // 3D 按压倾斜：手指相对卡心的归一化偏移（-1~1）与按压深度，跟手期间直接绑定。
-  @Local private cardPressed: boolean = false
-  @Local private cardTiltNx: number = 0
-  @Local private cardTiltNy: number = 0
-  @Local private cardPressDepth: number = 0
-  private revealTimer: number = -1
+  @Local private protectedFields: Map<string, EntryPreviewProtection> = new Map<string, EntryPreviewProtection>()
+  private protectionTimer: number = -1
+  private previewEpoch: number = 0
   private readonly viewModel: AppViewModel = appViewModel
 
-  private needsExpansion(value: string): boolean {
-    return value.includes('\n') || value.length > 48
-  }
-
-  @Computed
-  private get notes(): string {
-    return this.fieldValue('Notes')
-  }
-
-  @Computed
-  private get definition(): ItemTemplateDefinition {
-    return definitionFor(this.sheet.template)
-  }
-
-  // 「其他」区：既不是 KDBX 保留字段，也不属于当前模板定义。
-  @Computed
-  private get customFields(): VaultField[] {
-    return this.sheet.fields.filter((field: VaultField) =>
-    !RESERVED_FIELD_NAMES.includes(field.name) && !isTemplateFieldKey(this.sheet.template, field.name))
-  }
-
-  // 附件只展示名字与体积；增删与导出在编辑页完成。
-  @Computed
-  private get attachments(): VaultAttachmentMeta[] {
-    return this.sheet.previewEntry?.attachments ?? []
-  }
-
-  // SSH 密钥行由卡片列表渲染，不进字段行。
-  @Computed
-  private get previewFields(): TemplateFieldDefinition[] {
-    return this.definition.fields.filter((field: TemplateFieldDefinition) =>
-    !field.attachments && !field.sshKeys)
-  }
-
-  @Computed
-  private get sshKeys(): SshKeyDraft[] {
-    return parseSshKeys(this.fieldValue(SSH_KEYS_FIELD))
-  }
-
-  // 卡面只在信用卡模板出现；其它模板没有卡号与卡类型字段。
-  @Computed
-  private get showBankCard(): boolean {
-    return this.definition.template === ItemTemplate.CreditCard
-  }
-
-  @Computed
-  private get cardMetrics(): CardFaceMetrics {
-    const width: number = this.cardWidthVp
-    return {
-      numberFontSize: width * CARD_NUMBER_FONT_RATIO,
-      numberSpacing: width * CARD_NUMBER_SPACING_RATIO,
-      numberLeft: width * CARD_NUMBER_LEFT_RATIO,
-      numberBottom: width * CARD_NUMBER_BOTTOM_RATIO,
-      embossOffset: width * CARD_EMBOSS_OFFSET_RATIO,
-      logoSize: width * CARD_LOGO_SIZE_RATIO,
-      logoRight: width * CARD_LOGO_RIGHT_RATIO,
-      logoBottom: width * CARD_LOGO_BOTTOM_RATIO,
-    }
-  }
-
-  // 卡面固定浅灰，故取不随深浅色变的彩色版 cardIcon，而非菜单用的 icon。
-  // 自定义卡类型无银行 logo，字段行保持系统符号；卡面右下角同样不放图。
-  @Computed
-  private get cardLogo(): Resource | undefined {
-    const cardType: string = this.fieldValue(CARD_TYPE_KEY)
-    const field: TemplateFieldDefinition | undefined =
-      this.definition.fields.find((definition: TemplateFieldDefinition) => definition.key === CARD_TYPE_KEY)
-    if (cardType.length === 0 || field === undefined) {
-      return undefined
-    }
-    const matched: TemplateFieldOption | undefined =
-      field.options.find((option: TemplateFieldOption) => option.value === cardType)
-    return matched?.cardIcon
-  }
-
-  // 列表行底色随深浅色变化，用主题切换版图标；卡面固定浅灰才用彩色版。
-  @Computed
-  private get cardTypeIcon(): Resource | undefined {
-    const cardType: string = this.fieldValue(CARD_TYPE_KEY)
-    const field: TemplateFieldDefinition | undefined =
-      this.definition.fields.find((definition: TemplateFieldDefinition) => definition.key === CARD_TYPE_KEY)
-    if (cardType.length === 0 || field === undefined) {
-      return undefined
-    }
-    const matched: TemplateFieldOption | undefined =
-      field.options.find((option: TemplateFieldOption) => option.value === cardType)
-    return matched?.icon
-  }
-
-  // 掩码态与明文态各占一层并同时在场，只交换透明度，避免换字时的字形跳变。
-  @Computed
-  private get cardNumberRevealed(): boolean {
-    return this.cardNumberDigits.length > 0 && this.revealedKeys.has(CARD_NUMBER_KEY)
-  }
-
-  @Computed
-  private get cardNumberDigits(): string {
-    const raw: string = this.fieldValue(CARD_NUMBER_KEY).replace(/\s+/g, '')
-    return raw.length === 0 ? '' : this.groupDigits(raw)
-  }
-
-  // 绕平面内垂直轴旋转（受压侧 z 下沉、翘起侧抬起）+ 受压角额外下沉，再按相机距离做透视投影，
-  // 四角目标点交给 setPolyToPoly 一次成型；按下缩放直接折进目标点，不另开 scale。
-  @Computed
-  private get cardTransform(): matrix4.Matrix4Transit {
-    const widthPx: number = this.getUIContext().vp2px(this.cardWidthVp)
-    const depth: number = this.cardPressDepth
-    const radius: number = Math.sqrt(this.cardTiltNx * this.cardTiltNx + this.cardTiltNy * this.cardTiltNy)
-    if (widthPx <= 0 || depth === 0 || radius === 0) {
-      return matrix4.identity()
-    }
-    const heightPx: number = widthPx / CARD_ASPECT
-    const halfWidth: number = widthPx / 2
-    const halfHeight: number = heightPx / 2
-    const perspectivePx: number = widthPx * CARD_PERSPECTIVE_WIDTHS
-    const dirX: number = this.cardTiltNx / radius
-    const dirY: number = this.cardTiltNy / radius
-    const tilt: number = CARD_TILT_MAX_ANGLE * depth * CARD_TILT_SIGN * Math.PI / 180
-    const sinTilt: number = Math.sin(tilt)
-    const cosTilt: number = Math.cos(tilt)
-    // 四角在受压方向上的最大投影，用于把"受压角下沉"归一化成二次权重。
-    const maxProjection: number = halfWidth * Math.abs(dirX) + halfHeight * Math.abs(dirY)
-    const pressScale: number = this.cardPressed ? CARD_PRESS_SCALE : 1
-    const corners: MatrixPoint[] = [
-      { x: -halfWidth, y: -halfHeight },
-      { x: halfWidth, y: -halfHeight },
-      { x: halfWidth, y: halfHeight },
-      { x: -halfWidth, y: halfHeight },
-    ]
-    const src: MatrixPoint[] = [
-      { x: 0, y: 0 },
-      { x: widthPx, y: 0 },
-      { x: widthPx, y: heightPx },
-      { x: 0, y: heightPx },
-    ]
-    const dst: MatrixPoint[] = []
-    for (const corner of corners) {
-      const projection: number = corner.x * dirX + corner.y * dirY
-      let z: number = -projection * sinTilt
-      const pressedWeight: number = maxProjection === 0 ? 0 : projection / maxProjection
-      if (pressedWeight > 0) {
-        z -= CARD_PRESS_SINK_RATIO * widthPx * depth * pressedWeight * pressedWeight
-      }
-      // 平面内分量：绕垂直轴旋转还会带一点沿轴向的平移。
-      const axial: number = -dirY * corner.x + dirX * corner.y
-      const planarX: number = corner.x * cosTilt - dirY * axial * (1 - cosTilt)
-      const planarY: number = corner.y * cosTilt + dirX * axial * (1 - cosTilt)
-      const factor: number = perspectivePx / (perspectivePx - z) * pressScale
-      dst.push({ x: halfWidth + planarX * factor, y: halfHeight + planarY * factor })
-    }
-    return matrix4.identity().setPolyToPoly({ src: src, dst: dst, pointCount: 4 })
-  }
-
-  // 光轴背离受压侧：0 位落在受压侧、1 位落在翘起侧，明暗与光带共用这根轴。
-  // linearGradient 角度约定为 0° 由下往上、顺时针为正，故屏幕向量的角度取 atan2(x, -y)。
-  @Computed
-  private get cardLightAngle(): number {
-    return Math.atan2(-this.cardTiltNx, this.cardTiltNy) * 180 / Math.PI
-  }
-
-  // 视差方向按透视投影推导：浮起的内容会被放大，故相对卡面朝受压侧外移。
-  private cardShiftScale(): number {
-    const radius: number = Math.sqrt(this.cardTiltNx * this.cardTiltNx + this.cardTiltNy * this.cardTiltNy)
-    if (radius === 0) {
-      return 0
-    }
-    return CARD_PARALLAX_RATIO * this.cardWidthVp * this.cardPressDepth / radius
-  }
-
-  @Computed
-  private get cardShiftX(): number {
-    return this.cardShiftScale() * this.cardTiltNx
-  }
-
-  @Computed
-  private get cardShiftY(): number {
-    return this.cardShiftScale() * this.cardTiltNy
-  }
-
-  @Computed
-  private get cardGlareOpacity(): number {
-    return CARD_GLARE_MAX_OPACITY * this.cardPressDepth
-  }
-
-  @Computed
-  private get cardRimOpacity(): number {
-    return CARD_RIM_MAX_OPACITY * this.cardPressDepth
-  }
-
-  @Computed
-  private get cardShadow(): ShadowOptions {
-    const depth: number = this.cardPressDepth
-    const offset: number = this.getUIContext().vp2px(CARD_SHADOW_OFFSET_VP * depth)
-    return {
-      radius: this.getUIContext().vp2px(CARD_SHADOW_RADIUS_VP * (0.5 + 0.5 * depth)),
-      color: ColorUtil.withAlpha($r('sys.color.black'), 0.12 + 0.10 * depth),
-      offsetX: -this.cardTiltNx * offset,
-      offsetY: -this.cardTiltNy * offset,
-    }
-  }
-
-  private groupDigits(raw: string): string {
-    const groups: string[] = []
-    for (let index: number = 0; index < raw.length; index += CARD_DIGIT_GROUP) {
-      groups.push(raw.substring(index, index + CARD_DIGIT_GROUP))
-    }
-    return groups.join(' ')
-  }
-
-  // TouchObject.x/y 单位是 vp、以卡面左上角为原点，这里换算成相对卡心的归一化偏移。
-  private trackCardPress(x: number, y: number): void {
-    const halfWidth: number = this.cardWidthVp / 2
-    const halfHeight: number = this.cardWidthVp / CARD_ASPECT / 2
-    if (halfWidth <= 0 || halfHeight <= 0) {
-      return
-    }
-    const nx: number = Math.max(-1, Math.min(1, (x - halfWidth) / halfWidth))
-    const ny: number = Math.max(-1, Math.min(1, (y - halfHeight) / halfHeight))
-    this.cardTiltNx = nx
-    this.cardTiltNy = ny
-    this.cardPressDepth = Math.min(1, Math.sqrt(nx * nx + ny * ny))
-  }
-
-  // 跟手期间不加过渡动画：Move 直接改状态，只有按下与抬起两段用 animateTo 包裹。
-  private onCardTouch(event: TouchEvent): void {
-    const touch: TouchObject | undefined = event.touches[0]
-    if (touch === undefined) {
-      return
-    }
-    switch (event.type) {
-      case TouchType.Down:
-        this.getUIContext().animateTo({
-          duration: CARD_PRESS_DURATION,
-          curve: AnimationTokens.STATE_TRANSITION_CURVE,
-        }, () => {
-          this.cardPressed = true
-          this.trackCardPress(touch.x, touch.y)
-        })
-        break
-      case TouchType.Move:
-        this.trackCardPress(touch.x, touch.y)
-        break
-      case TouchType.Up:
-      case TouchType.Cancel:
-        this.releaseCard()
-        break
-      default:
-        break
-    }
-  }
-
-  private releaseCard(): void {
-    this.getUIContext().animateTo({
-      duration: AnimationTokens.STATE_TRANSITION_DURATION,
-      curve: AnimationTokens.STATE_TRANSITION_CURVE,
-    }, () => {
-      this.cardPressed = false
-      this.cardTiltNx = 0
-      this.cardTiltNy = 0
-      this.cardPressDepth = 0
-    })
-  }
-
   aboutToDisappear(): void {
-    this.hideRevealed()
+    this.clearProtection()
   }
 
-  @Monitor('session.sensitiveEpoch')
-  onSensitiveStateChanged(): void {
-    this.hideRevealed()
+  @Monitor('session.sensitiveEpoch', 'sheet.entryUuid', 'sheet.visible', 'sheet.mode')
+  onPreviewChanged(): void {
+    this.clearProtection()
   }
 
-  private fieldValue(name: string): string {
-    return this.sheet.fields.find((field: VaultField) => field.name === name)?.value ?? ''
+  private stopProtectionTimer(): void {
+    clearInterval(this.protectionTimer)
+    this.protectionTimer = -1
   }
 
-  private templateValue(definition: TemplateFieldDefinition): string {
-    return this.fieldValue(definition.reservedField.length > 0 ? definition.reservedField : definition.key)
+  private clearProtection(): void {
+    this.previewEpoch++
+    this.stopProtectionTimer()
+    this.protectedFields.clear()
   }
 
-  private clearRevealTimer(): void {
-    if (this.revealTimer >= 0) {
-      clearInterval(this.revealTimer)
-      this.revealTimer = -1
+  private tickProtection(): void {
+    const now: number = Date.now()
+    for (const entry of this.protectedFields.entries()) {
+      const state: EntryPreviewProtection = entry[1]
+      const remaining: number = (state.expiresAt - now) / 1000
+      if (remaining > 0) {
+        state.remainingSeconds = remaining
+      } else {
+        state.revealed = false
+        state.remainingSeconds = 0
+        this.protectedFields.delete(entry[0])
+      }
+    }
+    if (this.protectedFields.size === 0) {
+      this.stopProtectionTimer()
     }
   }
 
-  private hideRevealed(): void {
-    this.clearRevealTimer()
-    this.revealedKeys = new Set<string>()
-    this.revealSeconds = 0
+  private startProtectionTimer(key: string, revealed: boolean): void {
+    let state: EntryPreviewProtection | undefined = this.protectedFields.get(key)
+    if (state === undefined) {
+      state = new EntryPreviewProtection()
+      this.protectedFields.set(key, state)
+    }
+    state.expiresAt = Date.now() + PREVIEW_REVEAL_SECONDS * 1000
+    state.revealed = revealed
+    state.remainingSeconds = PREVIEW_REVEAL_SECONDS
+    if (this.protectionTimer < 0) {
+      this.protectionTimer = setInterval(() => this.tickProtection(), PROTECTION_TICK_MS)
+    }
   }
 
-  // Set 原地增删不触发 @Trace 通知，整体替换。
-  private startRevealTimeout(key: string): void {
-    this.clearRevealTimer()
-    const next: Set<string> = new Set(this.revealedKeys)
-    next.add(key)
-    this.revealedKeys = next
-    this.revealSeconds = PREVIEW_REVEAL_SECONDS
-    this.revealTimer = setInterval(() => {
-      this.revealSeconds--
-      if (this.revealSeconds <= 0) {
-        this.hideRevealed()
-      }
-    }, 1000)
+  private isRevealed(key: string): boolean {
+    const state: EntryPreviewProtection | undefined = this.protectedFields.get(key)
+    return state !== undefined && state.revealed && state.expiresAt > Date.now()
   }
 
   private toggleReveal(key: string): void {
-    if (this.revealedKeys.has(key)) {
-      this.hideRevealed()
+    if (!this.isRevealed(key)) {
+      this.startProtectionTimer(key, true)
       return
     }
-    this.startRevealTimeout(key)
+    this.protectedFields.delete(key)
+    if (this.protectedFields.size === 0) {
+      this.stopProtectionTimer()
+    }
   }
 
-  private safeValue(value: string): string {
-    return value.length > 0 ? PASSWORD_MASK : ''
-  }
-
-  private copy(value: string): void {
-    this.viewModel.copyValue(value).then((copied: boolean) => {
-      if (copied) {
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
-  }
-
-  // 复制受保护字段等同一次查看：显示掩码并开始倒计时。
-  private copyProtected(key: string, value: string): void {
-    if (value.length === 0) {
+  private async copy(value: string, protectedKey: string = ''): Promise<void> {
+    const epoch: number = this.previewEpoch
+    const sensitiveEpoch: number = this.session.sensitiveEpoch
+    const uuid: string = this.sheet.entryUuid
+    if (!(await this.viewModel.copyValue(value)) || epoch !== this.previewEpoch ||
+      sensitiveEpoch !== this.session.sensitiveEpoch || uuid !== this.sheet.entryUuid ||
+      !this.sheet.visible || this.sheet.mode !== EntrySheetMode.Preview) {
       return
     }
-    this.viewModel.copyValue(value).then((copied: boolean) => {
-      if (copied) {
-        this.startRevealTimeout(key)
-        DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
-      }
-    })
-  }
-
-  private openUrl(): void {
-    this.viewModel.openFieldAction(this.fieldValue('URL'), VaultFieldType.Url)
-  }
-
-  private countdownText(): string {
-    const time: string = `00:${this.revealSeconds < 10 ? '0' : ''}${this.revealSeconds}`
-    return ResUtil.getStringSync($r('app.string.password_hide_countdown')).replace('%s', time)
-  }
-
-  private confirmDelete(): void {
-    const options: AlertDialogParamWithButtons = {
-      title: $r('app.string.delete_entry_title'),
-      message: $r('app.string.delete_entry_message'),
-      primaryButton: {
-        value: $r('app.string.cancel'), action: () => {
-        },
-      },
-      secondaryButton: {
-        value: $r('app.string.delete_entry'),
-        fontColor: $r('app.color.ds_warning'),
-        action: () => this.viewModel.deleteEntry(this.sheet.entryUuid).then((deleted: boolean) => {
-          if (deleted) {
-            DsToastHost.show(this.getUIContext(), $r('app.string.entry_moved_to_recycle_bin'))
-            this.onClose()
-            return
-          }
-          if (this.viewModel.status.length > 0) {
-            DsToastHost.show(this.getUIContext(), this.viewModel.status)
-          }
-        }),
-      },
+    if (protectedKey.length > 0) {
+      this.startProtectionTimer(protectedKey, this.isRevealed(protectedKey))
     }
-    this.getUIContext().showAlertDialog(options)
-  }
-
-  @Computed
-  get previewActions(): DsPageHeaderAction[] {
-    if (this.sheet.readOnly) {
-      return []
-    }
-    return [
-      {
-        icon: this.sheet.favorite ? $r('app.string.symbol_star_filled') : $r('app.string.symbol_star'),
-        label: this.sheet.favorite ? $r('app.string.remove_favorite') : $r('app.string.add_favorite'),
-        enabled: !this.viewModel.busy,
-        onTap: () => this.sheet.toggleFavorite(),
-      },
-      {
-        icon: $r('app.string.symbol_edit'),
-        label: $r('app.string.edit'),
-        enabled: !this.viewModel.busy,
-        onTap: () => this.onEdit(),
-      },
-      {
-        icon: $r('app.string.symbol_delete'),
-        label: $r('app.string.delete_entry'),
-        enabled: !this.viewModel.busy,
-        onTap: () => this.confirmDelete(),
-      },
-    ]
+    DsToastHost.show(this.getUIContext(), $r('app.string.copy_completed'))
   }
 
   @LocalBuilder
-  private revealTrailing(definition: TemplateFieldDefinition) {
-    IconToggleButton({
-      symbol: $r('app.string.symbol_eye_off'),
-      symbolChecked: $r('app.string.symbol_eye'),
-      checked: this.revealedKeys.has(definition.key),
-      accessibilityLabel: this.revealedKeys.has(definition.key) ? $r('app.string.hide') : $r('app.string.show'),
-      exclusive: true,
-      onToggle: () => this.toggleReveal(definition.key),
-    })
-  }
-
-  // 卡面元素一律直接写在本 builder 内：带参数的子 @Builder 只在首次渲染取值，
-  // 实测卡宽到来后不会刷新，字号会停在初始的 0。
-  @Builder
-  private bankCard() {
-    Stack({ alignContent: Alignment.BottomStart }) {
-      Image($r('app.media.credit_card_face'))
-        .draggable(false)
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Cover)
-
-      Row() {
-        Stack({ alignContent: Alignment.BottomStart }) {
-          // 掩码态：与明文态各占一层并同时在场，只交换透明度做交叉淡化。
-          Stack({ alignContent: Alignment.BottomStart }) {
-            Text(CARD_NUMBER_MASK)
-              .fontSize(this.cardMetrics.numberFontSize)
-              .maxFontSize(this.cardMetrics.numberFontSize)
-              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
-              .maxLines(1)
-              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.black'))
-              .letterSpacing(this.cardMetrics.numberSpacing)
-              .offset({ y: this.cardMetrics.embossOffset })
-
-            Text(CARD_NUMBER_MASK)
-              .fontSize(this.cardMetrics.numberFontSize)
-              .maxFontSize(this.cardMetrics.numberFontSize)
-              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
-              .maxLines(1)
-              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.white'))
-              .letterSpacing(this.cardMetrics.numberSpacing)
-          }
-          .opacity(this.cardNumberRevealed ? 0 : 1)
-          .animation({
-            duration: CARD_NUMBER_FADE_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-          })
-
-          Stack({ alignContent: Alignment.BottomStart }) {
-            Text(this.cardNumberDigits)
-              .fontSize(this.cardMetrics.numberFontSize)
-              .maxFontSize(this.cardMetrics.numberFontSize)
-              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
-              .maxLines(1)
-              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.black'))
-              .letterSpacing(this.cardMetrics.numberSpacing)
-              .offset({ y: this.cardMetrics.embossOffset })
-
-            Text(this.cardNumberDigits)
-              .fontSize(this.cardMetrics.numberFontSize)
-              .maxFontSize(this.cardMetrics.numberFontSize)
-              .minFontSize(this.cardMetrics.numberFontSize * CARD_NUMBER_MIN_FONT_SCALE)
-              .maxLines(1)
-              .heightAdaptivePolicy(TextHeightAdaptivePolicy.MAX_LINES_FIRST)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.white'))
-              .letterSpacing(this.cardMetrics.numberSpacing)
-          }
-          .opacity(this.cardNumberRevealed ? 1 : 0)
-          .animation({
-            duration: CARD_NUMBER_FADE_DURATION,
-            curve: AnimationTokens.STATE_TRANSITION_CURVE,
-          })
-        }
+  private identity() {
+    Row({ space: $r('app.float.ds_space_md') }) {
+      Stack() {
+        EntryAvatar({
+          title: this.sheet.title,
+          avatarData: this.sheet.avatarData,
+          avatarSize: $r('app.float.ds_entry_preview_avatar_size'),
+          initialsFontSize: $r('app.float.ds_font_title_md'),
+          initialsFontWeight: 600,
+          entranceScale: this.avatarEntranceScale,
+          square: true,
+        })
       }
-      .width('100%')
-      .justifyContent(FlexAlign.Start)
-      .padding({ left: this.cardMetrics.numberLeft })
-      .margin({ bottom: this.cardMetrics.numberBottom })
-      .translate({ x: this.cardShiftX, y: this.cardShiftY })
-
-      if (this.cardLogo !== undefined) {
-        Row() {
-          Image(this.cardLogo)
-            .draggable(false)
-            .width(this.cardMetrics.logoSize)
-            .height(this.cardMetrics.logoSize)
-            .objectFit(ImageFit.Contain)
+      .geometryTransition(this.avatarTransitionKey)
+      .transition(TransitionEffect.OPACITY)
+      .onVisibleAreaChange([1], (visible: boolean, ratio: number) => {
+        this.onAvatarVisibilityChange(visible && ratio >= 1)
+      }, true)
+      Column() {
+        Row({ space: $r('app.float.ds_space_sm') }) {
+          SymbolGlyph($r('app.string.symbol_folder'))
+            .fontSize($r('app.float.ds_icon_tiny'))
+            .fontColor([$r('app.color.ds_text_secondary')])
+            .foregroundColor($r('app.color.ds_text_secondary'))
+          Text(this.sheet.groupPath)
+            .layoutWeight(1)
+            .fontSize($r('app.float.ds_font_body'))
+            .fontColor($r('app.color.ds_text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .width('100%')
-        .justifyContent(FlexAlign.End)
-        .padding({ right: this.cardMetrics.logoRight })
-        .margin({ bottom: this.cardMetrics.logoBottom })
-        .translate({ x: this.cardShiftX, y: this.cardShiftY })
+        DsTag({
+          tagSize: DsTagSize.Small,
+          text: this.sheet.templateLabel,
+        })
       }
-
-      // 棱边提亮：按压越深越亮，抬手由 animateTo 收回。
-      Column()
-        .width('100%')
-        .height('100%')
-        .borderRadius($r('app.float.ds_radius_none'))
-        .border({ width: 1, color: ColorUtil.withAlphaHex($r('sys.color.white'), this.cardRimOpacity) })
-        .hitTestBehavior(HitTestMode.None)
-
-      // 移动光带：峰值落在翘起侧，亮度随按压深度；跟手期间不做插值。
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          angle: this.cardLightAngle,
-          colors: [
-            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 0],
-            [ColorUtil.withAlphaHex($r('sys.color.white'), CARD_GLARE_PEAK_ALPHA), CARD_GLARE_PEAK_POSITION],
-            [ColorUtil.withAlphaHex($r('sys.color.white'), 0), 1],
-          ],
-        })
-        .opacity(this.cardGlareOpacity)
-        .hitTestBehavior(HitTestMode.None)
-
-      // 受压侧压暗：与光带共用一根光轴，0 位为受压侧。
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          angle: this.cardLightAngle,
-          colors: [
-            [ColorUtil.withAlphaHex($r('sys.color.black'), CARD_SHADE_MAX_ALPHA), 0],
-            [ColorUtil.withAlphaHex($r('sys.color.black'), 0), 1],
-          ],
-        })
-        .opacity(this.cardPressDepth)
-        .hitTestBehavior(HitTestMode.None)
+      .height($r('app.float.ds_entry_preview_avatar_size'))
+      .layoutWeight(1)
+      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .aspectRatio(CARD_ASPECT)
-    .borderRadius($r('app.float.ds_radius_none'))
-    .clip(true)
-    .margin({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-    .transform(this.cardTransform)
-    // setPolyToPoly 的映射以组件中心点为基准，官方要求把变换中心搬回左上角。
-    .scale({
-      x: 1,
-      y: 1,
-      centerX: 0,
-      centerY: 0,
-    })
-    .shadow(this.cardShadow)
-    .onTouch((event: TouchEvent) => this.onCardTouch(event))
-    // 卡面自身消费拖动：父级 Scroll 不参与命中测试，跟手倾斜与页面滚动不会互相打架。
-    .hitTestBehavior(HitTestMode.BLOCK_HIERARCHY)
-    .onAreaChange((_oldValue: Area, newValue: Area) => {
-      // Area 的宽高单位已是 vp，不能再过 px2vp。
-      this.cardWidthVp = newValue.width as number
-    })
   }
 
   @LocalBuilder
-  private revealCountdown(definition: TemplateFieldDefinition) {
-    if (this.revealedKeys.has(definition.key) && this.revealSeconds > 0) {
-      Text(this.countdownText())
-        .width('100%')
-        .fontSize($r('sys.float.Body_S'))
+  private fieldCards() {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      ForEach(this.sheet.previewFields, (field: EntryPreviewField) => {
+        EntryPreviewFieldCard({
+          field,
+          maskedValue: this.sheet.showBankCard && field.key === ENTRY_FIELD_CARD_NUMBER ? this.sheet.cardNumberMask : PASSWORD_MASK,
+          protection: this.protectedFields.get(field.key),
+          expanded: this.sheet.expandedFields.has(field.key),
+          onCopy: (copied: EntryPreviewField) => this.copy(copied.value, copied.protectedValue ? copied.key : ''),
+          onOpen: (opened: EntryPreviewField) => this.viewModel.openFieldAction(opened.value, opened.type),
+          onReveal: () => this.toggleReveal(field.key),
+          onExpand: () => this.sheet.toggleFieldExpanded(field.key),
+        })
+      }, (field: EntryPreviewField) => this.sheet.entryUuid + ':' + field.key)
+    }
+    .width('100%')
+  }
+
+  @LocalBuilder
+  private tags() {
+    Column({ space: $r('app.float.ds_space_sm') }) {
+      Text($r('app.string.tags'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontWeight(600)
         .fontColor($r('app.color.ds_text_tertiary'))
-        .padding({ top: $r('app.float.ds_space_xs'), left: $r('app.float.ds_space_16') })
-    }
-  }
-
-  @Builder
-  private templateCell(definition: TemplateFieldDefinition) {
-    if (definition.reservedField === 'Notes') {
-      Cell({
-        icon: definition.icon,
-        label: definition.label,
-        value: this.sheet.notesExpanded ? this.notes : this.notes.split('\n')[0],
-        valueExpanded: this.sheet.notesExpanded,
-        clickable: this.notes.length > 0,
-        onCellClick: () => this.copy(this.notes),
-        trailingBuilder: this.notesTrailing,
-      })
-    } else if (definition.protected) {
-      Cell({
-        icon: definition.icon,
-        label: definition.label,
-        value: this.revealedKeys.has(definition.key)
-          ? this.templateValue(definition) : this.safeValue(this.templateValue(definition)),
-        clickable: this.templateValue(definition).length > 0,
-        onCellClick: () => this.copyProtected(definition.key, this.templateValue(definition)),
-        trailingBuilder: () => {
-          this.revealTrailing(definition)
-        },
-        extraBuilder: () => {
-          this.revealCountdown(definition)
-        },
-      })
-    } else if (definition.reservedField === 'URL') {
-      Cell({
-        icon: definition.icon,
-        label: definition.label,
-        value: this.templateValue(definition),
-        clickable: this.templateValue(definition).length > 0,
-        onCellClick: () => this.copy(this.templateValue(definition)),
-        trailingBuilder: this.urlTrailing,
-      })
-    } else if (definition.key === CARD_TYPE_KEY) {
-      Cell({
-        iconImage: this.cardTypeIcon,
-        icon: definition.icon,
-        label: definition.label,
-        value: this.templateValue(definition),
-        clickable: this.templateValue(definition).length > 0,
-        onCellClick: () => this.copy(this.templateValue(definition)),
-      })
-    } else {
-      Cell({
-        icon: definition.icon,
-        label: definition.label,
-        value: this.sheet.expandedCustomFields.has(definition.key)
-          ? this.templateValue(definition) : this.templateValue(definition).split('\n')[0],
-        valueExpanded: this.sheet.expandedCustomFields.has(definition.key),
-        clickable: this.templateValue(definition).length > 0,
-        onCellClick: () => this.copy(this.templateValue(definition)),
-        showTrailingButton: this.needsExpansion(this.templateValue(definition)),
-        trailingSymbol: this.sheet.expandedCustomFields.has(definition.key)
-          ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
-        onTrailingClick: () => this.sheet.toggleCustomExpanded(definition.key),
-      })
-    }
-  }
-
-  @LocalBuilder
-  private urlTrailing() {
-    if (this.fieldValue('URL').length > 0) {
-      IconToggleButton({
-        symbol: $r('app.string.symbol_open_in_new'),
-        accessibilityLabel: $r('app.string.open_link'),
-        exclusive: true,
-        onToggle: () => this.openUrl(),
-      })
-    }
-  }
-
-  @LocalBuilder
-  private notesTrailing() {
-    if (this.needsExpansion(this.notes)) {
-      IconToggleButton({
-        symbol: this.sheet.notesExpanded ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
-        accessibilityLabel: $r('app.string.notes'),
-        exclusive: true,
-        onToggle: () => this.sheet.toggleNotesExpanded(),
-      })
-    }
-  }
-
-  @LocalBuilder
-  private previewMenuBody() {
-    Scroll() {
-        Column({ space: $r('app.float.ds_space_16') }) {
-          Row({ space: $r('app.float.ds_space_sm') }) {
-            EntryAvatar(
-              {
-                title: this.sheet.title,
-                avatarData: this.sheet.avatarData,
-                avatarSize: $r('app.float.entry_avatar_size'),
-                initialsFontSize: $r('sys.float.Display_S'),
-              })
-            Column({ space: $r('app.float.ds_space_xs') }) {
-              Text(this.sheet.title)
-                .width('100%')
-                .fontSize($r('sys.float.Title_M'))
-                .fontWeight(FontWeight.Bold)
-                .fontColor($r('app.color.ds_text_primary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .ellipsisMode(EllipsisMode.CENTER)
-              Row({ space: $r('app.float.ds_space_xs') }) {
-                SymbolGlyph($r('app.string.symbol_folder')).fontSize($r('sys.float.Body_M'))
-                  .fontColor([$r('app.color.ds_text_secondary')])
-                  .foregroundColor($r('app.color.ds_text_secondary'))
-                Text(this.sheet.groupPath)
-                  .fontSize($r('sys.float.Body_M'))
-                  .fontColor($r('app.color.ds_text_secondary'))
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .ellipsisMode(EllipsisMode.CENTER)
-                  .layoutWeight(1)
-              }
-              .width('100%')
-            }
-            .layoutWeight(1).alignItems(HorizontalAlign.Start)
-          }
-          .margin({ left: $r('app.float.ds_space_sm') })
-
-          if (this.showBankCard) {
-            this.bankCard()
-          }
-
-          Column({ space: $r('app.float.ds_space_sm') }) {
-            if (this.sshKeys.length > 0) {
-              EntrySshKeyList({
-                keys: this.sshKeys,
-                onActivity: () => this.viewModel.recordActivity(),
-              })
-            }
-
-            if (this.attachments.length > 0) {
-              EntryAttachmentList({
-                entryUuid: this.sheet.entryUuid,
-                attachments: this.attachments,
-              })
-            }
-
-            List() {
-              ForEach(this.previewFields, (definition: TemplateFieldDefinition) => {
-                this.templateCell(definition)
-              }, (definition: TemplateFieldDefinition) => definition.key)
-            }
-            .backgroundColor($r('app.color.ds_surface_high'))
-            .borderRadius($r('app.float.ds_radius_none'))
-            .divider({
-              strokeWidth: 1,
-              color: $r('app.color.ds_outline_variant'),
-              startMargin: $r('app.float.ds_space_sm'),
-              endMargin: $r('app.float.ds_space_sm'),
-            })
-
-            if (this.customFields.length > 0) {
-              List() {
-                ForEach(this.customFields, (field: VaultField) => {
-                  Cell({
-                    iconImage: fieldTypeDefinition(field.type).icon,
-                    label: field.name,
-                    value: this.sheet.expandedCustomFields.has(field.name)
-                      ? (field.value.length > 0 &&
-                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK : field.value)
-                      : (field.value.length > 0 &&
-                        (field.protected || field.type === VaultFieldType.Password) ? PASSWORD_MASK :
-                        field.value).split('\n')[0],
-                    valueExpanded: this.sheet.expandedCustomFields.has(field.name),
-                    clickable: field.value.length > 0,
-                    onCellClick: () => this.copy(field.value),
-                    showTrailingButton: this.needsExpansion(field.value),
-                    trailingSymbol: this.sheet.expandedCustomFields.has(field.name)
-                      ? $r('app.string.symbol_chevron_up') : $r('app.string.symbol_chevron_down'),
-                    onTrailingClick: () => this.sheet.toggleCustomExpanded(field.name),
-                  })
-                }, (field: VaultField) => field.name)
-              }
-              .width('100%')
-              .backgroundColor($r('app.color.ds_surface_high'))
-              .borderRadius($r('app.float.ds_radius_none'))
-              .divider({
-                strokeWidth: 1,
-                color: $r('app.color.ds_outline_variant'),
-                startMargin: $r('app.float.ds_space_sm'),
-                endMargin: $r('app.float.ds_space_sm'),
-              })
-              .scrollBar(BarState.Off)
-            }
-
-            Row() {
-              Row({ space: $r('app.float.ds_space_xs') }) {
-                SymbolGlyph($r('app.string.symbol_label'))
-                  .width($r('sys.float.ohos_id_min_circle_button_icon_size'))
-                  .fontSize($r('sys.float.ohos_id_textfield_icon_size'))
-                  .fontColor([$r('app.color.ds_primary')])
-                  .foregroundColor($r('app.color.ds_primary'))
-                Flex({
-                  wrap: FlexWrap.Wrap, space: {
-                    main: LengthMetrics.resource($r('app.float.ds_space_sm')),
-                    cross: LengthMetrics.resource($r('app.float.ds_space_sm')),
-                  },
-                }) {
-                  ForEach(this.sheet.tags, (tag: string) => {
-                    DsTag({
-                      tagSize: DsTagSize.Medium,
-                      text: tag,
-                    })
-                  }, (tag: string) => tag)
-                }
-                .layoutWeight(1)
-              }
-              .width('100%')
-              .alignItems(VerticalAlign.Top)
-              .padding($r('app.float.ds_space_sm'))
-            }
-            .width('100%')
-            .backgroundColor($r('app.color.ds_surface_high'))
-            .borderRadius($r('app.float.ds_radius_none'))
-          }
-          .margin({ left: $r('app.float.ds_space_sm'), right: $r('app.float.ds_space_sm') })
-
-        }
-        .justifyContent(FlexAlign.Start)
-        .width('100%')
-        .constraintSize({ maxWidth: $r('app.float.content_max_width') })
-        .padding({ top: $r('app.float.ds_space_lg'), bottom: this.bottomOffset })
-        .onTouch(() => this.viewModel.recordActivity())
+      Flex({ wrap: FlexWrap.Wrap, space: {
+        main: LengthMetrics.resource($r('app.float.ds_space_sm')),
+        cross: LengthMetrics.resource($r('app.float.ds_space_sm')),
+      } }) {
+        ForEach(this.sheet.tags, (tag: string) => {
+          DsTag({ tagSize: DsTagSize.Medium, text: tag })
+        }, (tag: string) => tag)
       }
       .width('100%')
-      .height('100%')
-      .id('entry_preview_scroll')
-      .align(Alignment.Top)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .clip(false)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
   }
 
   build() {
-    DsHalfModalSheet({
-      title: '',
-      closeEnabled: !this.viewModel.busy,
-      actions: this.previewActions,
-      onClose: () => this.onClose(),
-      bodyBuilder: this.previewMenuBody,
-    })
+    Scroll(this.scroller) {
+      Column({ space: $r('app.float.ds_space_24') }) {
+        this.identity()
+
+        if (this.sheet.showBankCard) {
+          EntryPreviewBankCard({
+            numberMask: this.sheet.cardNumberMask,
+            numberDigits: this.sheet.cardNumberDigits,
+            numberRevealed: this.sheet.cardNumberDigits.length > 0 && this.isRevealed(ENTRY_FIELD_CARD_NUMBER),
+            holder: this.sheet.cardHolder,
+            expiry: this.sheet.cardExpiry,
+            logo: this.sheet.cardLogo,
+            onCopy: (value: string) => this.copy(value),
+          })
+        }
+        if (this.sheet.sshKeys.length > 0) {
+          EntrySshKeyList({
+            keys: this.sheet.sshKeys,
+            onActivity: () => this.viewModel.recordActivity(),
+          })
+        }
+        if (this.sheet.attachments.length > 0) {
+          EntryAttachmentList({ entryUuid: this.sheet.entryUuid, attachments: this.sheet.attachments })
+        }
+
+        this.fieldCards()
+        if (this.sheet.tags.length > 0) {
+          this.tags()
+        }
+        if (this.sheet.lastModified.length > 0) {
+          Text($r('app.string.entry_menu_last_modified', this.sheet.lastModified))
+            .fontSize($r('app.float.ds_font_label_md'))
+            .fontColor($r('app.color.ds_text_tertiary'))
+        }
+      }
+      .width('100%')
+      .constraintSize({ maxWidth: $r('app.float.content_max_width') })
+      .alignItems(HorizontalAlign.Start)
+      .padding({
+        top: $r('app.float.ds_space_sm'),
+        bottom: this.bottomOffset,
+        left: $r('app.float.ds_gutter'),
+        right: $r('app.float.ds_gutter'),
+      })
+      .onTouch(() => this.viewModel.recordActivity())
+    }
+    .width('100%')
+    .height('100%')
+    .initialOffset({ xOffset: 0, yOffset: this.initialScrollOffset })
+    .align(Alignment.Top)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .clip(false)
   }
 }

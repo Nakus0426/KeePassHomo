@@ -1,6 +1,22 @@
 {
   "color": [
     {
+      "name": "ds_credit_card_face_text",
+      "value": "#EDEFF0"
+    },
+    {
+      "name": "ds_credit_card_face_text_secondary",
+      "value": "#A4AAAC"
+    },
+    {
+      "name": "ds_credit_card_face_tint",
+      "value": "#ED222627"
+    },
+    {
+      "name": "ds_credit_card_face_emboss",
+      "value": "#000000"
+    },
+    {
       "name": "start_window_background",
       "value": "#0E1011"
     },
