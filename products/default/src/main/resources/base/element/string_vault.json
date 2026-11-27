@@ -1151,6 +1151,74 @@
     {
       "name": "entry_copied",
       "value": "已创建副本"
+    },
+    {
+      "name": "entry_search_section_title",
+      "value": "标题"
+    },
+    {
+      "name": "entry_search_section_tag",
+      "value": "标签"
+    },
+    {
+      "name": "entry_search_section_group",
+      "value": "分组"
+    },
+    {
+      "name": "entry_search_section_body",
+      "value": "内容"
+    },
+    {
+      "name": "entry_search_tag_match",
+      "value": "标签：%s"
+    },
+    {
+      "name": "tag_filter_sheet_title",
+      "value": "按标签筛选"
+    },
+    {
+      "name": "tag_filter_section_label",
+      "value": "标签"
+    },
+    {
+      "name": "tag_filter_empty",
+      "value": "暂无标签"
+    },
+    {
+      "name": "tag_filter_reset",
+      "value": "重置"
+    },
+    {
+      "name": "tag_filter_apply",
+      "value": "应用"
+    },
+    {
+      "name": "filter_group_a11y",
+      "value": "按分组筛选"
+    },
+    {
+      "name": "filter_tag_a11y",
+      "value": "按标签筛选"
+    },
+    {
+      "name": "filter_sort_a11y",
+      "value": "排序方式"
+    },
+    {
+      "name": "sort_menu_title",
+      "value": "排序方式"
+    },
+    {
+      "name": "sort_menu_subtitle",
+      "value": "按标题字母序或最近修改"
+    },
+    {
+      "name": "sort_by_title",
+      "value": "标题"
+    },
+    {
+      "name": "sort_by_modified",
+      "value": "最近修改"
     }
   ]
 }

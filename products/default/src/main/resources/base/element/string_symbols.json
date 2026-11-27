@@ -26,7 +26,7 @@
     },
     {
       "name": "symbol_arrow_upward",
-      "value": "0x100242"
+      "value": "0x100243"
     },
     {
       "name": "symbol_attach_file",
@@ -50,7 +50,7 @@
     },
     {
       "name": "symbol_check_box",
-      "value": "0x100244"
+      "value": "0x100245"
     },
     {
       "name": "symbol_check_circle",
@@ -110,7 +110,7 @@
     },
     {
       "name": "symbol_disabled_by_default",
-      "value": "0x100245"
+      "value": "0x100246"
     },
     {
       "name": "symbol_divider",
@@ -122,7 +122,7 @@
     },
     {
       "name": "symbol_docs",
-      "value": "0x100246"
+      "value": "0x100247"
     },
     {
       "name": "symbol_download",
@@ -146,7 +146,7 @@
     },
     {
       "name": "symbol_fact_check",
-      "value": "0x100243"
+      "value": "0x100244"
     },
     {
       "name": "symbol_fingerprint",
@@ -262,19 +262,23 @@
     },
     {
       "name": "symbol_security_warning",
-      "value": "0x100238"
-    },
-    {
-      "name": "symbol_settings",
       "value": "0x100239"
     },
     {
-      "name": "symbol_space_bar",
+      "name": "symbol_settings",
       "value": "0x10023A"
     },
     {
-      "name": "symbol_star",
+      "name": "symbol_sort",
+      "value": "0x100238"
+    },
+    {
+      "name": "symbol_space_bar",
       "value": "0x10023B"
+    },
+    {
+      "name": "symbol_star",
+      "value": "0x10023C"
     },
     {
       "name": "symbol_star_filled",
@@ -282,11 +286,11 @@
     },
     {
       "name": "symbol_swap_horiz",
-      "value": "0x100241"
+      "value": "0x100242"
     },
     {
       "name": "symbol_sync",
-      "value": "0x10023C"
+      "value": "0x10023D"
     },
     {
       "name": "symbol_unarchive",
@@ -294,19 +298,19 @@
     },
     {
       "name": "symbol_upload",
-      "value": "0x10023D"
-    },
-    {
-      "name": "symbol_upload_file",
       "value": "0x10023E"
     },
     {
-      "name": "symbol_verified_user",
+      "name": "symbol_upload_file",
       "value": "0x10023F"
     },
     {
-      "name": "symbol_warning",
+      "name": "symbol_verified_user",
       "value": "0x100240"
+    },
+    {
+      "name": "symbol_warning",
+      "value": "0x100241"
     }
   ]
 }

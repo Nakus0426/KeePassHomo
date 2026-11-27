@@ -307,6 +307,11 @@
       "fill": 0
     },
     {
+      "key": "symbol_sort",
+      "material": "sort",
+      "fill": 0
+    },
+    {
       "key": "symbol_security_warning",
       "material": "gpp_maybe",
       "fill": 0

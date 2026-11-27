@@ -1,8 +1,12 @@
-import { VaultEntry, VaultGroup } from '@ohos/common'
-import { ResUtil } from '@pura/harmony-utils'
-import { stageOneVaultStore, VaultBrowseMode } from '../model/StageOneVaultStore'
+import { VaultEntry } from '@ohos/common'
+import {
+  stageOneVaultStore,
+  VaultBrowseMode,
+  VaultSearchSection,
+  VaultSortField,
+  VaultTagOption,
+} from '../model/StageOneVaultStore'
 
-const GROUP_LABEL_MAX_CHARS: number = 10
 // 搜索逐字符输入合并成一次全库过滤；清空立即生效，避免列表残留旧结果。
 const SEARCH_DEBOUNCE_MS: number = 180
 
@@ -19,7 +23,36 @@ export class VaultHomeViewModel {
   @Trace searchQuery: string = ''
   @Trace browseMode: VaultBrowseMode = VaultBrowseMode.All
   @Trace selectedGroupUuids: string[] = []
-  @Trace entries: VaultEntry[] = []
+  @Trace selectedTags: string[] = []
+  @Trace sortField: VaultSortField = VaultSortField.Title
+  // 非搜索态的浏览结果；搜索态的条目由 searchSections 派生。
+  @Trace private browseEntries: VaultEntry[] = []
+  // 搜索态的分区快照；非搜索为空。条目顺序即列表渲染顺序。
+  @Trace searchSections: VaultSearchSection[] = []
+
+  // 列表、批量选择与离场判断都读同一份快照；搜索态由分区派生，不再另存一份扁平数组。
+  @Computed
+  get entries(): VaultEntry[] {
+    if (!this.isSearching) {
+      return this.browseEntries
+    }
+    const flattened: VaultEntry[] = []
+    for (const section of this.searchSections) {
+      flattened.push(...section.entries)
+    }
+    return flattened
+  }
+
+  @Computed
+  get isSearching(): boolean {
+    return this.searchQuery.length > 0
+  }
+
+  // 查询的归一化只在这里做一次：分区、行内高亮与标签匹配共用。
+  @Computed
+  get normalizedQuery(): string {
+    return this.searchQuery.trim().toLocaleLowerCase()
+  }
   // 库内是否存在条目（不含筛选）：区分「空库」与「筛选无命中」两种空态。
   @Trace hasAnyEntry: boolean = false
   // 批量选择属于首页界面状态，但标题栏与页面都要渲染，故由 ViewModel 统一持有。
@@ -92,6 +125,38 @@ export class VaultHomeViewModel {
     this.setBrowseMode(VaultBrowseMode.All)
   }
 
+  setSortField(field: VaultSortField): void {
+    if (this.sortField === field) {
+      return
+    }
+    this.sortField = field
+    this.snapshotCause = HomeSnapshotCause.Data
+    this.rebuild()
+  }
+
+  setSelectedTags(tags: string[]): void {
+    if (tags.length === this.selectedTags.length && tags.every((tag: string) => this.selectedTags.includes(tag))) {
+      return
+    }
+    this.selectedTags = tags
+    this.snapshotCause = HomeSnapshotCause.Data
+    this.rebuild()
+  }
+
+  @Computed
+  get isTagFiltering(): boolean {
+    return this.selectedTags.length > 0
+  }
+
+  @Computed
+  get isGroupFiltering(): boolean {
+    return this.selectedGroupUuids.length > 0 && this.selectedGroupUuids[0] !== stageOneVaultStore.defaultGroupUuid()
+  }
+
+  tagOptions(): VaultTagOption[] {
+    return stageOneVaultStore.tagOptions()
+  }
+
   // 首页列表滚动方向直接驱动 chrome 显隐：手指上滑隐藏，下滑恢复。
   updateChromeVisibility(scrollOffset: number): void {
     if (scrollOffset > 0 && !this.chromeHidden) {
@@ -107,21 +172,6 @@ export class VaultHomeViewModel {
     if (this.chromeHidden) {
       this.chromeHidden = false
     }
-  }
-
-  selectedGroupLabel(): string {
-    if (stageOneVaultStore.locked || this.selectedGroupUuids.length === 0) {
-      return ResUtil.getStringSync($r('app.string.group_filter_all'))
-    }
-    const groups: VaultGroup[] = stageOneVaultStore.groups()
-    const selected: VaultGroup | undefined = groups.find((group: VaultGroup) =>
-    group.uuid === this.selectedGroupUuids[0])
-    if (selected === undefined || selected.uuid === stageOneVaultStore.defaultGroupUuid()) {
-      return ResUtil.getStringSync($r('app.string.group_filter_all'))
-    }
-    return selected.name.length > GROUP_LABEL_MAX_CHARS
-      ? `${selected.name.slice(0, GROUP_LABEL_MAX_CHARS)}…`
-      : selected.name
   }
 
   // 空集合表示不按分组过滤。
@@ -204,6 +254,8 @@ export class VaultHomeViewModel {
     this.searchQuery = ''
     this.browseMode = VaultBrowseMode.All
     this.selectedGroupUuids = [stageOneVaultStore.defaultGroupUuid()]
+    this.selectedTags = []
+    this.sortField = VaultSortField.Title
     this.snapshotCause = HomeSnapshotCause.Data
     this.rebuild()
   }
@@ -214,7 +266,10 @@ export class VaultHomeViewModel {
     this.searchTimer = -1
     this.searchQuery = ''
     this.selectedGroupUuids = []
-    this.entries = []
+    this.selectedTags = []
+    this.sortField = VaultSortField.Title
+    this.browseEntries = []
+    this.searchSections = []
     this.hasAnyEntry = false
     this.batchMode = false
     this.selectedUuids = []
@@ -229,7 +284,8 @@ export class VaultHomeViewModel {
     clearTimeout(this.searchTimer)
     this.searchTimer = -1
     if (stageOneVaultStore.locked) {
-      this.entries = []
+      this.browseEntries = []
+      this.searchSections = []
       this.hasAnyEntry = false
       return
     }
@@ -237,7 +293,15 @@ export class VaultHomeViewModel {
     if (this.selectedGroupUuids.length === 0) {
       this.selectedGroupUuids = [stageOneVaultStore.defaultGroupUuid()]
     }
-    this.entries = stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuids)
+    if (this.isSearching) {
+      this.searchSections = stageOneVaultStore.searchSections(this.searchQuery, this.browseMode,
+        this.selectedGroupUuids, this.selectedTags, this.sortField)
+      this.browseEntries = []
+    } else {
+      this.searchSections = []
+      this.browseEntries = stageOneVaultStore.browse(this.searchQuery, this.browseMode, this.selectedGroupUuids,
+        this.selectedTags, this.sortField)
+    }
     this.hasAnyEntry = stageOneVaultStore.hasEntries()
   }
 }

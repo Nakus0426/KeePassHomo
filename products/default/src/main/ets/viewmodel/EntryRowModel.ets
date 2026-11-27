@@ -33,6 +33,7 @@ export class EntryRowModel {
   @Trace contentVersion: number = 0
   private entry: VaultEntry | undefined = undefined
   private appendGroupName: boolean = false
+  private matchTag: string = ''
   private subtitleDirty: boolean = false
   private fields: VaultField[] = []
   // 长按菜单才需要的字段留到展开时再算，避免逐行构造时做资源查表与日期格式化。
@@ -79,6 +80,16 @@ export class EntryRowModel {
     this.favorite = favorite
   }
 
+  // 搜索按标签命中时，副标题追加命中的标签；离开搜索态传空串复位。
+  setMatchTag(tag: string): void {
+    if (this.matchTag === tag) {
+      return
+    }
+    this.matchTag = tag
+    this.subtitleDirty = true
+    this.contentVersion++
+  }
+
   fieldValue(name: string): string {
     return this.fields.find((field: VaultField) => field.name === name)?.value ?? ''
   }
@@ -116,11 +127,21 @@ export class EntryRowModel {
       default:
         subtitle = this.fieldValue(ENTRY_FIELD_USERNAME)
     }
-    if (!appendGroupName || entry.groupName.length === 0) {
+    if (!appendGroupName && this.matchTag.length === 0) {
       return subtitle
     }
     const text: string = typeof subtitle === 'string' ? subtitle : ResUtil.getStringSync(subtitle)
-    return text.length === 0 ? entry.groupName : `${text} · ${entry.groupName}`
+    const parts: string[] = []
+    if (text.length > 0) {
+      parts.push(text)
+    }
+    if (appendGroupName && entry.groupName.length > 0) {
+      parts.push(entry.groupName)
+    }
+    if (this.matchTag.length > 0) {
+      parts.push(this.format($r('app.string.entry_search_tag_match').id, this.matchTag))
+    }
+    return parts.join(' · ')
   }
 
   menuTemplateLabel(): string {
@@ -199,8 +220,34 @@ export class EntryGroupHeaderModel {
   }
 }
 
+// 搜索分区段头：只承载分区名与条数，没有分组 uuid，也不提供「在此新建」。
+@ObservedV2
+export class EntrySearchSectionModel {
+  readonly key: string
+  @Trace name: string = ''
+  @Trace count: number = 0
+  @Trace leaving: boolean = false
+
+  constructor(key: string) {
+    this.key = key
+  }
+
+  update(name: string, count: number): void {
+    if (this.name !== name) {
+      this.name = name
+    }
+    if (this.count !== count) {
+      this.count = count
+    }
+    if (this.leaving) {
+      this.leaving = false
+    }
+  }
+}
+
 export enum EntryListItemKind {
   Header = 'header',
+  Section = 'section',
   Row = 'row',
 }
 
@@ -209,12 +256,15 @@ export class EntryListItem {
   readonly key: string
   readonly kind: EntryListItemKind
   readonly header: EntryGroupHeaderModel | undefined
+  readonly section: EntrySearchSectionModel | undefined
   readonly row: EntryRowModel | undefined
 
-  constructor(key: string, kind: EntryListItemKind, header?: EntryGroupHeaderModel, row?: EntryRowModel) {
+  constructor(key: string, kind: EntryListItemKind, header?: EntryGroupHeaderModel, row?: EntryRowModel,
+    section?: EntrySearchSectionModel) {
     this.key = key
     this.kind = kind
     this.header = header
     this.row = row
+    this.section = section
   }
 }

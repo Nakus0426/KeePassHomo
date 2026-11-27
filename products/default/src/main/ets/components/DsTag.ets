@@ -1,3 +1,6 @@
+import { AnimationTokens } from '@ohos/common'
+import { DsColorLadder } from './DsColorLadder'
+
 export enum DsTagTone {
   Default = 'default',
   Primary = 'primary',
@@ -62,11 +65,33 @@ export struct DsTag {
   // 不能命名为 size：与 CustomComponent.size() 冲突。
   @Param tagSize: DsTagSize = DsTagSize.Medium
   @Param text: ResourceStr = ''
+  // 筛选 chip：选中走 primary 主题，并提供 hover / press 反馈；静态标签保持默认行为。
+  @Param selected: boolean = false
+  @Param interactive: boolean = false
+  @Event onTap: () => void = () => {
+  }
   // 自定义内容插槽：提供后替代 text，内容自带前景色。
   @BuilderParam contentBuilder?: () => void
+  @Local private hovered: boolean = false
+  @Local private pressed: boolean = false
 
   @Computed
   get palette(): TagPalette {
+    if (this.interactive) {
+      if (this.selected) {
+        const primary = DsColorLadder.PRIMARY
+        return {
+          container: this.pressed ? primary.press : (this.hovered ? primary.hover : primary.base),
+          content: primary.onColor,
+        }
+      }
+      if (this.pressed) {
+        return { container: $r('app.color.ds_surface_highest'), content: $r('app.color.ds_text_primary') }
+      }
+      if (this.hovered) {
+        return { container: $r('app.color.ds_surface_hover'), content: $r('app.color.ds_text_primary') }
+      }
+    }
     switch (this.tone) {
       case DsTagTone.Primary:
         return { container: $r('app.color.ds_primary'), content: $r('app.color.ds_on_primary') }
@@ -116,5 +141,26 @@ export struct DsTag {
     .borderRadius($r('app.float.ds_radius_none'))
     .alignItems(VerticalAlign.Center)
     .justifyContent(FlexAlign.Center)
+    .animation(AnimationTokens.FEEDBACK_ANIMATION)
+    .onHover((isHover: boolean) => {
+      if (this.interactive) {
+        this.hovered = isHover
+      }
+    })
+    .onTouch((event: TouchEvent) => {
+      if (!this.interactive) {
+        return
+      }
+      if (event.type === TouchType.Down) {
+        this.pressed = true
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressed = false
+      }
+    })
+    .onClick(() => {
+      if (this.interactive) {
+        this.onTap()
+      }
+    })
   }
 }

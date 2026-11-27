@@ -1,14 +1,15 @@
 import { BusinessError } from '@kit.BasicServicesKit'
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { VaultEntry } from '@ohos/common'
-import { LogUtil } from '@pura/harmony-utils'
-import { stageOneVaultStore } from '../model/StageOneVaultStore'
+import { LogUtil, ResUtil } from '@pura/harmony-utils'
+import { stageOneVaultStore, VaultSearchMatch } from '../model/StageOneVaultStore'
 import { vaultHomeViewModel } from './VaultHomeViewModel'
 import {
   EntryGroupHeaderModel,
   EntryListItem,
   EntryListItemKind,
   EntryRowModel,
+  EntrySearchSectionModel,
 } from './EntryRowModel'
 
 // 首页条目列表 ViewModel（模块级单例）：列表项和分组段的唯一来源，组件侧不持有业务逻辑。
@@ -26,6 +27,7 @@ export class HomeEntryListViewModel {
   private lastRevision: number = -1
   private readonly rowCache: Map<string, EntryRowModel> = new Map()
   private readonly headerCache: Map<string, EntryGroupHeaderModel> = new Map()
+  private readonly sectionCache: Map<string, EntrySearchSectionModel> = new Map()
 
   // 快照变化、解锁刷新、条目增删保存后都必须调用，否则列表与快照脱节。
   refresh(): void {
@@ -33,6 +35,7 @@ export class HomeEntryListViewModel {
       this.items = []
       this.rowCache.clear()
       this.headerCache.clear()
+      this.sectionCache.clear()
       this.appendGroupName = false
       this.lastRevision = -1
       return
@@ -43,11 +46,22 @@ export class HomeEntryListViewModel {
       this.lastRevision = revision
       this.pruneRows()
     }
-    const appendGroupName: boolean = vaultHomeViewModel.searchQuery.length > 0
+    const appendGroupName: boolean = vaultHomeViewModel.isSearching
     // 行内容只在数据版本变化或进出搜索（副标题带分组名）时重算。
     const refreshRows: boolean = appendGroupName !== this.appendGroupName
     this.appendGroupName = appendGroupName
-    this.items = this.buildItems(this.buildRows(refreshRows, appendGroupName))
+    this.items = this.buildItems(this.buildRows(refreshRows, appendGroupName, this.buildMatchTags()))
+  }
+
+  // 命中标签由分区快照带回，列表只做合并，不再重扫标签。
+  private buildMatchTags(): Map<string, string> {
+    const matchTags: Map<string, string> = new Map()
+    for (const section of vaultHomeViewModel.searchSections) {
+      for (const pair of section.matchedTags) {
+        matchTags.set(pair[0], pair[1])
+      }
+    }
+    return matchTags
   }
 
   private pruneRows(): void {
@@ -67,13 +81,23 @@ export class HomeEntryListViewModel {
       liveRows.add(entry.uuid)
       liveGroups.add(entry.groupUuid)
     }
+    const liveSections: Set<string> = new Set()
+    for (const section of vaultHomeViewModel.searchSections) {
+      liveSections.add(`section:${section.match}`)
+    }
     const leaving: EntryListItem[] = []
     for (const item of this.items) {
-      if (item.kind === EntryListItemKind.Row && !liveRows.has(item.row!.uuid)) {
-        leaving.push(item)
+      if (item.kind === EntryListItemKind.Row) {
+        if (!liveRows.has(item.row!.uuid)) {
+          leaving.push(item)
+        }
         continue
       }
       if (item.kind === EntryListItemKind.Header && !liveGroups.has(item.header!.groupUuid)) {
+        leaving.push(item)
+        continue
+      }
+      if (item.kind === EntryListItemKind.Section && !liveSections.has(item.section!.key)) {
         leaving.push(item)
       }
     }
@@ -119,7 +143,8 @@ export class HomeEntryListViewModel {
     }
   }
 
-  private buildRows(refreshRows: boolean, appendGroupName: boolean): EntryRowModel[] {
+  private buildRows(refreshRows: boolean, appendGroupName: boolean,
+    matchTags: Map<string, string>): EntryRowModel[] {
     const rows: EntryRowModel[] = []
     const revision: number = vaultHomeViewModel.dataRevision
     for (const entry of vaultHomeViewModel.entries) {
@@ -133,22 +158,44 @@ export class HomeEntryListViewModel {
         // 行模型跨筛选保留，离场态要先复位，否则重新进入列表时会保持零高度。
         row.leaving = false
       }
+      row.setMatchTag(matchTags.get(entry.uuid) ?? '')
       row.revision = revision
       rows.push(row)
     }
     return rows
   }
 
-  // 搜索态按设计隐藏分组段头；常规态按文档分组顺序展开为扁平的段头 + 行列表。
+  // 搜索态按 标题 / 标签 / 分组 / 内容 分段；常规态按文档分组顺序展开为扁平的段头 + 行列表。
   private buildItems(rows: EntryRowModel[]): EntryListItem[] {
     const items: EntryListItem[] = []
-    if (vaultHomeViewModel.searchQuery.length > 0) {
-      this.headerCache.clear()
-      for (const row of rows) {
-        items.push(new EntryListItem(`row:${row.uuid}`, EntryListItemKind.Row, undefined, row))
+    if (vaultHomeViewModel.isSearching) {
+      const liveKeys: Set<string> = new Set()
+      for (const section of vaultHomeViewModel.searchSections) {
+        const key: string = `section:${section.match}`
+        liveKeys.add(key)
+        let header: EntrySearchSectionModel | undefined = this.sectionCache.get(key)
+        if (header === undefined) {
+          header = new EntrySearchSectionModel(key)
+          this.sectionCache.set(key, header)
+        }
+        header.update(this.sectionName(section.match), section.entries.length)
+        items.push(new EntryListItem(`sectionheader:${key}`, EntryListItemKind.Section, undefined, undefined, header))
+        for (const entry of section.entries) {
+          const row: EntryRowModel | undefined = this.rowCache.get(entry.uuid)
+          if (row !== undefined) {
+            items.push(new EntryListItem(`row:${row.uuid}`, EntryListItemKind.Row, undefined, row))
+          }
+        }
       }
+      for (const cachedKey of this.sectionCache.keys()) {
+        if (!liveKeys.has(cachedKey)) {
+          this.sectionCache.delete(cachedKey)
+        }
+      }
+      this.headerCache.clear()
       return items
     }
+    this.sectionCache.clear()
 
     const rowsByGroup: Map<string, EntryRowModel[]> = new Map()
     for (const row of rows) {
@@ -184,6 +231,19 @@ export class HomeEntryListViewModel {
       }
     }
     return items
+  }
+
+  private sectionName(match: VaultSearchMatch): string {
+    switch (match) {
+      case VaultSearchMatch.Tag:
+        return ResUtil.getStringSync($r('app.string.entry_search_section_tag'))
+      case VaultSearchMatch.Group:
+        return ResUtil.getStringSync($r('app.string.entry_search_section_group'))
+      case VaultSearchMatch.Body:
+        return ResUtil.getStringSync($r('app.string.entry_search_section_body'))
+      default:
+        return ResUtil.getStringSync($r('app.string.entry_search_section_title'))
+    }
   }
 
   // 只有明确的左/右手握持才翻转，其余状态保持当前侧，避免识别抖动让按钮来回跳。

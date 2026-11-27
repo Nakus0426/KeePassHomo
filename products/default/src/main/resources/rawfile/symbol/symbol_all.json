@@ -170,50 +170,53 @@
     "symbol_search": {
       "unicode": "􀈷"
     },
-    "symbol_security_warning": {
+    "symbol_sort": {
       "unicode": "􀈸"
     },
-    "symbol_settings": {
+    "symbol_security_warning": {
       "unicode": "􀈹"
     },
-    "symbol_space_bar": {
+    "symbol_settings": {
       "unicode": "􀈺"
     },
-    "symbol_star": {
+    "symbol_space_bar": {
       "unicode": "􀈻"
     },
-    "symbol_sync": {
+    "symbol_star": {
       "unicode": "􀈼"
     },
-    "symbol_upload": {
+    "symbol_sync": {
       "unicode": "􀈽"
     },
-    "symbol_upload_file": {
+    "symbol_upload": {
       "unicode": "􀈾"
     },
-    "symbol_verified_user": {
+    "symbol_upload_file": {
       "unicode": "􀈿"
     },
-    "symbol_warning": {
+    "symbol_verified_user": {
       "unicode": "􀉀"
     },
-    "symbol_swap_horiz": {
+    "symbol_warning": {
       "unicode": "􀉁"
     },
-    "symbol_arrow_upward": {
+    "symbol_swap_horiz": {
       "unicode": "􀉂"
     },
-    "symbol_fact_check": {
+    "symbol_arrow_upward": {
       "unicode": "􀉃"
     },
-    "symbol_check_box": {
+    "symbol_fact_check": {
       "unicode": "􀉄"
     },
-    "symbol_disabled_by_default": {
+    "symbol_check_box": {
       "unicode": "􀉅"
     },
-    "symbol_docs": {
+    "symbol_disabled_by_default": {
       "unicode": "􀉆"
+    },
+    "symbol_docs": {
+      "unicode": "􀉇"
     },
     "symbol_folder_filled": {
       "unicode": "􀌀"

@@ -78,6 +78,31 @@ export enum VaultBrowseMode {
   Archived,
 }
 
+export enum VaultSortField {
+  Title,
+  LastModified,
+}
+
+// 搜索命中的维度：同一条目只归入第一个命中的分区，避免结果重复。
+export enum VaultSearchMatch {
+  Title,
+  Tag,
+  Group,
+  Body,
+}
+
+export interface VaultSearchSection {
+  match: VaultSearchMatch;
+  entries: VaultEntry[];
+  // 标签分区里每条条目命中的标签：列表副标题据此说明命中原因，无需再次扫描标签。
+  matchedTags: Map<string, string>;
+}
+
+export interface VaultTagOption {
+  tag: string;
+  count: number;
+}
+
 export class StageOneVaultStore {
   private context: common.UIAbilityContext | undefined
   private repository: FileVaultRepository | undefined
@@ -485,18 +510,14 @@ export class StageOneVaultStore {
     return this.flatEntriesCache
   }
 
-  // 全库排序是 O(n log n) 且 localeCompare 很贵；随文档实例缓存，落盘与重新解锁都会换文档对象。
-  private sortedCache: VaultEntry[] | undefined = undefined
-  private sortedCacheDocument: VaultDocument | undefined = undefined
-
+  // 全库排序是 O(n log n) 且 localeCompare 很贵；统一走按排序字段缓存的 orderedEntries。
   private sortedEntries(): VaultEntry[] {
-    const document: VaultDocument = this.session.getDocument()
-    if (this.sortedCache === undefined || this.sortedCacheDocument !== document) {
-      this.sortedCache = this.entries().sort((left: VaultEntry, right: VaultEntry) =>
-      left.title.localeCompare(right.title))
-      this.sortedCacheDocument = document
-    }
-    return this.sortedCache
+    return this.orderedEntries(VaultSortField.Title)
+  }
+
+  private invalidateOrderCache(): void {
+    this.orderCache.clear()
+    this.orderCacheDocument = undefined
   }
 
   hasEntries(): boolean {
@@ -513,10 +534,13 @@ export class StageOneVaultStore {
   }
 
   // 组筛选：传入组为子树根，命中该组及全部后代组内的条目。
-  browse(query: string, mode: VaultBrowseMode, groupUuids: string[] = []): VaultEntry[] {
+  // 标签筛选取并集（任一选中标签命中即可），与分组、搜索叠加。
+  browse(query: string, mode: VaultBrowseMode, groupUuids: string[] = [], tags: string[] = [],
+    sort: VaultSortField = VaultSortField.Title): VaultEntry[] {
     const acceptedGroups: Set<string> | undefined = this.acceptedGroupUuids(groupUuids)
+    const acceptedTags: Set<string> | undefined = tags.length > 0 ? new Set(tags) : undefined
     const normalizedQuery: string = query.trim().toLocaleLowerCase()
-    return this.sortedEntries().filter((entry: VaultEntry) => {
+    return this.orderedEntries(sort).filter((entry: VaultEntry) => {
       if (mode === VaultBrowseMode.Archived ? !entry.archived : entry.archived) {
         return false
       }
@@ -526,8 +550,92 @@ export class StageOneVaultStore {
       if (acceptedGroups !== undefined && !acceptedGroups.has(entry.groupUuid)) {
         return false
       }
+      if (acceptedTags !== undefined && !entry.tags.some((tag: string) => acceptedTags.has(tag))) {
+        return false
+      }
       return normalizedQuery.length === 0 || this.searchableText(entry).includes(normalizedQuery)
     })
+  }
+
+  // 搜索分区：结果仍走同一套筛选，再按命中维度分组；顺序为 标题 / 标签 / 分组 / 内容。
+  searchSections(query: string, mode: VaultBrowseMode, groupUuids: string[] = [], tags: string[] = [],
+    sort: VaultSortField = VaultSortField.Title): VaultSearchSection[] {
+    const normalizedQuery: string = query.trim().toLocaleLowerCase()
+    const sections: VaultSearchSection[] = [
+      { match: VaultSearchMatch.Title, entries: [], matchedTags: new Map() },
+      { match: VaultSearchMatch.Tag, entries: [], matchedTags: new Map() },
+      { match: VaultSearchMatch.Group, entries: [], matchedTags: new Map() },
+      { match: VaultSearchMatch.Body, entries: [], matchedTags: new Map() },
+    ]
+    if (normalizedQuery.length === 0) {
+      return []
+    }
+    for (const entry of this.browse(query, mode, groupUuids, tags, sort)) {
+      const tag: string = this.matchedTag(entry, normalizedQuery)
+      const match: VaultSearchMatch = this.classify(entry, normalizedQuery, tag)
+      sections[match].entries.push(entry)
+      if (match === VaultSearchMatch.Tag) {
+        sections[match].matchedTags.set(entry.uuid, tag)
+      }
+    }
+    return sections.filter((section: VaultSearchSection) => section.entries.length > 0)
+  }
+
+  // 标签筛选面板的数据源：全库非归档标签及条目数，按数量降序。
+  tagOptions(): VaultTagOption[] {
+    const counts: Map<string, number> = new Map()
+    for (const entry of this.entries()) {
+      if (entry.archived) {
+        continue
+      }
+      for (const tag of entry.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      }
+    }
+    return Array.from(counts.keys())
+      .map((tag: string): VaultTagOption => ({ tag: tag, count: counts.get(tag) ?? 0 }))
+      .sort((left: VaultTagOption, right: VaultTagOption) =>
+      right.count - left.count || left.tag.localeCompare(right.tag))
+  }
+
+  private classify(entry: VaultEntry, normalizedQuery: string, tag: string): VaultSearchMatch {
+    if (entry.title.toLocaleLowerCase().includes(normalizedQuery)) {
+      return VaultSearchMatch.Title
+    }
+    if (tag.length > 0) {
+      return VaultSearchMatch.Tag
+    }
+    if (entry.groupPath.toLocaleLowerCase().includes(normalizedQuery) ||
+      entry.groupName.toLocaleLowerCase().includes(normalizedQuery)) {
+      return VaultSearchMatch.Group
+    }
+    return VaultSearchMatch.Body
+  }
+
+  private matchedTag(entry: VaultEntry, normalizedQuery: string): string {
+    return entry.tags.find((tag: string) => tag.toLocaleLowerCase().includes(normalizedQuery)) ?? ''
+  }
+
+  // 排序结果按「文档实例 + 排序字段」缓存；新增排序字段只需扩展枚举，不再加一对缓存字段。
+  private orderCache: Map<VaultSortField, VaultEntry[]> = new Map()
+  private orderCacheDocument: VaultDocument | undefined = undefined
+
+  private orderedEntries(sort: VaultSortField): VaultEntry[] {
+    const document: VaultDocument = this.session.getDocument()
+    if (this.orderCacheDocument !== document) {
+      this.orderCache.clear()
+      this.orderCacheDocument = document
+    }
+    const cached: VaultEntry[] | undefined = this.orderCache.get(sort)
+    if (cached !== undefined) {
+      return cached
+    }
+    const ordered: VaultEntry[] = sort === VaultSortField.Title
+      ? this.entries().sort((left: VaultEntry, right: VaultEntry) => left.title.localeCompare(right.title))
+      : this.entries().sort((left: VaultEntry, right: VaultEntry) =>
+      right.lastModifiedAt - left.lastModifiedAt || left.title.localeCompare(right.title))
+    this.orderCache.set(sort, ordered)
+    return ordered
   }
 
   // 默认根分组的子树覆盖全库，此时不做分组过滤，省掉一次整棵分组树的遍历。
@@ -795,7 +903,7 @@ export class StageOneVaultStore {
     this.credential = undefined
     this.session.clearSensitiveData()
     this.engine = new KdbxVaultEngine()
-    this.sortedCache = undefined
+    this.invalidateOrderCache()
     this.entryCacheDocument = undefined
     this.flatEntriesCache = []
     this.entryIndexCache.clear()
@@ -976,7 +1084,7 @@ export class StageOneVaultStore {
       throw error as Error
     }
     this.sourceModifiedAt = Date.now() / 1000
-    this.sortedCache = undefined
+    this.invalidateOrderCache()
     // 写入会原地改文档，缓存的平铺条目与头像必须失效。
     this.entryCacheDocument = undefined
     PreferencesUtil.putSync(SOURCE_MTIME, this.sourceModifiedAt, PREFERENCES_NAME)

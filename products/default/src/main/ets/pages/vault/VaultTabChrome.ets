@@ -4,14 +4,23 @@ import { ModuleTabChrome } from '../../components/ModuleTabChrome'
 import { PASSWORD_FONT_FAMILY } from '../../constants/FontConstants'
 import { ResUtil } from '@pura/harmony-utils'
 import { AnimationTokens, VaultGroup } from '@ohos/common'
+import { DsBadge, DsBadgeSize } from '../../components/DsBadge'
 import { DsButton, DsButtonVariant } from '../../components/DsButton'
+import { DsContextMenu, dsMenuOptions } from '../../components/DsContextMenu'
 import { DsInput } from '../../components/DsInput'
+import { DsMenuItem } from '../../components/DsMenuItem'
 import { DsSegmentedSwitch, DsSegmentedSwitchItem } from '../../components/DsSegmentedSwitch'
 import { DsTag, DsTagSize, DsTagTone } from '../../components/DsTag'
 import { DsGroupPicker, GroupPickerSource } from '../../components/DsGroupPicker'
 import { createGroupFromPicker } from './GroupPickerActions'
 import { dsSheetOptions } from '../../components/DsSheetOptions'
 import { DsControlSize } from '../../components/DsControlSize'
+import { VaultSortField, VaultTagOption } from '../../model/StageOneVaultStore'
+import { dsTagFilterSheetHeight, TagFilterSheet } from './TagFilterSheet'
+
+// 设计稿：模式切换固定 216（3 × 72），右侧三个图标按钮各 32、间距 8。
+const SWITCH_WIDTH_VP: number = 216
+const ACTION_SIZE_VP: number = 32
 
 @ComponentV2
 struct VaultHeaderBar {
@@ -155,6 +164,13 @@ struct VaultFilter {
   @Local private home: VaultHomeViewModel = vaultHomeViewModel
   @Local private app: AppViewModel = appViewModel
   @Local private groupPickerVisible: boolean = false
+  @Local private tagSheetVisible: boolean = false
+  // 打开面板时一次性取全库标签，避免每次渲染都遍历条目。
+  @Local private tagOptions: VaultTagOption[] = []
+  // 半模态高度由面板导出函数按标签内容计算。
+  @Local private tagSheetHeight: number = 300
+  // 筛选区实测宽度：面板宽度随之变化，而不是按手机稿写死。
+  @Local private filterWidthVp: number = 0
   private groupPickerBackHandler: (() => boolean) | undefined = undefined
 
   @Computed
@@ -171,11 +187,108 @@ struct VaultFilter {
     ]
   }
 
-  @Computed
-  get groupFilterLabel(): string {
-    return this.home.selectedGroupLabel()
+  private openTagFilter(): void {
+    this.tagOptions = this.home.tagOptions()
+    const width: number = this.filterWidthVp > 0 ? this.filterWidthVp : 390
+    this.tagSheetHeight = dsTagFilterSheetHeight(this.getUIContext(),
+      this.tagOptions.map((option: VaultTagOption) => option.tag), width)
+    this.tagSheetVisible = true
   }
 
+  @Builder
+  private tagSheet() {
+    TagFilterSheet({
+      tags: this.tagOptions,
+      initialTags: this.home.selectedTags,
+      onApply: (tags: string[]) => {
+        this.getUIContext().animateTo(AnimationTokens.FEEDBACK_ANIMATION, () => this.home.setSelectedTags(tags))
+        this.tagSheetVisible = false
+      },
+      onClose: () => this.tagSheetVisible = false,
+    })
+  }
+
+  @Builder
+  private sortMenuHeader() {
+    Column({ space: $r('app.float.ds_space_2') }) {
+      Text($r('app.string.sort_menu_title'))
+        .fontSize($r('app.float.ds_font_body'))
+        .fontWeight(600)
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+
+      Text($r('app.string.sort_menu_subtitle'))
+        .fontSize($r('app.float.ds_font_label_sm'))
+        .fontColor($r('app.color.ds_text_secondary'))
+        .maxLines(1)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({
+      left: $r('app.float.ds_space_16'),
+      right: $r('app.float.ds_space_16'),
+      top: $r('app.float.ds_space_md'),
+      bottom: $r('app.float.ds_space_md'),
+    })
+    .backgroundColor($r('app.color.ds_surface_low'))
+  }
+
+  @Builder
+  private sortRow(label: Resource, field: VaultSortField) {
+    Row() {
+      Text(label)
+        .fontSize($r('app.float.ds_font_body'))
+        .fontColor($r('app.color.ds_text_primary'))
+        .maxLines(1)
+
+      Blank()
+
+      if (this.home.sortField === field) {
+        SymbolGlyph($r('app.string.symbol_check'))
+          .fontSize($r('app.float.ds_icon_sm'))
+          .fontColor([$r('app.color.ds_primary')])
+          .foregroundColor($r('app.color.ds_primary'))
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({
+      left: $r('app.float.ds_space_16'),
+      right: $r('app.float.ds_space_16'),
+    })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  // @BuilderParam 的内容必须委托给 @Builder：在箭头里直接构造自定义组件会在渲染时抛
+  // class constructor cannot called without 'new'。
+  @LocalBuilder
+  private sortItems() {
+    DsMenuItem({
+      customRow: () => {
+        this.sortRow($r('app.string.sort_by_title'), VaultSortField.Title)
+      },
+      onAction: () => this.home.setSortField(VaultSortField.Title),
+    })
+    DsMenuItem({
+      customRow: () => {
+        this.sortRow($r('app.string.sort_by_modified'), VaultSortField.LastModified)
+      },
+      onAction: () => this.home.setSortField(VaultSortField.LastModified),
+    })
+  }
+
+  // 跨组件传给 DsButton 的 builder 必须用 @LocalBuilder，否则 this 指向调用方、菜单打不开。
+  @LocalBuilder
+  private sortMenu() {
+    DsContextMenu({
+      header: () => {
+        this.sortMenuHeader()
+      },
+      content: () => {
+        this.sortItems()
+      },
+    })
+  }
 
   @LocalBuilder
   private searchLeading() {
@@ -233,6 +346,7 @@ struct VaultFilter {
       })
 
       Row() {
+        // 设计稿固定 216（每段 72），不占满剩余宽度。
         Row() {
           DsSegmentedSwitch({
             items: this.modeItems,
@@ -241,25 +355,70 @@ struct VaultFilter {
             onSelect: (index: number) => this.home.setBrowseModeAtIndex(index),
           })
         }
-        .layoutWeight(1)
+        .width(SWITCH_WIDTH_VP)
 
-        DsButton({
-          label: this.groupFilterLabel,
-          variant: DsButtonVariant.Text,
-          buttonSize: DsControlSize.Small,
-          leadingIcon: $r('app.string.symbol_folder'),
-          trailingIcon: $r('app.string.symbol_chevron_down'),
-          iconSizeOverride: $r('app.float.ds_icon_xs'),
-          iconColorOverride: $r('app.color.ds_text_secondary'),
-          contentColorOverride: $r('app.color.ds_text_secondary'),
-          labelFontSizeOverride: $r('app.float.ds_font_label_md'),
-          labelWeightOverride: FontWeight.Medium,
-          horizontalPaddingOverride: $r('app.float.ds_space_xs'),
-          onTap: () => this.groupPickerVisible = true,
-        })
+        Row({ space: $r('app.float.ds_space_sm') }) {
+          DsButton({
+            variant: DsButtonVariant.Text,
+            buttonSize: DsControlSize.Small,
+            iconOnly: true,
+            leadingIcon: this.home.isGroupFiltering
+              ? $r('app.string.symbol_folder_filled') : $r('app.string.symbol_folder'),
+            iconSizeOverride: $r('app.float.ds_icon_sm'),
+            iconColorOverride: this.home.isGroupFiltering
+              ? $r('app.color.ds_primary') : $r('app.color.ds_text_secondary'),
+            accessibilityLabelResource: $r('app.string.filter_group_a11y'),
+            onTap: () => this.groupPickerVisible = true,
+          })
+
+          Stack({ alignContent: Alignment.TopEnd }) {
+            DsButton({
+              variant: DsButtonVariant.Text,
+              buttonSize: DsControlSize.Small,
+              iconOnly: true,
+              leadingIcon: $r('app.string.symbol_label'),
+              iconSizeOverride: $r('app.float.ds_icon_sm'),
+              iconColorOverride: this.home.isTagFiltering
+                ? $r('app.color.ds_primary') : $r('app.color.ds_text_secondary'),
+              accessibilityLabelResource: $r('app.string.filter_tag_a11y'),
+              onTap: () => this.openTagFilter(),
+            })
+
+            if (this.home.isTagFiltering) {
+              DsBadge({ badgeSize: DsBadgeSize.Medium })
+                .margin({ top: -2, right: -2 })
+            }
+          }
+          .width(ACTION_SIZE_VP)
+          .height(ACTION_SIZE_VP)
+          .clip(false)
+          .bindSheet($$this.tagSheetVisible, this.tagSheet(), dsSheetOptions({
+            detents: [this.tagSheetHeight],
+            // 系统控制条样式与设计不符，面板只用 DsHalfModalSheet 自绘拖拽条。
+            dragBar: false,
+            onDisappear: () => {
+              this.tagSheetVisible = false
+            },
+          }))
+
+          DsButton({
+            variant: DsButtonVariant.Text,
+            buttonSize: DsControlSize.Small,
+            iconOnly: true,
+            leadingIcon: $r('app.string.symbol_sort'),
+            iconSizeOverride: $r('app.float.ds_icon_sm'),
+            iconColorOverride: this.home.sortField === VaultSortField.LastModified
+              ? $r('app.color.ds_primary') : $r('app.color.ds_text_secondary'),
+            accessibilityLabelResource: $r('app.string.filter_sort_a11y'),
+            menuBuilder: this.sortMenu,
+            menuOptions: dsMenuOptions(Placement.BottomRight),
+          })
+        }
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
       .height($r('app.float.ds_tab_height_md'))
+      .justifyContent(FlexAlign.SpaceBetween)
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
@@ -272,6 +431,10 @@ struct VaultFilter {
     // 批量态筛选区高度由标题栏收到 0，内容同步淡出，避免高度收起时文字被硬裁。
     .opacity(this.home.batchMode ? 0 : 1)
     .animation(AnimationTokens.FEEDBACK_ANIMATION)
+    .onAreaChange((_oldValue: Area, newValue: Area) => {
+      // Area 宽高本身以 vp 计，不要再做 px→vp 换算。
+      this.filterWidthVp = Number(newValue.width)
+    })
     .bindSheet($$this.groupPickerVisible, this.groupPickerSheet(), dsSheetOptions({
       onWillDismiss: (action: DismissSheetAction) => this.onGroupPickerWillDismiss(action),
       onDisappear: () => {

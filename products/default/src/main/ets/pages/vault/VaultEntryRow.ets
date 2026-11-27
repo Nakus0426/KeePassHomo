@@ -1,10 +1,37 @@
 import { AnimationTokens, measureVp } from '@ohos/common'
+import { ResUtil } from '@pura/harmony-utils'
 import { DsCheckbox } from '../../components/DsCheckbox'
 import { EntryAvatar } from '../../components/EntryAvatar'
 import { FavoriteToggle } from '../../components/FavoriteToggle'
 import { EntryRowModel } from '../../viewmodel/EntryRowModel'
 import { VaultHomeViewModel, vaultHomeViewModel } from '../../viewmodel/VaultHomeViewModel'
 import { DsControlSize } from '../../components/DsControlSize'
+
+interface TextHit {
+  before: string
+  hit: string
+  after: string
+}
+
+// 行内两种文本（标题 / 副标题）的样式在此集中，命中与未命中两条路径共用。
+@Extend(Text)
+function entryTitleText() {
+  .width('100%')
+  .fontSize($r('app.float.ds_font_title'))
+  .fontWeight(600)
+  .fontColor($r('app.color.ds_text_primary'))
+  .maxLines(1)
+  .textOverflow({ overflow: TextOverflow.Ellipsis })
+}
+
+@Extend(Text)
+function entrySubtitleText() {
+  .width('100%')
+  .fontSize($r('app.float.ds_font_body_sm'))
+  .fontColor($r('app.color.ds_text_secondary'))
+  .maxLines(1)
+  .textOverflow({ overflow: TextOverflow.Ellipsis })
+}
 
 // 密集条目行：只渲染行模型与本地点击，业务动作由首页统一编排。
 @ComponentV2
@@ -58,6 +85,76 @@ export struct VaultEntryRow {
     this.row.ensureSubtitle()
   }
 
+  // 搜索命中片段：只取第一处，命中文字加主色下划线；未命中时整段作为 before。
+  private hit(text: string): TextHit {
+    const query: string = this.home.normalizedQuery
+    if (query.length === 0) {
+      return { before: text, hit: '', after: '' }
+    }
+    const index: number = text.toLocaleLowerCase().indexOf(query)
+    if (index < 0) {
+      return { before: text, hit: '', after: '' }
+    }
+    return {
+      before: text.slice(0, index),
+      hit: text.slice(index, index + query.length),
+      after: text.slice(index + query.length),
+    }
+  }
+
+  private subtitleText(): string {
+    return typeof this.row.subtitle === 'string'
+      ? this.row.subtitle : ResUtil.getStringSync(this.row.subtitle)
+  }
+
+  @Computed
+  get titleHit(): TextHit {
+    return this.hit(this.row.title)
+  }
+
+  @Computed
+  get subtitleHit(): TextHit {
+    return this.hit(this.subtitleText())
+  }
+
+  @Builder
+  private hitSpans(hit: TextHit) {
+    Span(hit.before)
+    Span(hit.hit)
+      .decoration({
+        type: TextDecorationType.Underline,
+        color: $r('app.color.ds_primary'),
+        style: TextDecorationStyle.SOLID,
+      })
+    Span(hit.after)
+  }
+
+  @Builder
+  private entryTitle() {
+    if (this.home.isSearching) {
+      Text() {
+        this.hitSpans(this.titleHit)
+      }
+      .entryTitleText()
+    } else {
+      Text(this.row.title)
+        .entryTitleText()
+    }
+  }
+
+  @Builder
+  private entrySubtitle() {
+    if (this.home.isSearching) {
+      Text() {
+        this.hitSpans(this.subtitleHit)
+      }
+      .entrySubtitleText()
+    } else {
+      Text(this.row.subtitle)
+        .entrySubtitleText()
+    }
+  }
+
   build() {
     Stack({ alignContent: Alignment.End }) {
       Row() {
@@ -89,20 +186,9 @@ export struct VaultEntryRow {
         })
 
         Column({ space: $r('app.float.ds_space_2') }) {
-          Text(this.row.title)
-            .width('100%')
-            .fontSize($r('app.float.ds_font_title'))
-            .fontWeight(600)
-            .fontColor($r('app.color.ds_text_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          this.entryTitle()
 
-          Text(this.row.subtitle)
-            .width('100%')
-            .fontSize($r('app.float.ds_font_body_sm'))
-            .fontColor($r('app.color.ds_text_secondary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          this.entrySubtitle()
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)

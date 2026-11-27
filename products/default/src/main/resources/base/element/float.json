@@ -643,6 +643,38 @@
     {
       "name": "ds_tracking_wide_2xl",
       "value": "1.2fp"
+    },
+    {
+      "name": "ds_badge_dot_sm",
+      "value": "6vp"
+    },
+    {
+      "name": "ds_badge_dot_md",
+      "value": "8vp"
+    },
+    {
+      "name": "ds_badge_dot_lg",
+      "value": "10vp"
+    },
+    {
+      "name": "ds_badge_box_sm",
+      "value": "14vp"
+    },
+    {
+      "name": "ds_badge_box_md",
+      "value": "16vp"
+    },
+    {
+      "name": "ds_badge_box_lg",
+      "value": "20vp"
+    },
+    {
+      "name": "ds_badge_font_sm",
+      "value": "10fp"
+    },
+    {
+      "name": "ds_badge_font_lg",
+      "value": "11fp"
     }
   ]
 }

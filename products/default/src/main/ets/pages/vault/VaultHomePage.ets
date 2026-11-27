@@ -327,14 +327,24 @@ export struct VaultHomePage {
     DsListRowMotion({
       leaving: item.item.header!.leaving,
     }) {
-      this.groupHeaderRow(item)
+      this.headerRow(item.item.header!.groupName, item.item.header!.count, true, item.item.header!.groupUuid)
     }
   }
 
   @Builder
-  private groupHeaderRow(item: RepeatItem<EntryListItem>) {
+  private sectionHeader(item: RepeatItem<EntryListItem>) {
+    DsListRowMotion({
+      leaving: item.item.section!.leaving,
+    }) {
+      this.headerRow(item.item.section!.name, item.item.section!.count, false, '')
+    }
+  }
+
+  // 分组段头与搜索分区段头共用一行；分区没有 uuid，也不显示「在此新建」。
+  @Builder
+  private headerRow(name: string, count: number, showAdd: boolean, groupUuid: string) {
     Row({ space: $r('app.float.ds_space_sm') }) {
-      Text(item.item.header!.groupName)
+      Text(name)
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontWeight(600)
         .letterSpacing($r('app.float.ds_tracking_wide_2xl'))
@@ -342,14 +352,14 @@ export struct VaultHomePage {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text(String(item.item.header!.count))
+      Text(String(count))
         .fontSize($r('app.float.ds_font_label_sm'))
         .fontFamily(PASSWORD_FONT_FAMILY)
         .fontColor($r('app.color.ds_text_tertiary'))
 
       Blank()
 
-      if (!this.readOnly && !this.home.batchMode) {
+      if (!this.readOnly && !this.home.batchMode && showAdd) {
         DsButton({
           variant: DsButtonVariant.Text,
           buttonSize: DsControlSize.Small,
@@ -358,7 +368,7 @@ export struct VaultHomePage {
           iconSizeOverride: $r('app.float.ds_icon_sm'),
           iconColorOverride: $r('app.color.ds_text_secondary'),
           accessibilityLabelResource: $r('app.string.new_entry'),
-          onTap: () => this.openTemplatePicker(item.item.header!.groupUuid),
+          onTap: () => this.openTemplatePicker(groupUuid),
         })
       }
     }
@@ -594,6 +604,8 @@ export struct VaultHomePage {
         .height(0)
     } else if (item.item.kind === EntryListItemKind.Header) {
       this.groupHeader(item)
+    } else if (item.item.kind === EntryListItemKind.Section) {
+      this.sectionHeader(item)
     } else {
       this.entryRow(item)
     }
@@ -620,6 +632,11 @@ export struct VaultHomePage {
         })
         .templateId((item: EntryListItem) => item.kind)
         .template(EntryListItemKind.Header, (item: RepeatItem<EntryListItem>) => {
+          ListItem() {
+            this.listItemBody(item)
+          }
+        })
+        .template(EntryListItemKind.Section, (item: RepeatItem<EntryListItem>) => {
           ListItem() {
             this.listItemBody(item)
           }

@@ -27,6 +27,21 @@ export function dsContextMenuOptions(onDisappear: () => void, placement?: Placem
   return options
 }
 
+// bindMenu 走同一套菜单皮肤：供页面按钮的点击菜单使用，避免各调用处手写视觉参数。
+export function dsMenuOptions(placement?: Placement, targetSpaceVp: number = MENU_TARGET_SPACE): MenuOptions {
+  const options: MenuOptions = {
+    targetSpace: LengthMetrics.vp(targetSpaceVp),
+    borderRadius: $r('app.float.ds_radius_none'),
+    backgroundColor: $r('app.color.ds_surface_lowest'),
+    backgroundBlurStyle: BlurStyle.NONE,
+    mask: { color: $r('app.color.ds_scrim'), backgroundBlurStyle: BlurStyle.NONE },
+  }
+  if (placement !== undefined) {
+    options.placement = placement
+  }
+  return options
+}
+
 @ComponentV2
 export struct DsContextMenu {
   @BuilderParam header: () => void = this.empty

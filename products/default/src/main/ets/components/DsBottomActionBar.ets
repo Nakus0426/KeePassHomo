@@ -1,6 +1,17 @@
+import { measureVp } from '@ohos/common'
 import { immersiveLayoutState, ImmersiveLayoutState } from '../state/ImmersiveLayoutState'
 
 const BOTTOM_SAFE_AREA_GAP_VP: number = 8
+
+// 底栏高度 = 上内边距 + 内容高 + 底部安全区；面板按内容定高时复用同一份公式。
+export function dsBottomActionBarHeight(uiContext: UIContext, contentHeightVp: number): number {
+  return measureVp(uiContext, $r('app.float.ds_space_lg')) + contentHeightVp
+    + uiContext.px2vp(immersiveLayoutState.bottomAvoidAreaHeightPx) + BOTTOM_SAFE_AREA_GAP_VP
+}
+
+function bottomSafeInsetVp(uiContext: UIContext): number {
+  return uiContext.px2vp(immersiveLayoutState.bottomAvoidAreaHeightPx) + BOTTOM_SAFE_AREA_GAP_VP
+}
 
 @ComponentV2
 export struct DsBottomActionBar {
@@ -16,7 +27,7 @@ export struct DsBottomActionBar {
   @Computed
   get bottomInset(): number {
     return this.includeSafeArea
-      ? this.getUIContext().px2vp(this.immersiveLayout.bottomAvoidAreaHeightPx) + BOTTOM_SAFE_AREA_GAP_VP
+      ? bottomSafeInsetVp(this.getUIContext())
       : BOTTOM_SAFE_AREA_GAP_VP
   }
 

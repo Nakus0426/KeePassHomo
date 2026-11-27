@@ -21,6 +21,8 @@ export struct DsHalfModalSheet {
   // 关闭按钮由壳统一绘制在动作区最右；提交中置 false 锁住退出。
   @Param showClose: boolean = true
   @Param closeEnabled: boolean = true
+  // 高度固定、不可拖拽的面板不画拖拽条，避免暗示可以调整高度。
+  @Param showHandle: boolean = true
   @Param actions: DsPageHeaderAction[] = []
   // 内容是否绘制到标题栏下方（沉浸式预览，如密码生成器预览底色上探）。默认内容避让标题栏。
   @Param contentBehindTitleBar: boolean = false
@@ -48,7 +50,7 @@ export struct DsHalfModalSheet {
   private titleBarContent() {
     Column() {
       // 拖拽条放在标题栏内部，与标题栏共用同一层渐变模糊材质；沉浸式预览不带拖拽条。
-      if (!this.contentBehindTitleBar) {
+      if (this.showHandle && !this.contentBehindTitleBar) {
         this.dragHandle()
       }
 
